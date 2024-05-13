@@ -29,6 +29,7 @@ module stella_io
    public :: write_radial_moments_nc
    public :: write_fluxes_kxkyz_nc
    public :: write_fluxes_nc
+   public :: write_stress_nc
    public :: get_nout
    public :: sync_nc
 
@@ -359,6 +360,30 @@ contains
                         start=[nout])
 # endif
    end subroutine write_phi2_nc
+   
+
+   subroutine write_stress_nc(nout, Ah_stress, phih_stress)
+# ifdef NETCDF
+      use neasyf, only: neasyf_write
+# endif
+      implicit none
+      !> Current timestep
+      integer, intent(in) :: nout
+      !> stresses:
+      complex, dimension(:,:), intent(in) :: Ah_stress, phih_stress
+
+# ifdef NETCDF
+      call netcdf_write_complex(ncid, "phih_stress", phih_stress, &
+				[character(len=4)::"ri","kx", "zed", "t"], &
+                                long_name="Reynolds stress as a function of kx and zed", &
+                                start=[1, 1, 1, nout])
+      call netcdf_write_complex(ncid, "Ah_stress", Ah_stress, &
+                                [character(len=4)::"ri","kx", "zed", "t"], &
+                                long_name="Maxwell stress as a function of kx and zed", &
+				start=[1, 1, 1, nout])
+# endif
+   end subroutine write_stress_nc
+
 
    subroutine write_apar2_nc(nout, apar2)
 # ifdef NETCDF
