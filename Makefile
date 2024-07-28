@@ -7,7 +7,7 @@
 # Makefile written by Bill Dorland and Ryusuke Numata
 #
 # In the ~/.source.sh or ~/.bashrc file of your computer define, e.g., 
-# export GK_SYSTEM='marconi', which matches stella/Makefiles/Makefile.$GK_SYSTEM
+# export STELLA_SYSTEM='marconi', which matches stella/Makefiles/Makefile.$STELLA_SYSTEM
 #
 # * Available Compilers (tested on limited hosts)
 #   (must be Fortran 95 Standard compliant)
@@ -62,21 +62,21 @@ USE_FFT ?= fftw3
 # For example, inside stella/Makefiles/Makefile.marconi
 
 MAKE		 = make
-CPP		 = cpp
+CPP		     = cpp
 CPPFLAGS	 = -P -traditional
 export FC	 = f90
-export MPIFC	?= mpif90
+export MPIFC?= mpif90
 H5FC		?= h5fc
 H5FC_par	?= h5pfc
 F90FLAGS	 =
 F90OPTFLAGS	 =
-CC		 = cc
+CC		     = cc
 MPICC		?= mpicc
 H5CC		?= h5cc
 H5CC_par	?= h5pcc
 CFLAGS		 =
 COPTFLAGS 	 =
-LD 		 = $(FC)
+LD 		     = $(FC)
 LDFLAGS 	 = $(F90FLAGS)
 ARCH 		 = ar
 ARCHFLAGS 	 = cr
@@ -101,66 +101,106 @@ PETSC_LIB ?=
 PETSC_INC ?=
 LIBSTELL_LIB ?=
 
-# Record the top level path. Note we don't just use $(PWD) as this
-# resolves to the directory from which make was invoked. The approach
-# taken here ensures that GK_HEAD_DIR is the location of this
-# Makefile. Note the realpath call removes the trailing slash so
-# later we need to add a slash if we want to address subdirectories
-GK_THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
-GK_HEAD_DIR := $(realpath $(dir $(GK_THIS_MAKEFILE)))
-
 ####################################################################
-#                        PLATFORM DEPENDENCE                       #
-####################################################################
-# The compiler mode switches (DEBUG, TEST, OPT, STATIC, DBLE) must be set
-# before loading Makefile.$(GK_SYSTEM) because they may affect compiler options.
-# However, Makefile.local may override some options set in Makefile.$(GK_SYSTEM),
-# thus it is included before and after Makefile.$(GK_SYSTEM)
+#                            DIRECTORIES                           #
 ####################################################################
 
-# Here "sinclude" will include the file, without an error if it doesn't exist
-sinclude Makefile.local
+# In the make file we can use CURDIR, which is set to the absolute 
+# pathname of the current working directory. When GNU make starts 
+# (after it has processed any -C options) it sets the variable
+# CURDIR to the pathname of the current working directory.
+CURRENT_DIRECTORY = $(CURDIR)
 
-# Include system-dependent make variables, defined in stella/Makefiles/Makefile.$GK_SYSTEM 
-# where e.g., export GK_SYSTEM='marconi' inside e.g. ~/.bashrc defined this system variable on your computer 
-ifndef GK_SYSTEM
-	ifdef SYSTEM
-$(warning SYSTEM environment variable is obsolete)
-$(warning use GK_SYSTEM instead)
-	GK_SYSTEM = $(SYSTEM)
-	else
-$(error GK_SYSTEM is not set)
-	endif
-endif
+# As make reads various makefiles, including any obtained from the 
+# MAKEFILES variable, the command line, the default files, or from 
+# include directives, their names will be automatically appended to 
+# the MAKEFILE_LIST variable. They are added right before make begins
+# to parse them. This means that if the first thing a makefile does 
+# is examine the last word in this variable, it will be the name of 
+# the current makefile. Once the current makefile has used include, 
+# however, the last word will be the just-included makefile. 
 
-# Read the stella/Makefiles/Makefile.$GK_SYSTEM file
-include Makefile.$(GK_SYSTEM)
+# Set MAKEFILE_PATH to the location of this Makefile.
+# Using 'abspath' will not resolve symbolic links
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 
-# Overwrite the file with the local file, if it exists
-sinclude Makefile.local
+# Get the directory in which the Makefile is located, 
+# and the directory of the stella code 
+STELLA_PARENT_DIR := $(realpath $(dir $(MAKEFILE_PATH)))
+STELLA_CODE_DIR := $(STELLA_PARENT_DIR)/STELLACODE
 
-####################################################################
-#                        PLATFORM DEPENDENCE                       #
-####################################################################
+# Print these paths to the command prompt
+$(info   )
+$(info   ==========================================================================)
+$(info   ============================ MAKE DIRECTORIES ============================)
+$(info   ==========================================================================)
+$(info   CURRENT_DIRECTORY is $(CURRENT_DIRECTORY))
+$(info   MAKEFILE_PATH is $(MAKEFILE_PATH))
+$(info   STELLA_PARENT_DIR is $(STELLA_PARENT_DIR))
+$(info   STELLA_CODE_DIR is $(STELLA_CODE_DIR))
+$(info   ==========================================================================)
+$(info   )
 
-# Export some variables, so they become available to all child processes
-export F90FLAGS
-export NETCDF_INC
-export NETCDF_LIB
-
-# Export the subdirectories
-export DIAG=$(GK_HEAD_DIR)/diagnostics
-export COLL=$(GK_HEAD_DIR)/dissipation
-export UTILS=$(GK_HEAD_DIR)/utils
-export GEO=$(GK_HEAD_DIR)/geometry
+# Export the subdirectories so they are available to child processes
+export STELLACODE=$(STELLA_CODE_DIR)
+export DIAG=$(STELLA_CODE_DIR)/diagnostics
+export GEO=$(STELLA_CODE_DIR)/geometry
+export COLL=$(STELLA_CODE_DIR)/dissipation
+export UTILS=$(STELLA_CODE_DIR)/utils
 export LIBSTELL=$(UTILS)/mini_libstell
 
 # We make extra libraries <mini_libstell> and <stella_utils>
 LIBSTELL_LIB=$(LIBSTELL)/mini_libstell.a
 
 # External libraries
-GIT_VERSION_DIR := $(GK_HEAD_DIR)/externals/git_version
-NEASYF := $(GK_HEAD_DIR)/externals/neasyf/src
+GIT_VERSION_DIR := $(STELLA_PARENT_DIR)/externals/git_version
+NEASYF := $(STELLA_PARENT_DIR)/externals/neasyf/src
+
+####################################################################
+#                        PLATFORM DEPENDENCE                       #
+####################################################################
+# Each platform will need slightly different compiler flags, thus
+# each platform has its owm 'Makefiles/Makefile.STELLA_SYSTEM' file. 
+####################################################################
+
+# A user can include a 'Makefile.local' to change some compiler flags
+# Here "sinclude" will include the file, without an error if it doesn't exist
+sinclude Makefile.local
+
+# Include system-dependent make variables, defined in stella/Makefiles/Makefile.$STELLA_SYSTEM 
+# where e.g., export STELLA_SYSTEM='marconi' inside e.g. ~/.bashrc defined this system variable on your computer 
+ifndef STELLA_SYSTEM
+	ifdef SYSTEM
+$(warning WARNING: SYSTEM environment variable is obsolete, use GK_SYSTEM instead)
+$(info    )
+	GK_SYSTEM = $(SYSTEM)
+	else ifdef GK_SYSTEM
+$(warning WARNING: GK_SYSTEM environment variable is obsolete, use STELLA_SYSTEM instead)
+$(info    )
+	STELLA_SYSTEM = $(GK_SYSTEM)
+	else
+$(info    )
+$(info ERROR: STELLA_SYSTEM is not set.)
+$(info Please set the following line in your .bashrc file, corresponding to your operating system:)
+$(info     >> export STELLA_SYSTEM='gnu_ubuntu')
+$(info    )
+$(error Aborting stella compilation because STELLA_SYSTEM is not set)
+	endif
+endif
+
+# Read the make file for this specific operating system, set in STELLA_SYSTEM
+# The compiler mode switches (DEBUG, TEST, OPT, STATIC, DBLE) must be set
+# before loading Makefile.$(STELLA_SYSTEM) because they may affect compiler options.
+include $(STELLA_PARENT_DIR)/Makefiles/Makefile.$(STELLA_SYSTEM) 
+
+# However, Makefile.local may override some options set in Makefile.$(STELLA_SYSTEM),
+# thus it is included before and after Makefile.$(_SYSTEM), if it exists
+sinclude Makefile.local
+
+# Export some variables, so they become available to all child processes
+export F90FLAGS
+export NETCDF_INC
+export NETCDF_LIB
 
 ####################################################################
 #                        PROCESS SOME FLAGS                        #
@@ -234,7 +274,6 @@ else
 		CPPFLAGS += -DSPFUNC=_SPNAG_
 	endif
 endif
-
 ifdef USE_NAGLIB
 	ifeq ($(NAG_PREC),dble)
 		ifndef DBLE
@@ -249,7 +288,6 @@ $(warning Precision mismatch with NAG libarray)
 		CPPFLAGS += -DNAG_PREC=_NAGSNGL_
 	endif
 endif
-
 ifdef USE_SFINCS
 	CPPFLAGS += -DUSE_SFINCS
 endif
@@ -267,44 +305,16 @@ F90FLAGS+= $(F90OPTFLAGS)
 CFLAGS += $(COPTFLAGS)
 
 ####################################################################
-#                        PROCESS DIRECTORIES                       #
+#                  DIRECTORIES WITH FORTRAN CODE                   #
 ####################################################################
 
-DATE=$(shell date +%y%m%d)
-TARDIR=stella_$(DATE)
-
-# If we called make in a subdirectory, get the directory above it
-TOPDIR=$(CURDIR)
-ifeq ($(notdir $(CURDIR)), $(COLL))
-	TOPDIR=$(subst /$(COLL),,$(CURDIR))
-endif
-ifeq ($(notdir $(CURDIR)), $(DIAG))
-	TOPDIR=$(subst /$(DIAG),,$(CURDIR))
-endif
-ifeq ($(notdir $(CURDIR)), $(UTILS))
-	TOPDIR=$(subst /$(UTILS),,$(CURDIR))
-endif
-ifeq ($(notdir $(CURDIR)), $(GEO))
-	TOPDIR=$(subst /$(GEO),,$(CURDIR))
-endif
-ifeq ($(notdir $(CURDIR)), $(LIBSTELL))
-	TOPDIR=$(subst /$(LIBSTELL),,$(CURDIR))
-endif
-ifneq ($(TOPDIR),$(CURDIR))
-	SUBDIR=true
-endif
-
 # VPATH is a list of directories to be searched for missing source files
-VPATH = $(DIAG):$(COLL):$(UTILS):$(GEO):$(LIBSTELL):$(GIT_VERSION_DIR)/src:$(NEASYF)
+# The value of the make variable VPATH specifies a list of directories that make should search.
+VPATH = $(STELLACODE):$(DIAG):$(COLL):$(UTILS):$(GEO):$(LIBSTELL):$(GIT_VERSION_DIR)/src:$(NEASYF)
 
 # Removes non-existing directories from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
-
-# If we're in a subdirectory, add the parent directory 
-ifdef SUBDIR
-	VPATH +=:..
-endif
 
 ####################################################################
 #            READ THE DEPENDENCIES OF THE SOURCE FILES             #
@@ -316,7 +326,7 @@ DEPEND=Makefile.depend
 DEPEND_CMD=$(PERL) fortdep
 
 # Most common include and library directories
-DEFAULT_INC_LIST = . $(DIAG) $(COLL) $(UTILS) $(LIBSTELL) $(GEO) $(NEASYF)
+DEFAULT_INC_LIST = . $(STELLACODE) $(DIAG) $(COLL) $(UTILS) $(LIBSTELL) $(GEO) $(NEASYF)
 DEFAULT_LIB_LIST =
 DEFAULT_INC=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
 DEFAULT_LIB=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
@@ -366,6 +376,8 @@ $(GIT_VERSION_DIR)/src/git_version_impl.F90: .compiler_flags
 #                              RULES                               #
 #################################################################### 
 
+BUILDDIR := $(STELLA_PARENT_DIR)/build_make
+
 # We process the following files
 .SUFFIXES: .fpp .f90 .F90 .c .o
 
@@ -395,6 +407,8 @@ $(GIT_VERSION_DIR)/src/git_version_impl.F90: .compiler_flags
 # "stella_all" is defined in stella/Makefile.target_stella
 ####################################################################
 
+# We have <submodules>, <modules> and <stella>
+
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher).  For 3.80 or less, see all target
 # If we're in the top folder, our target is <stella_all>, otherwise it is <utils_all> or <mini_libstell_all>
 .DEFAULT_GOAL := stella_all
@@ -411,7 +425,51 @@ all: $(.DEFAULT_GOAL)
 
 include $(DEPEND)
 
-sinclude Makefile.target_stella
+# The "stella_all" target will first make the "modules" target and then the "stella" target
+# Here "modules" will make "utils_all" and then "mini_libstell_all"
+stella_all: modules stella
+
+# undefined reference to `get_git_state` or `get_git_hash`? You need to manually
+# add a dependency of the affected binary on `$(OBJDIR)/git_version_impl.o` like
+# below. This file needs to be first in the list of dependencies so that the
+# file that needs the functions can find them. Yes this is unpleasant, no we
+# (probably?) can`t automate this like for the other dependencies. `fortdep`
+# doesn't understand Fortran submodules, so can't pick this up
+
+sub_modules := git_version_impl.o
+
+# "stella_mod" is defined in the Makefile.depend file, and contains all its dependencies
+stella: $(sub_modules) $(stella_mod)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+stella.x: $(sub_modules) $(stella_mod)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+# TODO-HT check if tests still work, I think this command is defined in tests/automated_fortran_tests/
+#automated-fortran-tests: git_version_impl.o
+#	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+# Create phony targets "modules", "utils_all" and "mini_libstell_all"
+.PHONY: modules utils_all mini_libstell_all
+
+# When we call the target "modules" we want to gather/compile two submodules: "utils_all" and "mini_libstell_all"
+modules: utils_all mini_libstell_all
+
+# Gather the <utils> scripts
+utils_all: utils.a
+UTIL_OBJ = spl.o constants.o file_utils.o netcdf_utils.o command_line.o
+utils.a: $(UTIL_OBJ)
+	$(ARCH) $(ARCHFLAGS) $@ $^
+	$(RANLIB) $@
+
+# Compile <mini_libstell>
+mini_libstell_all: mini_libstell.a
+mini_libstell.a:
+	$(MAKE) -C $(UTILS)/mini_libstell
+
+# Remove the executable
+distclean:
+	-rm -f stella stella.x
 
 # Include the automated Fortran tests
 # Inside 'tests/automated_fortran_tests/Makefile' we define the commands 
@@ -437,6 +495,12 @@ check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
 
 ############################################################# MORE DIRECTIVES
 
+# Declare all public targets
+# These words can be added after the make command:
+#   >> make
+#   >> make depend
+#   >> make clean
+#   >> make distclean
 .PHONY: depend clean distclean
 
 depend: $(GIT_VERSION_SENTINEL) $(NEASYF)
