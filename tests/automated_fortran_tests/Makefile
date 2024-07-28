@@ -1,7 +1,7 @@
 ###############################################################
 # Variables
 
-PFUNIT_TEST_DIR = $(GK_HEAD_DIR)/tests/automated_fortran_tests
+PFUNIT_TEST_DIR = $(STELLA_PARENT_DIR)/tests/automated_fortran_tests
 PFUNIT_NPROC = 4
 
 # Default major version of pFUnit
@@ -9,7 +9,7 @@ PFUNIT_NPROC = 4
 PFUNIT_VERSION_MAJOR ?= 4
 # Installation directory of pFUnit
 # Default is the directory where `scripts/build_pfunit` puts it
-PFUNIT_DIR ?= $(GK_HEAD_DIR)/externals/pFUnit_build/install/PFUNIT-4.2
+PFUNIT_DIR ?= $(STELLA_PARENT_DIR)/externals/pFUnit_build/install/PFUNIT-4.2
 
 PFUNIT_LOG:=pfunit.log
 PFUNIT_ERROR:=pfunit.error
@@ -53,7 +53,7 @@ PFUNIT_TEST_LIST := $(PFUNIT_TEST_DIR)/testSuites.inc
 .PHONY: build-pfunit-library check-pfunit-install clean-pfunit-library
 
 build-pfunit-library:
-	@echo "Building pFUnit in default location: $(GK_HEAD_DIR)/externals/pFUnit_build/install"
+	@echo "Building pFUnit in default location: $(STELLA_PARENT_DIR)/externals/pFUnit_build/install"
 	@tests/automated_fortran_tests/build_pfunit -v ${PFUNIT_VERSION_MAJOR}
 
 check-pfunit-install:
@@ -75,10 +75,10 @@ distclean: clean-pfunit-library
 %.o : %.pf
 	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
 ifdef ONE_STEP_PP
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(STELLA_PARENT_DIR) -o $@
 else
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(basename $<).F90 -o $(basename $<).f90
-	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(STELLA_PARENT_DIR) -o $@
 endif
 
 $(PFUNIT_DRIVER): $(PFUNIT_TEST_LIST)
@@ -114,7 +114,7 @@ coverage_gcov_fail:
 else
 coverage-pfunit: stella automated-fortran-tests coverage
 	mkdir -p coverage-pfunit
-	mv *.gcov coverage-pfunit/. || echo "Couldn't move generated gcov files to coverage-pfunit. This is likely because gcov files not found in ${GK_HEAD_DIR}."
+	mv *.gcov coverage-pfunit/. || echo "Couldn't move generated gcov files to coverage-pfunit. This is likely because gcov files not found in ${STELLA_PARENT_DIR}."
 endif
 
 ###############################################################

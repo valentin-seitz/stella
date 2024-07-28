@@ -1,7 +1,7 @@
 # See README.md for more information on these automated stella tests
 
 # Test directory
-test_dir = $(GK_HEAD_DIR)/tests
+test_dir = $(STELLA_PARENT_DIR)/tests
 
 # Create a virtualenv and install the test dependencies there
 create-test-virtualenv:
@@ -17,12 +17,12 @@ check-automated-stella-tests-dependencies:
 	@python3 $(test_dir)/check_automated_stella_tests_requirements.py
 	
 # Run the automated stella tests (the -r flag shows the full stella output and -rf shows extra info about the failed outputs)
-run-automated-numerical-tests-for-stella: check-automated-stella-tests-dependencies $(GK_HEAD_DIR)/stella
+run-automated-numerical-tests-for-stella: check-automated-stella-tests-dependencies $(STELLA_PARENT_DIR)/stella
 	@echo "Running: automated stella tests"
 	@pytest -v -rF -W ignore::DeprecationWarning
 	
 # Run the automated stella tests (the -r flag shows the full stella output)
 # -rA shows all outputs, -rf shows only failed outputs 
-run-automated-numerical-tests-for-stella-verbose: check-automated-stella-tests-dependencies $(GK_HEAD_DIR)/stella
+run-automated-numerical-tests-for-stella-verbose: check-automated-stella-tests-dependencies $(STELLA_PARENT_DIR)/stella
 	@echo "Running: automated stella tests printing all the output"
 	@pytest -v -rA -W ignore::DeprecationWarning

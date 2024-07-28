@@ -475,11 +475,11 @@ distclean:
 # Inside 'tests/automated_fortran_tests/Makefile' we define the commands 
 # >> build-pfunit-library 
 # >> run-automated-fortran-tests
-tests/automated_fortran_tests/Makefile:
-include tests/automated_fortran_tests/Makefile
+$(STELLA_PARENT_DIR)tests/automated_fortran_tests/Makefile:
+include $(STELLA_PARENT_DIR)/tests/automated_fortran_tests/Makefile
 
-tests/automated_numerical_tests_for_stella/Makefile:
-include tests/automated_numerical_tests_for_stella/Makefile
+$(STELLA_PARENT_DIR)tests/automated_numerical_tests_for_stella/Makefile:
+include $(STELLA_PARENT_DIR)tests/automated_numerical_tests_for_stella/Makefile
  
 # Run all tests together with the 'check' command
 check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
