@@ -6,6 +6,8 @@
 #
 # Makefile written by Bill Dorland and Ryusuke Numata
 #
+# In this Makefile the flags for the Fortran and C comilers are set.
+#
 # In the ~/.source.sh or ~/.bashrc file of your computer define, e.g., 
 # export STELLA_SYSTEM='marconi', which matches stella/Makefiles/Makefile.$STELLA_SYSTEM
 #
@@ -39,7 +41,7 @@
 # The "?=" sets a variable if it does not already have a value. 
 ####################################################################
 
-DEBUG ?= on                # Turns on debug mode (bin) 
+DEBUG ?=                   # Turns on debug mode (bin) 
 TEST ?=                    # Turns on test mode (bin) 
 OPT ?= on                  # Optimization (on, aggressive, undefined)
 STATIC ?=                  # Prevents linking with shared libraries (bin)
@@ -128,33 +130,8 @@ MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 # and the directory of the stella code 
 STELLA_PARENT_DIR := $(realpath $(dir $(MAKEFILE_PATH)))
 STELLA_CODE_DIR := $(STELLA_PARENT_DIR)/STELLACODE
-
-# Print these paths to the command prompt
-$(info   )
-$(info   ==========================================================================)
-$(info   ============================ MAKE DIRECTORIES ============================)
-$(info   ==========================================================================)
-$(info   CURRENT_DIRECTORY is $(CURRENT_DIRECTORY))
-$(info   MAKEFILE_PATH is $(MAKEFILE_PATH))
-$(info   STELLA_PARENT_DIR is $(STELLA_PARENT_DIR))
-$(info   STELLA_CODE_DIR is $(STELLA_CODE_DIR))
-$(info   ==========================================================================)
-$(info   )
-
-# Export the subdirectories so they are available to child processes
-export STELLACODE=$(STELLA_CODE_DIR)
-export DIAG=$(STELLA_CODE_DIR)/diagnostics
-export GEO=$(STELLA_CODE_DIR)/geometry
-export COLL=$(STELLA_CODE_DIR)/dissipation
-export UTILS=$(STELLA_CODE_DIR)/utils
-export LIBSTELL=$(UTILS)/mini_libstell
-
-# We make extra libraries <mini_libstell> and <stella_utils>
-LIBSTELL_LIB=$(LIBSTELL)/mini_libstell.a
-
-# External libraries
-GIT_VERSION_DIR := $(STELLA_PARENT_DIR)/externals/git_version
-NEASYF := $(STELLA_PARENT_DIR)/externals/neasyf/src
+EXTERNALS_DIR := $(STELLA_PARENT_DIR)/externals
+BUILD_DIR := $(STELLA_PARENT_DIR)/build_make
 
 ####################################################################
 #                        PLATFORM DEPENDENCE                       #
@@ -214,8 +191,10 @@ endif
 
 # Warning that we can't do nonlinear sims without fourier transformations
 ifndef USE_FFT
+$(warning      )
 $(warning USE_FFT is off)
 $(warning Be sure that nonlinear run makes no sense)
+$(warning      )
 endif
 
 ifdef HAS_ISO_C_BINDING
@@ -242,19 +221,16 @@ endif
 ifeq ($(USE_FFT),mkl_fftw)
 	CPPFLAGS += -DFFT=_FFTW_
 endif
-
 ifdef USE_NETCDF
 	ifeq ($(NETCDF_LIB),)
 		NETCDF_LIB = -lnetcdf
-        endif
+    endif
 	CPPFLAGS += -DNETCDF
 endif
-
 ifdef USE_LAPACK
-        LAPACK_LIB ?= -llapack
+    LAPACK_LIB ?= -llapack
 	CPPFLAGS += -DLAPACK
 endif
-
 ifdef USE_HDF5
 	FC = $(H5FC_par)
 	CC = $(H5CC_par)
@@ -263,7 +239,6 @@ ifdef USE_HDF5
 	endif
 	CPPFLAGS += -DHDF
 endif
-
 ifeq ($(USE_LOCAL_RAN),mt)
 	CPPFLAGS += -DRANDOM=_RANMT_
 endif
@@ -292,8 +267,9 @@ ifdef USE_SFINCS
 	CPPFLAGS += -DUSE_SFINCS
 endif
 
-# List of all the used libraries, where $LIBSTELL_LIB is our own library
-LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
+# List of all the used libraries
+# Here $LIBSTELL_LIB points to utils/mini_libstell which contains a stellarator resource library
+LIBS += $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
 		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LIBSTELL_LIB) $(LAPACK_LIB)
 
 # Include flags
@@ -301,188 +277,35 @@ INC_FLAGS= $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) \
 	   $(SFINCS_INC) $(PETSC_INC) $(LAPACK_INC)
 
 # Flags for the fortran compiler and the C compiler
-F90FLAGS+= $(F90OPTFLAGS)
+F90FLAGS += $(F90OPTFLAGS)
 CFLAGS += $(COPTFLAGS)
-
-####################################################################
-#                  DIRECTORIES WITH FORTRAN CODE                   #
-####################################################################
-
-# VPATH is a list of directories to be searched for missing source files
-# The value of the make variable VPATH specifies a list of directories that make should search.
-VPATH = $(STELLACODE):$(DIAG):$(COLL):$(UTILS):$(GEO):$(LIBSTELL):$(GIT_VERSION_DIR)/src:$(NEASYF)
-
-# Removes non-existing directories from VPATH
-VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
-VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
-
-####################################################################
-#            READ THE DEPENDENCIES OF THE SOURCE FILES             #
-####################################################################
-
-# The dependencies of one source file on other source files
-# is given in the file stella/Makefile.depend
-DEPEND=Makefile.depend
-DEPEND_CMD=$(PERL) fortdep
-
-# Most common include and library directories
-DEFAULT_INC_LIST = . $(STELLACODE) $(DIAG) $(COLL) $(UTILS) $(LIBSTELL) $(GEO) $(NEASYF)
-DEFAULT_LIB_LIST =
-DEFAULT_INC=$(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
-DEFAULT_LIB=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
-
-# List of intermediate f90 files generated by preprocessor
-F90FROMFPP = $(patsubst %.fpp,%.f90,$(notdir $(wildcard *.fpp */*.fpp)))
-
-# Files that we know are going to be in the submodule directories.
-# This is in case the directories exist but the submodules haven't actually been initialised
-GIT_VERSION_SENTINEL := $(GIT_VERSION_DIR)/Makefile
-NEASYF_SENTINEL := $(NEASYF)/neasyf.f90
-
-# If make is killed or interrupted during the execution of their recipes, the targets in ".PRECIOUS" are not deleted.
-.PRECIOUS: $(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL)
-
-# Make sure the submodules exist; they all currently share the same recipe
-$(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL) submodules:
-	@echo "Downloading submodules"
-	git submodule update --init --recursive
-
-# Dump the compilation flags to a file, so we can check if they change between
-# invocations of `make`. The `cmp` bit checks if the file contents
-# change. Adding a dependency of a file on `.compiler_flags` causes it to be
-# rebuilt when the flags change. Taken from
-# https://stackoverflow.com/a/3237349/2043465
-COMPILER_FLAGS_CONTENTS = "FC = $(FC)\n CPPFLAGS = $(CPPFLAGS)\n F90FLAGS = $(F90FLAGS)\n INC_FLAGS = $(INC_FLAGS)\n CFLAGS = $(CFLAGS)"
-COMPILER_FLAGS_CONTENTS += "\n FORTRAN_GIT_DEFS = $(FORTRAN_GIT_DEFS)"
-.PHONY: force
-.compiler_flags: force
-	@echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
-
-# Use the make rules from fortran-git-version, which requires ensuring the submodules exist
-include $(GIT_VERSION_DIR)/Makefile
-
-# We have some extra macros to add when preprocessing this file. We'll
-# need the submodule to exist first
-git_version_impl.f90: $(GIT_VERSION_DIR)/src/git_version_impl.F90 | $(GIT_VERSION_SENTINEL)
-	$(CPP) $(CPPFLAGS) $(FORTRAN_GIT_DEFS) $< $@
-
-# The fortdep script doesn't know about Fortran submodules, so we need
-# to write the dependency ourselves
-git_version_impl.o: git_version_impl.f90 git_version.o .compiler_flags
-$(GIT_VERSION_DIR)/src/git_version_impl.F90: .compiler_flags
-
 
 ####################################################################
 #                              RULES                               #
 #################################################################### 
 
-BUILDDIR := $(STELLA_PARENT_DIR)/build_make
+export BUILDDIR := $(STELLA_PARENT_DIR)/build_make
 
 # We process the following files
 .SUFFIXES: .fpp .f90 .F90 .c .o
 
 # Use Fortran f90 compiler for ".f90.o" files, e.g., ifort = The Intel Fortran compiler
 .f90.o:
-	$(FC) $(F90FLAGS) $(INC_FLAGS) -c $<
+	$(FC) $(F90FLAGS) $(INC_FLAGS) -J$(BUILDDIR) -c $<
 
 # Use C preprocessor (CPP) compiler for ".fpp.f90" files
 .fpp.f90:
-	$(CPP) $(CPPFLAGS) $< $@
+	$(CPP) $(CPPFLAGS) -J$(BUILDDIR) $< $@
 
 # Use Fortran f90 compiler for ".F90.o" files, but also use the C preprocessor
 .F90.o:
-	$(FC) $(F90FLAGS) $(CPPFLAGS) $(INC_FLAGS) -c $<
+	$(FC) $(F90FLAGS) $(CPPFLAGS) $(INC_FLAGS) -J$(BUILDDIR) -c $<
 
 # Use a C compiler for ".c.o" files
 .c.o:
-	$(CC) $(CFLAGS) -c $<
-
-####################################################################
-#                              Targets                             #
-####################################################################
-# Targets represent executables, libraries, and utilities built by CMake
-#     depend: generate dependency
-#     clean: clean up
-#     distclean: does "make clean" + removes platform links & executables
-# "stella_all" is defined in stella/Makefile.target_stella
-####################################################################
-
-# We have <submodules>, <modules> and <stella>
-
-# .DEFAULT_GOAL works for GNU make 3.81 (or higher).  For 3.80 or less, see all target
-# If we're in the top folder, our target is <stella_all>, otherwise it is <utils_all> or <mini_libstell_all>
-.DEFAULT_GOAL := stella_all
-ifeq ($(notdir $(CURDIR)),utils) 
-	.DEFAULT_GOAL := utils_all
-endif
-ifeq ($(notdir $(CURDIR)),mini_libstell)
-	.DEFAULT_GOAL := mini_libstell_all
-endif
-
-.PHONY: all stella_all
-
-all: $(.DEFAULT_GOAL)
-
-include $(DEPEND)
-
-# The "stella_all" target will first make the "modules" target and then the "stella" target
-# Here "modules" will make "utils_all" and then "mini_libstell_all"
-stella_all: modules stella
-
-# undefined reference to `get_git_state` or `get_git_hash`? You need to manually
-# add a dependency of the affected binary on `$(OBJDIR)/git_version_impl.o` like
-# below. This file needs to be first in the list of dependencies so that the
-# file that needs the functions can find them. Yes this is unpleasant, no we
-# (probably?) can`t automate this like for the other dependencies. `fortdep`
-# doesn't understand Fortran submodules, so can't pick this up
-
-sub_modules := git_version_impl.o
-
-# "stella_mod" is defined in the Makefile.depend file, and contains all its dependencies
-stella: $(sub_modules) $(stella_mod)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-stella.x: $(sub_modules) $(stella_mod)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-# TODO-HT check if tests still work, I think this command is defined in tests/automated_fortran_tests/
-#automated-fortran-tests: git_version_impl.o
-#	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-# Create phony targets "modules", "utils_all" and "mini_libstell_all"
-.PHONY: modules utils_all mini_libstell_all
-
-# When we call the target "modules" we want to gather/compile two submodules: "utils_all" and "mini_libstell_all"
-modules: utils_all mini_libstell_all
-
-# Gather the <utils> scripts
-utils_all: utils.a
-UTIL_OBJ = spl.o constants.o file_utils.o netcdf_utils.o command_line.o
-utils.a: $(UTIL_OBJ)
-	$(ARCH) $(ARCHFLAGS) $@ $^
-	$(RANLIB) $@
-
-# Compile <mini_libstell>
-mini_libstell_all: mini_libstell.a
-mini_libstell.a:
-	$(MAKE) -C $(UTILS)/mini_libstell
-
-# Remove the executable
-distclean:
-	-rm -f stella stella.x
-
-# Include the automated Fortran tests
-# Inside 'tests/automated_fortran_tests/Makefile' we define the commands 
-# >> build-pfunit-library 
-# >> run-automated-fortran-tests
-$(STELLA_PARENT_DIR)tests/automated_fortran_tests/Makefile:
-include $(STELLA_PARENT_DIR)/tests/automated_fortran_tests/Makefile
-
-$(STELLA_PARENT_DIR)tests/automated_numerical_tests_for_stella/Makefile:
-include $(STELLA_PARENT_DIR)tests/automated_numerical_tests_for_stella/Makefile
- 
-# Run all tests together with the 'check' command
-check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
+	$(CC) $(CFLAGS) -J$(BUILDDIR) -c $<
+	
+	
 
 ############################################################### SPECIAL RULES
 
@@ -495,37 +318,7 @@ check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
 
 ############################################################# MORE DIRECTIVES
 
-# Declare all public targets
-# These words can be added after the make command:
-#   >> make
-#   >> make depend
-#   >> make clean
-#   >> make distclean
-.PHONY: depend clean distclean
-
-depend: $(GIT_VERSION_SENTINEL) $(NEASYF)
-	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=0 $(VPATH)
-
-
-# To compile correctly it is very important to remove the previously build
-# *.o and *.mod files. Here '$(MAKE) -C $(LIBSTELL) clean' will look at 
-# utils/mini_libstell/makefile and it will its clean target as well.
-clean:
-	-rm -f *.o *.mod *.g90 *.h core */core *~ *.smod
-	-rm -f $(GEO)/*.o $(GEO)/*~
-	-rm -f Makefiles/*~
-	-rm -f $(UTILS)/*.o $(UTILS)/*~
-	-rm -f $(COLL)/*.o $(COLL)/*~
-	-rm -f $(DIAG)/*.o $(DIAG)/*~
-	-rm -f .compiler_flags
-	$(MAKE) -C $(LIBSTELL) clean
-
-cleanlib:
-	-rm -f *.a
-
-distclean: unlink clean cleanlib
-
-%.o: %.mod
+$(BUILDDIR)/%.o: %.mod
 
 unlink:
 	-rm -f $(F90FROMFPP)
@@ -555,3 +348,98 @@ doc: docs/stella_docs.md create_namelist_markdown check_ford_install
 cleandoc:
 	@echo "FORD docs"
 	-rm -rf docs/html
+
+####################################################################
+#                         EXTERNAL MODULES                         #
+####################################################################
+# Stella uses the external modules 'git_version' and 'neasyf'. 
+# Note that the automated Fortran tests use the external module 
+# 'pFunit' is processed in tests/automated_fortran_tests/Makefile
+####################################################################
+
+# --------------------- UTILS AND MINI_LIBSTELL --------------------
+
+# We will compile the static library <mini_libstell> and we link LIBSTELL_LIB to the static library
+# In a static library, the modules are bound into the executable file before execution. 
+# Static libraries are commonly named libname.a. The .a suffix refers to archive. 
+export MINILIBSTELL_DIR=$(EXTERNALS_DIR)/mini_libstell
+export UTILS_DIR=$(EXTERNALS_DIR)/utils
+LIBSTELL_LIB=$(MINILIBSTELL_DIR)/mini_libstell.a
+
+# stella needs two modules 'utils.a' and 'mini_libstell.a'
+# we will build all modules using the 'modules' target 
+.PHONY: external_modules 
+external_modules: utils.a mini_libstell.a 
+
+# The 'utils.a' static library contains all external python scripts
+# Note that in UTIL_OBJ we do not need to include all files in utils,
+# because 'stella' will compile all other files which aren't included in 'utils' 
+UTIL_OBJ = command_line.o constants.o convert.o fft_work.o file_utils.o gauss_quad.o job_manage.o linear_solve.o mp.o mp_lu_decomposition.o mt19937.o netcdf_utils.o ran.o redistribute.o smooth_step.o sort.o spfunc.o spl.o system_fortran.o text_options.o
+utils.a: $(UTIL_OBJ)
+	$(ARCH) $(ARCHFLAGS) $@ $^
+	$(RANLIB) $@
+
+# The mini_libstell.a is an external library to read VMEC files
+# It has no dependencies, so only write the build commands
+mini_libstell.a:
+	$(MAKE) -C $(MINILIBSTELL_DIR) 
+	
+# --------------------- GIT_VERSION AND NEASYF ---------------------
+
+# External libraries
+GIT_VERSION_PARENT_DIR := $(EXTERNALS_DIR)/git_version
+GIT_VERSION_DIR := $(EXTERNALS_DIR)/git_version/src
+NEASYF_DIR := $(EXTERNALS_DIR)/neasyf/src
+
+# Files that we know are going to be in the submodule directories.
+# This is in case the directories exist but the submodules haven't actually been initialised
+GIT_VERSION_SENTINEL := $(GIT_VERSION_PARENT_DIR)/Makefile
+NEASYF_SENTINEL := $(NEASYF_DIR)/neasyf.f90
+
+# If make is killed or interrupted during the execution of their recipes, 
+# the targets in ".PRECIOUS" are not deleted.
+.PRECIOUS: $(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL)
+
+# Make sure the submodules exist; they all currently share the same recipe
+$(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL) submodules:
+	@echo "Downloading submodules"
+	git submodule update --init --recursive
+
+# Dump the compilation flags to a file, so we can check if they change between
+# invocations of `make`. The `cmp` bit checks if the file contents
+# change. Adding a dependency of a file on `.compiler_flags` causes it to be
+# rebuilt when the flags change. Taken from
+# https://stackoverflow.com/a/3237349/2043465
+COMPILER_FLAGS_CONTENTS = "FC = $(FC)\n CPPFLAGS = $(CPPFLAGS)\n F90FLAGS = $(F90FLAGS)\n INC_FLAGS = $(INC_FLAGS)\n CFLAGS = $(CFLAGS)"
+COMPILER_FLAGS_CONTENTS += "\n FORTRAN_GIT_DEFS = $(FORTRAN_GIT_DEFS)"
+.PHONY: force
+.compiler_flags: force
+	@echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
+
+# Use the make rules from fortran-git-version, which requires ensuring the submodules exist
+include $(GIT_VERSION_PARENT_DIR)/Makefile
+
+# We have some extra macros to add when preprocessing this file. We'll
+# need the submodule to exist first
+git_version_impl.f90: $(GIT_VERSION_DIR)/git_version_impl.F90 | $(GIT_VERSION_SENTINEL)
+	$(CPP) $(CPPFLAGS) $(FORTRAN_GIT_DEFS) $< $@
+
+# The fortdep script doesn't know about Fortran submodules, so we need
+# to write the dependency ourselves
+git_version_impl.o: git_version_impl.f90 git_version.o .compiler_flags
+$(GIT_VERSION_DIR)/git_version_impl.F90: .compiler_flags
+
+# There is an undefined reference to `get_git_state` or `get_git_hash` error. 
+# We need to manually add the dependency of stella on `$(OBJDIR)/git_version_impl.o`
+# by writing 'stella: $(external_modules) $(stella_mod)' when defining the target.
+# This file needs to be first in the list of dependencies so that the file that 
+# needs the functions can find them. Yes this is unpleasant, no we (probably?) 
+# can`t automate this like for the other dependencies. `fortdep` doesn't 
+# understand Fortran submodules, so it can't pick this up.
+external_modules_dependencies := git_version_impl.o
+
+####################################################################
+#                              STELLA                              #
+####################################################################
+
+include $(STELLA_PARENT_DIR)/Makefile.stella
