@@ -66,14 +66,16 @@ export COLL=$(STELLA_CODE_DIR)/dissipation
 
 # VPATH is a list of directories to be searched for missing source files
 # The value of the make variable VPATH specifies a list of directories that make should search.
-VPATH = $(STELLACODE):$(DIAG):$(COLL):$(GEO)
+VPATH = $(STELLACODE):$(DIAG):$(COLL):$(GEO):
+
+VPATH += $(BUILD_OBJECTS_DIR):$(BUILD_MODULES_DIR):$(BUILD_F90_DIR):
 
 # Include the external libraries 'utils.a', 'mini_libstell.a', 'neasyf.a' and 'git_version_impl.o'
 VPATH += $(UTILS_DIR):$(MINILIBSTELL_DIR):$(NEASYF_DIR):$(GIT_VERSION_DIR)
 
 # Removes non-existing directories from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
-VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
+VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g") 
 
 ####################################################################
 #            READ THE DEPENDENCIES OF THE SOURCE FILES             #
@@ -85,9 +87,14 @@ DEPEND = Makefile.depend
 DEPEND_CMD = $(PERL) fortdep
 include $(DEPEND)
 
+.PHONY: depend  
+depend: create-build-directory create-depend-file
+create-depend-file: $(GIT_VERSION_SENTINEL) $(NEASYF)
+	@$(DEPEND_CMD) -makecmd "$(MAKE)" -1 -overwrite -verbose=0 -fppfolder $(BUILD_F90_DIR_NAME) $(VPATH)
+
 # Most common include and library directories
 # Important to include the external libraries 'utils.a', 'mini_libstell.a' and 'neasyf.a'
-DEFAULT_INC_LIST = . $(STELLACODE) $(DIAG) $(COLL) $(GEO) $(UTILS_DIR) $(MINILIBSTELL_DIR) $(NEASYF_DIR) 
+DEFAULT_INC_LIST = . $(STELLACODE) $(DIAG) $(COLL) $(GEO) $(UTILS_DIR) $(MINILIBSTELL_DIR) $(NEASYF_DIR) $(BUILD_OBJECTS_DIR) $(BUILD_MODULES_DIR) $(BUILD_F90_DIR)
 DEFAULT_LIB_LIST =
 DEFAULT_INC = $(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
 DEFAULT_LIB = $(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
@@ -134,15 +141,19 @@ all: $(.DEFAULT_GOAL)
 
 # The 'stella_all' target will first make the 'modules' target and then the 'stella' target
 # where 'modules' will build the statis libraries 'utils.a' and 'mini_libstell.a'
-stella_all: external_modules stella
+stella_all: create-build-directory external_modules stella
 
 # Build the stella executable
 # On the first line of the target 'stella' we define the dependencies
 # On the second line we define the compilation or build commands
-# Note that "stella_mod" is defined in the Makefile.depend file, 
+# Note that 'stella_mod' is defined in the Makefile.depend file, 
 # which is build by 'fortdep' and which contains all stella's dependencies
+# -o is a compiler option that specifies the name of the output file.
+# $@ is the name of the target being generated -> 'stella'
+# $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
+# $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
 stella: $(external_modules_dependencies) $(stella_mod)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $(addprefix $(BUILD_OBJECTS_DIR)/, $^) $(LIBS)
 
 # Remove the executable
 distclean:
@@ -178,15 +189,14 @@ check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
 #   >> make depend
 #   >> make clean
 #   >> make distclean
-.PHONY: depend clean distclean clean-quick
+.PHONY: clean distclean clean-quick
 
-depend: $(GIT_VERSION_SENTINEL) $(NEASYF)
-	@$(DEPEND_CMD) -m "$(MAKE)" -1 -o -v=0 $(VPATH)
 
 # To compile correctly it is very important to remove the previously build
 # *.o and *.mod files. Here '$(MAKE) -C $(MINILIBSTELL) clean' will look at 
 # utils/mini_libstell/makefile and it will its clean target as well.
 clean:
+	-rm -rf build_make
 	-rm -f *.o *.mod *.g90 *.h core */core *~ *.smod
 	-rm -f $(BUILDDIR)/*.o $(BUILDDIR)/*.mod $(BUILDDIR)/*.smod 
 	-rm -f $(GEO)/*.o $(GEO)/*~
@@ -196,6 +206,52 @@ clean:
 	-rm -f $(DIAG)/*.o $(DIAG)/*~
 	-rm -f .compiler_flags
 	$(MAKE) -C $(MINILIBSTELL_DIR) clean
+	mkdir -p $(BUILD_F90_DIR) 
+	ln -s $(UTILS_DIR)/mp.fpp $(BUILD_F90_DIR)/mp.fpp
+	ln -s $(UTILS_DIR)/ran.fpp $(BUILD_F90_DIR)/ran.fpp
+	ln -s $(UTILS_DIR)/spfunc.fpp $(BUILD_F90_DIR)/spfunc.fpp
+	ln -s $(UTILS_DIR)/constants.fpp $(BUILD_F90_DIR)/constants.fpp
+	ln -s $(UTILS_DIR)/file_utils.fpp $(BUILD_F90_DIR)/file_utils.fpp
+	ln -s $(UTILS_DIR)/job_manage.fpp $(BUILD_F90_DIR)/job_manage.fpp
+	ln -s $(UTILS_DIR)/command_line.fpp $(BUILD_F90_DIR)/command_line.fpp
+	ln -s $(UTILS_DIR)/netcdf_utils.fpp $(BUILD_F90_DIR)/netcdf_utils.fpp
+	ln -s $(UTILS_DIR)/system_fortran.fpp $(BUILD_F90_DIR)/system_fortran.fpp
+	ln -s $(UTILS_DIR)/mp_lu_decomposition.fpp $(BUILD_F90_DIR)/mp_lu_decomposition.fpp
+	ln -s $(STELLACODE)/fields.fpp $(BUILD_F90_DIR)/fields.fpp
+	ln -s $(STELLACODE)/sources.fpp $(BUILD_F90_DIR)/sources.fpp
+	ln -s $(STELLACODE)/stella_io.fpp $(BUILD_F90_DIR)/stella_io.fpp
+	ln -s $(STELLACODE)/stella_save.fpp $(BUILD_F90_DIR)/stella_save.fpp
+	ln -s $(STELLACODE)/response_matrix.fpp $(BUILD_F90_DIR)/response_matrix.fpp
+	ln -s $(STELLACODE)/sfincs_interface.fpp $(BUILD_F90_DIR)/sfincs_interface.fpp
+	ln -s $(STELLACODE)/define.inc $(BUILD_F90_DIR)/define.inc
+	
+FPP_FILES = $(addprefix $(UTILS_DIR)/, mp.fpp ran.fpp spfunc.fpp constants.fpp file_utils.fpp job_manage.fpp command_line.fpp netcdf_utils.fpp system_fortran.fpp mu_lu_decomposition.fpp)
+FPP_FILES += $(addprefix $(STELLACODE)/, fields.fpp sources.fpp stella_io.fpp stella_save.fpp response_matrix.fpp sfincs_interface.fpp)
+.PHONY: create-f90-from-fpp
+#create-f90-from-fpp: $(FPP_FILES)
+#$(CPP) $(CPPFLAGS) -J$(BUILD_MODULES_DIR) $^ $(BUILD_F90_DIR)/$@
+#create-f90-from-fpp: $(FPP_FILES)
+#	ar rcs fpp.a $(FPP_FILES)
+create-f90-from-fpp: 
+#create-f90-from-fpp-dummy: 
+#	@$(CPP) $(CPPFLAGS) $(BUILD_F90_DIR)/mp.fpp 
+	
+dummy:
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/ran.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/spfunc.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/constants.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/file_utils.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/job_manage.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/command_line.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/netcdf_utils.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/system_fortran.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/mp_lu_decomposition.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/fields.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/sources.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/stella_io.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/stella_save.fpp
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/response_matrix.fpp 
+	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/sfincs_interface.fpp  
 	
 # Normally you shouldn't touch the external libraries
 # So don't remove the utils and mini_libstell static libraries

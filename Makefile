@@ -284,71 +284,42 @@ CFLAGS += $(COPTFLAGS)
 #                              RULES                               #
 #################################################################### 
 
-export BUILDDIR := $(STELLA_PARENT_DIR)/build_make
+.PHONY: create-build-directory
+export BUILD_F90_DIR_NAME := f90fromfpp
+export BUILD_DIR := $(STELLA_PARENT_DIR)/build_make
+export BUILD_MODULES_DIR := $(STELLA_PARENT_DIR)/build_make/modules
+export BUILD_OBJECTS_DIR := $(STELLA_PARENT_DIR)/build_make/objects
+export BUILD_F90_DIR := $(STELLA_PARENT_DIR)/build_make/$(BUILD_F90_DIR_NAME)
+create-build-directory: 
+	mkdir -p $(BUILD_DIR) 
+	mkdir -p $(BUILD_MODULES_DIR)
+	mkdir -p $(BUILD_OBJECTS_DIR)
+	mkdir -p $(BUILD_F90_DIR) 
+	@echo "Created the build_cmake directies"
+	@echo "  "
+	
+# -o is a compiler option that specifies the name of the output file
+# -c is a compiler option that tells the compiler to generate an object file
+# $@ is the name of the target being generated -> 'stella'
+# $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
+# $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
+# -c $^ -o $@
 
 # We process the following files
-.SUFFIXES: .fpp .f90 .F90 .c .o
+.SUFFIXES: .fpp .f90 .F90 .c .o .i90
 
-# Use Fortran f90 compiler for ".f90.o" files, e.g., ifort = The Intel Fortran compiler
-.f90.o:
-	$(FC) $(F90FLAGS) $(INC_FLAGS) -J$(BUILDDIR) -c $<
+# Build fortran files '*.f90' from '*.fpp' using the C preprocessor (CPP) compiler 
+%.f90: %.fpp
+	$(CPP) $(CPPFLAGS) -J$(BUILD_MODULES_DIR) $< $(BUILD_F90_DIR)/$@
 
-# Use C preprocessor (CPP) compiler for ".fpp.f90" files
-.fpp.f90:
-	$(CPP) $(CPPFLAGS) -J$(BUILDDIR) $< $@
+# Build object files '*.o' from '*.f90' files using the Fortran f90 compiler, e.g., ifort = The Intel Fortran compiler
+%.o: %.f90
+	$(FC) $(F90FLAGS) $(INC_FLAGS) -J$(BUILD_MODULES_DIR) -o $(BUILD_OBJECTS_DIR)/$@ -c $<
 
-# Use Fortran f90 compiler for ".F90.o" files, but also use the C preprocessor
-.F90.o:
-	$(FC) $(F90FLAGS) $(CPPFLAGS) $(INC_FLAGS) -J$(BUILDDIR) -c $<
-
-# Use a C compiler for ".c.o" files
-.c.o:
-	$(CC) $(CFLAGS) -J$(BUILDDIR) -c $<
+# Build object files '*.o' from '*.c' using the C compiler 
+%.o: %.c
+	$(CC) $(CFLAGS) -J$(BUILD_MODULES_DIR) -c $(BUILD_F90_DIR)/$<
 	
-	
-
-############################################################### SPECIAL RULES
-
-# comment this out to keep intermediate .f90 files
-#.PRECIOUS: $(F90FROMFPP)
-
-.INTERMEDIATE: stella_transforms.f90 stella_io.f90 stella_save.f90 \
-		mp.f90 fft_work.f90 response_matrix.f90 sources.f90 \
-		fields.f90 mp_lu_decomposition.f90 git_version_impl.f90
-
-############################################################# MORE DIRECTIVES
-
-$(BUILDDIR)/%.o: %.mod
-
-unlink:
-	-rm -f $(F90FROMFPP)
-
-revision:
-	@LANG=C svn info | awk '{if($$1=="Revision:") printf("%20d",$$2) }' > Revision
-
-TAGS:	*.f90 *.fpp */*.f90 */*.fpp
-	etags $^
-
-############################################################# Documentation
-
-create_namelist_markdown:
-	docs/pages/user_manual/namelist_files/combine_namelists.sh
-
-ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
-check_ford_install:
-	@echo "Using ford at $(shell which $(FORD))"
-else
-check_ford_install:
-	@echo "Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH" ; which $(FORD)
-endif
-
-doc: docs/stella_docs.md create_namelist_markdown check_ford_install
-	$(FORD) $(INC_FLAGS) -r $(GIT_VERSION) $<
-
-cleandoc:
-	@echo "FORD docs"
-	-rm -rf docs/html
-
 ####################################################################
 #                         EXTERNAL MODULES                         #
 ####################################################################
@@ -374,9 +345,13 @@ external_modules: utils.a mini_libstell.a
 # The 'utils.a' static library contains all external python scripts
 # Note that in UTIL_OBJ we do not need to include all files in utils,
 # because 'stella' will compile all other files which aren't included in 'utils' 
+# $@ is the name of the target being generated -> 'stella'
+# $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
+# $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
 UTIL_OBJ = command_line.o constants.o convert.o fft_work.o file_utils.o gauss_quad.o job_manage.o linear_solve.o mp.o mp_lu_decomposition.o mt19937.o netcdf_utils.o ran.o redistribute.o smooth_step.o sort.o spfunc.o spl.o system_fortran.o text_options.o
+#UTIL_OBJ = $(addprefix $(BUILD_OBJECTS_DIR)/, command_line.o constants.o convert.o fft_work.o file_utils.o gauss_quad.o job_manage.o linear_solve.o mp.o mp_lu_decomposition.o mt19937.o netcdf_utils.o ran.o redistribute.o smooth_step.o sort.o spfunc.o spl.o system_fortran.o text_options.o )
 utils.a: $(UTIL_OBJ)
-	$(ARCH) $(ARCHFLAGS) $@ $^
+	$(ARCH) $(ARCHFLAGS) $@ $(addprefix $(BUILD_OBJECTS_DIR)/, $^)
 	$(RANLIB) $@
 
 # The mini_libstell.a is an external library to read VMEC files
@@ -437,6 +412,55 @@ $(GIT_VERSION_DIR)/git_version_impl.F90: .compiler_flags
 # can`t automate this like for the other dependencies. `fortdep` doesn't 
 # understand Fortran submodules, so it can't pick this up.
 external_modules_dependencies := git_version_impl.o
+
+
+
+
+
+
+
+
+############################################################### SPECIAL RULES
+
+# comment this out to keep intermediate .f90 files
+#.PRECIOUS: $(F90FROMFPP)
+
+.INTERMEDIATE: stella_transforms.f90 stella_io.f90 stella_save.f90 \
+		mp.f90 fft_work.f90 response_matrix.f90 sources.f90 \
+		fields.f90 mp_lu_decomposition.f90 git_version_impl.f90
+
+############################################################# MORE DIRECTIVES
+
+
+unlink:
+	-rm -f $(F90FROMFPP)
+
+revision:
+	@LANG=C svn info | awk '{if($$1=="Revision:") printf("%20d",$$2) }' > Revision
+
+TAGS:	*.f90 *.fpp */*.f90 */*.fpp
+	etags $^
+
+############################################################# Documentation
+
+create_namelist_markdown:
+	docs/pages/user_manual/namelist_files/combine_namelists.sh
+
+ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
+check_ford_install:
+	@echo "Using ford at $(shell which $(FORD))"
+else
+check_ford_install:
+	@echo "Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH" ; which $(FORD)
+endif
+
+doc: docs/stella_docs.md create_namelist_markdown check_ford_install
+	$(FORD) $(INC_FLAGS) -r $(GIT_VERSION) $<
+
+cleandoc:
+	@echo "FORD docs"
+	-rm -rf docs/html
+
 
 ####################################################################
 #                              STELLA                              #
