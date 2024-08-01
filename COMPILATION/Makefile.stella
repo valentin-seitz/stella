@@ -233,7 +233,8 @@ f90_from_fpp_files = $(symbolic_links_of_fpp_files:.fpp=.f90)
 $(BUILD_F90_DIR)/%.f90: $(BUILD_F90_DIR)/%.fpp 
 	@$(CPP) $(CPPFLAGS) -J$(BUILD_MODULES_DIR) $< $@
 	@echo "    *.fpp to *.f90: $(notdir $<)"
-build-f90-from-fpp: create-build-directories create-symbolic-links
+build-f90-from-fpp: create-build-directories 
+	@$(MAKE) --no-print-directory create-symbolic-links
 	@$(MAKE) --no-print-directory build-f90-from-fpp-files
 build-f90-from-fpp-files: $(f90_from_fpp_files)
   
