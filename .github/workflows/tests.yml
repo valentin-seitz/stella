@@ -56,7 +56,7 @@ jobs:
           set -ex
           export GK_SYSTEM=gnu_ubuntu_debug
           git submodule update --init --recursive
-          make -I Makefiles -j1
+          make -I Makefiles -j12
 
   # Build stella with Make and run automatic fortran tests
   test2:
@@ -96,14 +96,14 @@ jobs:
           set -ex
           export GK_SYSTEM=gnu_ubuntu
           git submodule update --init --recursive
-          make -I Makefiles -j1
+          make -I Makefiles -j12
 
       - name: Perform automated Fortran tests
         run: |
           set -ex
           export GK_SYSTEM=gnu_ubuntu
-          make -I Makefiles -j1 build-pfunit-library
-          make -I Makefiles -j1 run-automated-fortran-tests 
+          make -I Makefiles -j12 build-pfunit-library
+          make -I Makefiles -j12 run-automated-fortran-tests 
 
   # Build stella with Make and run automatic python tests
   test3:
@@ -146,7 +146,7 @@ jobs:
           set -ex
           export GK_SYSTEM=gnu_ubuntu
           git submodule update --init --recursive
-          make -I Makefiles -j1
+          make -I Makefiles -j12
 
       - name: Perform numerical tests for stella with Python
         run: |
