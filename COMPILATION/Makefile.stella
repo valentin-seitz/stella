@@ -125,7 +125,7 @@ stella_all: build-external-modules build-stella
 # $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
 # $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
 .PHONY: build-stella, stella-finished
-build-stella: build-f90-from-fpp
+build-stella: build-f90-from-fpp 
 	@$(MAKE) --no-print-directory stella
 	@$(MAKE) --no-print-directory stella-finished 
 stella: $(external_modules_dependencies) $(stella_mod) 
@@ -233,7 +233,7 @@ f90_from_fpp_files = $(symbolic_links_of_fpp_files:.fpp=.f90)
 $(BUILD_F90_DIR)/%.f90: $(BUILD_F90_DIR)/%.fpp 
 	@$(CPP) $(CPPFLAGS) -J$(BUILD_MODULES_DIR) $< $@
 	@echo "    *.fpp to *.f90: $(notdir $<)"
-build-f90-from-fpp: create-build-directories
+build-f90-from-fpp: create-build-directories create-symbolic-links
 	@$(MAKE) --no-print-directory build-f90-from-fpp-files
 build-f90-from-fpp-files: $(f90_from_fpp_files)
   
