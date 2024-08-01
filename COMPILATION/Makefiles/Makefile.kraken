@@ -70,7 +70,7 @@ endif
 
 include Makefile.XT5
 
-include Makefile.$(COMPILER)
+include $(COMPILATION_DIR)/Makefiles/Compilers/Makefile.$(COMPILER)
 
 FC=ftn
 CC=cc
