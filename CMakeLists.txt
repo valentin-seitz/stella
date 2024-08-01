@@ -42,66 +42,66 @@ option(STELLA_UPDATE_GIT_SUBMODULES "Check submodules are up-to-date during buil
 
 # Sources that don't need preprocessing
 set(STELLA_SOURCES_f90
-  common_types.f90
-  define.inc
-  dist_fn.f90
-  dist_fn_arrays.f90
-  dist_redistribute.f90
-  euterpe_interface.f90
-  extended_zgrid.f90
-  ffs_solve.f90
-  fields_arrays.f90
-  finite_differences.f90
-  flow_shear.f90
-  g_tofrom_h.f90
-  gyro_averages.f90
-  implicit_solve.f90
-  init_g.f90
-  kt_grids.f90
-  mirror_terms.f90
-  multibox.f90
-  neoclassical_terms.f90
-  parallel_streaming.f90
-  physics_flags.f90
-  physics_parameters.f90
-  run_parameters.f90
-  species.f90
-  stella_layouts.f90
-  stella_time.f90
-  stella_transforms.f90
-  time_advance.f90
-  volume_averages.f90
-  vpamu_grids.f90
-  zgrid.f90
-  diagnostics/parameters_diagnostics.f90
-  diagnostics/diagnostics.f90
-  diagnostics/diagnostics_distribution.f90
-  diagnostics/diagnostics_fluxes_fluxtube.f90
-  diagnostics/diagnostics_fluxes_fullfluxsurface.f90 
-  diagnostics/diagnostics_fluxes_radialvariation.f90
-  diagnostics/diagnostics_fluxes.f90 
-  diagnostics/diagnostics_moments.f90
-  diagnostics/diagnostics_omega.f90
-  diagnostics/diagnostics_potential.f90
-  dissipation/coll_dougherty.f90
-  dissipation/coll_fokkerplanck.f90
-  dissipation/dissipation.f90
-  dissipation/hyper.f90
-  geometry/geometry.f90
-  geometry/geometry_miller.f90
-  geometry/geometry_vmec.f90
-  geometry/geometry_vmec_read_netCDF_file.f90 
-  geometry/geometry_inputprofiles_interface.f90
+  STELLACODE/common_types.f90
+  STELLACODE/define.inc
+  STELLACODE/dist_fn.f90
+  STELLACODE/dist_fn_arrays.f90
+  STELLACODE/dist_redistribute.f90
+  STELLACODE/euterpe_interface.f90
+  STELLACODE/extended_zgrid.f90
+  STELLACODE/ffs_solve.f90
+  STELLACODE/fields_arrays.f90
+  STELLACODE/finite_differences.f90
+  STELLACODE/flow_shear.f90
+  STELLACODE/g_tofrom_h.f90
+  STELLACODE/gyro_averages.f90
+  STELLACODE/implicit_solve.f90
+  STELLACODE/init_g.f90
+  STELLACODE/kt_grids.f90
+  STELLACODE/mirror_terms.f90
+  STELLACODE/multibox.f90
+  STELLACODE/neoclassical_terms.f90
+  STELLACODE/parallel_streaming.f90
+  STELLACODE/physics_flags.f90
+  STELLACODE/physics_parameters.f90
+  STELLACODE/run_parameters.f90
+  STELLACODE/species.f90
+  STELLACODE/stella_layouts.f90
+  STELLACODE/stella_time.f90
+  STELLACODE/stella_transforms.f90
+  STELLACODE/time_advance.f90
+  STELLACODE/volume_averages.f90
+  STELLACODE/vpamu_grids.f90
+  STELLACODE/zgrid.f90
+  STELLACODE/diagnostics/parameters_diagnostics.f90
+  STELLACODE/diagnostics/diagnostics.f90
+  STELLACODE/diagnostics/diagnostics_distribution.f90
+  STELLACODE/diagnostics/diagnostics_fluxes_fluxtube.f90
+  STELLACODE/diagnostics/diagnostics_fluxes_fullfluxsurface.f90 
+  STELLACODE/diagnostics/diagnostics_fluxes_radialvariation.f90
+  STELLACODE/diagnostics/diagnostics_fluxes.f90 
+  STELLACODE/diagnostics/diagnostics_moments.f90
+  STELLACODE/diagnostics/diagnostics_omega.f90
+  STELLACODE/diagnostics/diagnostics_potential.f90
+  STELLACODE/dissipation/coll_dougherty.f90
+  STELLACODE/dissipation/coll_fokkerplanck.f90
+  STELLACODE/dissipation/dissipation.f90
+  STELLACODE/dissipation/hyper.f90
+  STELLACODE/geometry/geometry.f90
+  STELLACODE/geometry/geometry_miller.f90
+  STELLACODE/geometry/geometry_vmec.f90
+  STELLACODE/geometry/geometry_vmec_read_netCDF_file.f90 
+  STELLACODE/geometry/geometry_inputprofiles_interface.f90
 )
 
 # Sources that _do_ need preprocessing (because they have MPI flags, ...)
 set(STELLA_SOURCES_fpp
-  fields.fpp
-  response_matrix.fpp
-  sfincs_interface.fpp
-  sources.fpp
-  stella_io.fpp
-  stella_save.fpp
+  STELLACODE/fields.fpp
+  STELLACODE/response_matrix.fpp
+  STELLACODE/sfincs_interface.fpp
+  STELLACODE/sources.fpp
+  STELLACODE/stella_io.fpp
+  STELLACODE/stella_save.fpp
 )
 
 set_source_files_properties(${STELLA_SOURCES_fpp} PROPERTIES
@@ -138,11 +138,24 @@ target_compile_options(libstella PRIVATE
 
 # Main executable
 add_executable(stella
-  stella.f90
+  STELLACODE/stella.f90
   )
 
 # Use <libstella> when linking the <stella> target
 target_link_libraries(stella PRIVATE libstella)
+
+# When target `stella` is built, a symlink will be created
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_custom_command(TARGET stella POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/stella ${CMAKE_CURRENT_BINARY_DIR}/../stella
+    DEPENDS stella
+    VERBATIM ON
+)
+# Print success message to the console
+add_custom_command(TARGET stella POST_BUILD
+    COMMAND echo "Created symlink pointing to `compile_commands.json`" 
+    VERBATIM ON
+)
 
 ############################################################
 # Dependencies and build options
@@ -259,8 +272,8 @@ target_compile_options(libstella PRIVATE
 # Internal libraries: <stella_utils> and <mini_libstell>
 ############################################################
 
-add_subdirectory(utils)
-add_subdirectory(utils/mini_libstell)
+add_subdirectory(externals/utils)
+add_subdirectory(externals/mini_libstell)
 target_link_libraries(libstella PUBLIC mini_libstell stella_utils)
 
 ############################################################
