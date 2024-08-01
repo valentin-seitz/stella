@@ -1,5 +1,7 @@
 #
-# Auto-generated file by fortdep. Do not edit!
+# Auto-generated file by fortdep. Do not edit manually!
+# Instead run the following command in the project folder:
+# >> make depend
 #
 stella_mod = \
 	 coll_dougherty.o \

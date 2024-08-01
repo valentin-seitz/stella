@@ -1,0 +1,244 @@
+####################################################################
+#                                                                  #
+#                         EXTERNAL MODULES                         #
+#                                                                  #
+####################################################################
+# 
+# Stella uses the following external modules:
+#		- mini_libstell
+#		- utils/*
+#		- git_version
+#		- neasyf
+#		- pFunit
+#  
+# Note that the automated Fortran tests use the external module 
+# 'pFunit' which is processed in tests/automated_fortran_tests/Makefile
+# 
+####################################################################
+
+#===================================================================
+#                      RELEVANT MAKE COMMANDS                      #
+#===================================================================
+#
+# In a static library, the modules are bound into the executable file before execution. 
+# Static libraries are commonly named libname.a. The .a suffix refers to archive.  
+#
+# A Makefile consists of a set of rules. A rule generally looks like this:
+# 
+# 		targets: prerequisites
+# 			command
+# 			command
+# 			command
+# 
+# - The targets are file names, separated by spaces. Typically, there is only one per rule.
+# - The commands are a series of steps typically used to make the target(s). 
+#   These need to start with a tab character, not spaces.
+# - The prerequisites are also file names, separated by spaces. These files need to 
+#   exist before the commands for the target are run. These are also called dependencies.
+# - When we run a target, 'make' will only run it, if the target doesn't exist, or if the
+#   prerequisites are newer than the target
+#
+# Automatic variables
+# 	$@ is the name of the target being generated 
+# 	$^ are all the prerequisites  
+# 	$< is the first prerequisite 
+# 	$? are all the prerequisites newer than the target
+#
+# Compiler options
+# 	-o is a compiler option that specifies the name of the output file
+# 	-c is a compiler option that tells the compiler to generate an object file
+# 
+# See https://makefiletutorial.com/ for a quick intro into 'make'.
+#
+#===================================================================
+
+
+#===================================================================
+#                            DIRECTORIES                           #
+#===================================================================
+# In 'Makefile' we already defined:
+# 		PROJECT_DIR  
+# 		STELLA_DIR  
+# 		EXTERNALS_DIR  
+# 		BUILD_DIR  
+# 		COMPILATION_DIR 
+#  
+# Here we need to define the directories of the external libraries
+# 		MINILIBSTELL_DIR
+# 		UTILS_DIR
+# 		GIT_VERSION_DIR
+# 		NEASYF_DIR
+#===================================================================
+
+# Define the directories where the external libraries are located 
+MINILIBSTELL_DIR := $(EXTERNALS_DIR)/mini_libstell
+UTILS_DIR := $(EXTERNALS_DIR)/utils
+GIT_VERSION_DIR := $(EXTERNALS_DIR)/git_version/src
+NEASYF_DIR := $(EXTERNALS_DIR)/neasyf/src
+
+# Check directories
+.PHONY: print-directories-externals
+print-directories-externals:
+	@echo "          " 
+	@echo "Directories of external libraries:" 
+	@echo "   - $(UTILS_DIR)/utils.a)"
+	@echo "   - $(MINILIBSTELL_DIR)/mini_libstell.a)"
+	@echo "   - $(NEASYF_DIR)/neasyf.a)"
+	@echo "   - $(GIT_VERSION_DIR)/git_version.a)"
+	@echo "          " 
+
+# If make is killed or interrupted during the execution of their recipes, 
+# the targets in ".PRECIOUS" are not deleted.
+.PRECIOUS: $(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL)
+
+# stella needs two modules 'utils.a' and 'mini_libstell.a'
+# we will build both external modules using the 'build-external-modules' target 
+# Here '.PHONY' declares that the target 'build-external-modules' does not create an object file
+.PHONY: build-external-modules 
+build-external-modules: build-utils build-minilibstell
+
+#===================================================================
+#                              UTILS                               #
+#===================================================================
+
+# The 'utils.a' static library contains all external python scripts 
+UTIL_OBJ = command_line.o constants.o convert.o fft_work.o file_utils.o gauss_quad.o job_manage.o linear_solve.o mp.o mp_lu_decomposition.o mt19937.o netcdf_utils.o ran.o redistribute.o smooth_step.o sort.o spfunc.o spl.o system_fortran.o text_options.o
+
+# Create the static library 'utils.a' 
+# $@ is the name of the target being generated -> 'utils.a' 
+# $^ are all the prerequisites -> all files in '$(UTIL_OBJ)'  
+.PHONY: build-utils
+build-utils: build-f90-from-fpp
+	@$(MAKE) --no-print-directory utils.a 
+utils.a: $(UTIL_OBJ) 
+	@$(ARCH) $(ARCHFLAGS) $@ $(addprefix $(BUILD_OBJECTS_DIR)/, $(notdir $^))
+	@$(RANLIB) $@
+	@echo "     "
+	@echo "       ==> Compile utils.a"
+	@echo "     " 
+	
+#===================================================================
+#                          MINI LIBSTELL                           #
+#===================================================================
+
+# We create the static library 'mini_libstell.a' and we link LIBSTELL_LIB to the static library
+LIBSTELL_LIB=$(MINILIBSTELL_DIR)/mini_libstell.a
+ 
+# The mini_libstell.a is an external library to read VMEC files
+# We invoke 'make' on 'MINILIBSTELL_DIR' to execute its Makefile
+.PHONY: build-minilibstell
+build-minilibstell: mini_libstell.a
+mini_libstell.a:
+	@echo "     "
+	@$(MAKE) --no-print-directory -C $(MINILIBSTELL_DIR)
+	@echo "     "
+	@echo "       ==> Compile mini_libstell.a"
+	@echo "     " 
+	 
+#===================================================================
+#                              NEASYF                              #
+#===================================================================
+# In stella we use the 'neasyf' module in 'stella_io.f90'. To use 
+# this module, we need the 'neasyf.f90' file.
+
+# Define a file that should be present in the 'neasyf' directory.
+# If the file is not present, the 'submodules' target is triggered, 
+# which executes 'git submodule update --init --recursive'
+NEASYF_SENTINEL := $(NEASYF_DIR)/neasyf.f90
+
+# Make sure the module exists
+ifeq (,$(wildcard $(NEASYF_SENTINEL)))
+$(info   )
+$(info The neasyf module is missing, please download it:)
+$(info     >> git submodule update --init --recursive )
+$(info   )
+$(error  The neasyf module is missing, please download it)
+endif
+
+#===================================================================
+#                            GIT VERSION                           #
+#===================================================================
+# In stella we use the 'git_version' module in 'stella.f90'. To use 
+# this module, we need the 'git_version_impl.o' file. 
+
+# Define a file that should be present in the 'git version' directory.
+# If the file is not present, the 'submodules' target is triggered, 
+# which executes 'git submodule update --init --recursive' 
+GIT_VERSION_SENTINEL := $(GIT_VERSION_DIR)/git_version.f90
+
+# Dump the compilation flags to a file, so we can check if they change between
+# invocations of `make`. The `cmp` bit checks if the file contents
+# change. Adding a dependency of a file on `.compiler_flags` causes it to be
+# rebuilt when the flags change. Taken from https://stackoverflow.com/a/3237349/2043465
+COMPILER_FLAGS_CONTENTS = "FC = $(FC)\n CPPFLAGS = $(CPPFLAGS)\n F90FLAGS = $(F90FLAGS)\n INC_FLAGS = $(INC_FLAGS)\n CFLAGS = $(CFLAGS)"
+COMPILER_FLAGS_CONTENTS += "\n FORTRAN_GIT_DEFS = $(FORTRAN_GIT_DEFS)"
+.PHONY: force
+.compiler_flags: force | $(GIT_VERSION_SENTINEL)
+	@echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
+
+# Use the make rules from fortran-git-version 
+ifeq (,$(wildcard $(GIT_VERSION_SENTINEL)))
+$(info   )
+$(info The git version module is missing, please download it:)
+$(info     >> git submodule update --init --recursive )
+$(info   )
+$(error  The git version module is missing, please download it)
+endif
+include $(GIT_VERSION_DIR)/../Makefile
+
+# We have some extra macros to add when preprocessing this file.  
+$(BUILD_F90_DIR)/git_version_impl.f90: $(GIT_VERSION_DIR)/git_version_impl.F90 | $(GIT_VERSION_SENTINEL)
+	@$(CPP) $(CPPFLAGS) $(FORTRAN_GIT_DEFS) $< $@
+	@echo "    git_version: *.f90 to *.o: $(notdir $<)" 
+
+# The fortdep script doesn't know about Fortran submodules,
+# so we need to write the dependencies ourselves:
+git_version_impl.o: $(BUILD_F90_DIR)/git_version_impl.f90 git_version.o .compiler_flags
+$(GIT_VERSION_DIR)/git_version_impl.F90: .compiler_flags
+
+# There is an undefined reference to `get_git_state` or `get_git_hash` error. 
+# We need to manually add the dependency of stella on `$(OBJDIR)/git_version_impl.o`
+# by writing 'stella: $(external_modules) $(stella_mod)' when defining the target.
+# This file needs to be first in the list of dependencies so that the file that 
+# needs the functions can find them. Yes this is unpleasant, no we (probably?) 
+# can`t automate this like for the other dependencies. `fortdep` doesn't 
+# understand Fortran submodules, so it can't pick this up.
+external_modules_dependencies := git_version_impl.o
+
+#===================================================================
+#                      DOWNLOAD GIT SUBMODULES                     #
+#===================================================================
+
+# Make sure the submodules exist; they all currently share the same recipe.
+# If we perform the command 'make submodules', or any other target has 
+# one of the following files amongst its prerequisites:
+#	 $(NEASYF_SENTINEL) = $(NEASYF_DIR)/neasyf.f90
+#	 $(GIT_VERSION_SENTINEL) = $(GIT_VERSION_DIR)/../Makefile
+# then the following commands will be performed, to ensure that the submodules exist.
+$(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL) submodules:
+	@echo "Downloading submodules"
+	git submodule update --init --recursive 
+	
+#===================================================================
+#                   FORD AUTOMATIC DOCUMENTATION                   #
+#===================================================================
+ 
+create_namelist_markdown:
+	docs/pages/user_manual/namelist_files/combine_namelists.sh
+
+ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
+check_ford_install:
+	@echo "Using ford at $(shell which $(FORD))"
+else
+check_ford_install:
+	@echo "Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH" ; which $(FORD)
+endif
+
+doc: docs/stella_docs.md create_namelist_markdown check_ford_install
+	$(FORD) $(INC_FLAGS) -r $(GIT_VERSION) $<
+
+cleandoc:
+	@echo "FORD docs"
+	-rm -rf docs/html
+ 
+

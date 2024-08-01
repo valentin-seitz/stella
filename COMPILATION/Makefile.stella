@@ -1,9 +1,9 @@
 ####################################################################
 #                          STELLA MAKEFILE                         #
 #################################################################### 
-# While the 'Makefile' defines all the compiler options and flags,
-# and compiles the external libraries 'git_version' and 'neasyf',
-# the 'Makefile.stella' aims to build the stella executable. 
+# The 'Makefile' defines the compiler options and flags, 
+# the 'Makefile.externals' compiles the external libraries, and
+# the 'Makefile.stella' builds the stella executable. 
 #
 # ------------------------ STELLA EXECUTABLE -----------------------
 # When the 'make' command is used, without any additional arguments,
@@ -11,58 +11,31 @@
 # is set to 'stella_all' which will first build the target 'modules'
 # and then the target 'stella'. 
 #
-# In short, this section of code will define:
+# In short, this Makefile will define:
 #       .DEFAULT_GOAL := stella_all
 #       stella_all: modules stella
-#       modules: utils.a mini_libstell.a
 #       stella: $(external_modules) $(stella_mod) 
 #               $(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 #
 # To stella executable is build by the target 'stella' 
 # On the first line of the target 'stella' we define the dependencies
 # On the second line we define the compilation or build commands
-# 
-# ------------------------- COMPILE MODULES ------------------------
-# We can build the static libraries (with suffix *.a) separately:
-#       >> make utils.a
-#       >> make mini_libstell.a 
 #   
 ####################################################################
 
-####################################################################
+#===================================================================
 #                            DIRECTORIES                           #
-####################################################################
-
-# Print the paths to the command prompt (set in 'Makefile')
-# Note that the directories of the external modules are already defined
-$(info   )
-$(info   =========================================================================)
-$(info   ============================== DIRECTORIES ==============================)
-$(info   =========================================================================)
-$(info   CURRENT_DIRECTORY is $(CURRENT_DIRECTORY))
-$(info   MAKEFILE_PATH is $(MAKEFILE_PATH))
-$(info   STELLA_PARENT_DIR is $(STELLA_PARENT_DIR))
-$(info   STELLA_CODE_DIR is $(STELLA_CODE_DIR))
-$(info   )
-$(info   =========================================================================)
-$(info   =============================== EXTERNALS ===============================)
-$(info   =========================================================================)
-$(info   EXTERNALS_DIR is $(EXTERNALS_DIR))
-$(info   $(UTILS_DIR)/utils.a)
-$(info   $(MINILIBSTELL_DIR)/mini_libstell.a)
-$(info   $(NEASYF_DIR)/neasyf.a) 
-$(info   )
-
+#===================================================================
+ 
 # Export the subdirectories so they are available to child processes
-export STELLACODE=$(STELLA_CODE_DIR)
-export DIAG=$(STELLA_CODE_DIR)/diagnostics
-export GEO=$(STELLA_CODE_DIR)/geometry
-export COLL=$(STELLA_CODE_DIR)/dissipation
+export STELLACODE=$(STELLA_DIR)
+export DIAG=$(STELLA_DIR)/diagnostics
+export GEO=$(STELLA_DIR)/geometry
+export COLL=$(STELLA_DIR)/dissipation
 
-
-####################################################################
+#===================================================================
 #                  DIRECTORIES WITH FORTRAN CODE                   #
-####################################################################
+#===================================================================
 
 # VPATH is a list of directories to be searched for missing source files
 # The value of the make variable VPATH specifies a list of directories that make should search.
@@ -77,20 +50,28 @@ VPATH += $(UTILS_DIR):$(MINILIBSTELL_DIR):$(NEASYF_DIR):$(GIT_VERSION_DIR)
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH = .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g") 
 
-####################################################################
+#===================================================================
 #            READ THE DEPENDENCIES OF THE SOURCE FILES             #
-####################################################################
+#===================================================================
 
 # The dependencies of one source file on other source files
 # is given in the file stella/Makefile.depend
-DEPEND = Makefile.depend
-DEPEND_CMD = $(PERL) fortdep
-include $(DEPEND)
+DEPEND_FILE = $(COMPILATION_DIR)/Makefile.depend
+DEPEND_CMD = $(PERL) $(COMPILATION_DIR)/fortdep
+include $(DEPEND_FILE)
 
+# For the prerequisites, we need to make sure that the external libraries 
+# 'git_version' and 'neasyf' are correctly downloaded, these prerequisites
+# will trigger the 'submodules' target. We also need to make sure that 
+# the 'build_make' directory exists.  
 .PHONY: depend  
-depend: create-build-directory create-depend-file
-create-depend-file: $(GIT_VERSION_SENTINEL) $(NEASYF)
-	@$(DEPEND_CMD) -makecmd "$(MAKE)" -1 -overwrite -verbose=0 -fppfolder $(BUILD_F90_DIR_NAME) $(VPATH)
+depend: create-depend-file
+create-depend-file: $(GIT_VERSION_SENTINEL) $(NEASYF) $(BUILD_DIR)
+	@echo "          "
+	@echo "Write the depencies of the Fortran scripts with fortdep"
+	@$(DEPEND_CMD) -makecmd "$(MAKE)" -file $(DEPEND_FILE) -1 -overwrite -verbose=0 -fppfolder $(BUILD_F90_DIR_NAME) $(VPATH)
+	@echo "   - Written $(DEPEND_FILE)"
+	@echo "          "
 
 # Most common include and library directories
 # Important to include the external libraries 'utils.a', 'mini_libstell.a' and 'neasyf.a'
@@ -99,12 +80,9 @@ DEFAULT_LIB_LIST =
 DEFAULT_INC = $(foreach tmpinc,$(DEFAULT_INC_LIST),$(shell [ -d $(tmpinc) ] && echo -I$(tmpinc)))
 DEFAULT_LIB = $(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && echo -L$(tmplib)))
 
-# List of intermediate f90 files generated by preprocessor
-F90FROMFPP = $(patsubst %.fpp,%.f90,$(notdir $(wildcard *.fpp */*.fpp)))
-
-####################################################################
+#===================================================================
 #                         STELLA EXECUTABLE                        #
-#################################################################### 
+#===================================================================
 # When the 'make' command is used, without any additional arguments,
 # it should build the stella executable. Therefore, the DEFAULT_GOAL
 # is set to 'stella_all' which will first build the target 'modules'
@@ -120,152 +98,144 @@ F90FROMFPP = $(patsubst %.fpp,%.f90,$(notdir $(wildcard *.fpp */*.fpp)))
 # To stella executable is build by the target 'stella' 
 # On the first line of the target 'stella' we define the dependencies
 # On the second line we define the compilation or build commands
-#
-# ----------------------------- .PHONY -----------------------------
-# When we define a target as 'target: ...', the command 'make' will 
-# build a file based on other files. If our target does not build a 
-# file we label it as a PHONY target. Therefore, a phony target is 
-# not really the name of a file; rather it is just a name for a recipe 
-# to be executed when you make an explicit request. 
-#  
-####################################################################
- 
-# If we call 'make' without any additional arguments, it will build the target 'stella_all'
-# .DEFAULT_GOAL works for GNU make 3.81 (or higher), while for 3.80 or less, we use the 'all' target
-# We define 'stella_all' (and 'all') as phony targets since it will execute the recipe 'modules stella'
-# hence this command itself does not build a file 'stella_all' or 'all', instead 'modules' will 
-# build the files 'utils.a' and 'mini_libstell.a', while 'stella' builds the executable 'stella'
-.PHONY: stella_all all
+#===================================================================
+  
+# We set the .DEFAULT_GOAL to 'stella_all', so that the call 'make' 
+# without any additional arguments, will build the stella executable  
+.PHONY: stella_all
 .DEFAULT_GOAL := stella_all 
+
+# For GNU make 3.80 or less, we use the 'all' target 
+.PHONY: all
 all: $(.DEFAULT_GOAL)
 
-# The 'stella_all' target will first make the 'modules' target and then the 'stella' target
-# where 'modules' will build the statis libraries 'utils.a' and 'mini_libstell.a'
-stella_all: create-build-directory external_modules stella
+# The 'stella_all' target will first ensure that the build directories a
+# are made (should already by done by 'make clean'). Next it will build the
+# external static libraries 'utils.a' and 'mini_libstell.a' through the 
+# target 'build-external-modules'. Finally it compiles the stella code. 
+stella_all: build-external-modules build-stella
 
 # Build the stella executable
-# On the first line of the target 'stella' we define the dependencies
+# On the first line of the target 'stella' we define the dependencies 
 # On the second line we define the compilation or build commands
-# Note that 'stella_mod' is defined in the Makefile.depend file, 
-# which is build by 'fortdep' and which contains all stella's dependencies
+# Note that 'stella_mod' is defined in the Makefile.depend file, which is 
+# build by 'fortdep' and which contains the dependencies of the fortran scripts
 # -o is a compiler option that specifies the name of the output file.
 # $@ is the name of the target being generated -> 'stella'
 # $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
 # $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
-stella: $(external_modules_dependencies) $(stella_mod)
-	$(LD) $(LDFLAGS) -o $@ $(addprefix $(BUILD_OBJECTS_DIR)/, $^) $(LIBS)
+.PHONY: build-stella, stella-finished
+build-stella: build-f90-from-fpp
+	@$(MAKE) --no-print-directory stella
+	@$(MAKE) --no-print-directory stella-finished 
+stella: $(external_modules_dependencies) $(stella_mod) 
+	@$(LD) $(LDFLAGS) -o $@ $(addprefix $(BUILD_OBJECTS_DIR)/, $(notdir $^)) $(LIBS)
+	@echo "                     " 
+	@echo "       ==> Compile stella"
+stella-finished: 
+	@echo "                     " 
+	@echo "Finished compiling stella."
+	@echo "                     " 
 
-# Remove the executable
-distclean:
-	-rm -f stella
+
+#===================================================================
+#                          AUTOMATED TESTS                         #
+#===================================================================
 
 # Include the automated Fortran tests
 # Inside 'tests/automated_fortran_tests/Makefile' we define the commands 
 # >> build-pfunit-library 
 # >> run-automated-fortran-tests
-$(STELLA_PARENT_DIR)tests/automated_fortran_tests/Makefile:
-include $(STELLA_PARENT_DIR)/tests/automated_fortran_tests/Makefile
+# Note that if we do 'make clean' it will also invoke the 'clean' commands in all include makefiles
+$(PROJECT_DIR)/tests/automated_fortran_tests/Makefile:
+include $(PROJECT_DIR)/tests/automated_fortran_tests/Makefile
 
-$(STELLA_PARENT_DIR)tests/automated_numerical_tests_for_stella/Makefile:
-include $(STELLA_PARENT_DIR)/tests/automated_numerical_tests_for_stella/Makefile
+$(PROJECT_DIR)/tests/automated_numerical_tests_for_stella/Makefile:
+include $(PROJECT_DIR)/tests/automated_numerical_tests_for_stella/Makefile
  
 # Run all tests together with the 'check' command
 check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
 
+#===================================================================
+#                               Clean                              #
+#===================================================================
 
-####################################################################
-#                              Targets                             #
-####################################################################
-# Targets represent executables, libraries, and utilities built by CMake
-#     depend: generate dependency
-#     clean: clean up
-#     distclean: does "make clean" + removes platform links & executables
-# "stella_all" is defined in stella/Makefile.target_stella
-####################################################################
+# We make the following two phony commands:
+#	>> make clean
+#	>> make clean-verbose
+#	>> make distclean
+.PHONY: clean clean-verbose distclean
 
-# Declare all public targets
-# These words can be added after the make command:
-#   >> make
-#   >> make depend
-#   >> make clean
-#   >> make distclean
-.PHONY: clean distclean clean-quick
+# Remove all previously build *.o and *.mod files, and create symbolic links for the *.fpp files
+clean: remove-build-files clean-pfunit create-build-directories create-symbolic-links
+clean-quick: remove-build-files-quick create-build-directories create-symbolic-links
+clean-verbose: print-directories print-directories-externals clean
 
+# 'distclean' should leave only the files that were in the distributions
+distclean: clean remove-executable
+
+# Remove the executable
+remove-executable:
+	-rm -f stella
+
+# ----------------------- Remove build files -----------------------
 
 # To compile correctly it is very important to remove the previously build
 # *.o and *.mod files. Here '$(MAKE) -C $(MINILIBSTELL) clean' will look at 
-# utils/mini_libstell/makefile and it will its clean target as well.
-clean:
-	-rm -rf build_make
-	-rm -f *.o *.mod *.g90 *.h core */core *~ *.smod
-	-rm -f $(BUILDDIR)/*.o $(BUILDDIR)/*.mod $(BUILDDIR)/*.smod 
-	-rm -f $(GEO)/*.o $(GEO)/*~
-	-rm -f Makefiles/*~
-	-rm -f $(UTILS_DIR)/*.o $(UTILS)/*~
-	-rm -f $(COLL)/*.o $(COLL)/*~
-	-rm -f $(DIAG)/*.o $(DIAG)/*~
-	-rm -f .compiler_flags
-	$(MAKE) -C $(MINILIBSTELL_DIR) clean
-	mkdir -p $(BUILD_F90_DIR) 
-	ln -s $(UTILS_DIR)/mp.fpp $(BUILD_F90_DIR)/mp.fpp
-	ln -s $(UTILS_DIR)/ran.fpp $(BUILD_F90_DIR)/ran.fpp
-	ln -s $(UTILS_DIR)/spfunc.fpp $(BUILD_F90_DIR)/spfunc.fpp
-	ln -s $(UTILS_DIR)/constants.fpp $(BUILD_F90_DIR)/constants.fpp
-	ln -s $(UTILS_DIR)/file_utils.fpp $(BUILD_F90_DIR)/file_utils.fpp
-	ln -s $(UTILS_DIR)/job_manage.fpp $(BUILD_F90_DIR)/job_manage.fpp
-	ln -s $(UTILS_DIR)/command_line.fpp $(BUILD_F90_DIR)/command_line.fpp
-	ln -s $(UTILS_DIR)/netcdf_utils.fpp $(BUILD_F90_DIR)/netcdf_utils.fpp
-	ln -s $(UTILS_DIR)/system_fortran.fpp $(BUILD_F90_DIR)/system_fortran.fpp
-	ln -s $(UTILS_DIR)/mp_lu_decomposition.fpp $(BUILD_F90_DIR)/mp_lu_decomposition.fpp
-	ln -s $(STELLACODE)/fields.fpp $(BUILD_F90_DIR)/fields.fpp
-	ln -s $(STELLACODE)/sources.fpp $(BUILD_F90_DIR)/sources.fpp
-	ln -s $(STELLACODE)/stella_io.fpp $(BUILD_F90_DIR)/stella_io.fpp
-	ln -s $(STELLACODE)/stella_save.fpp $(BUILD_F90_DIR)/stella_save.fpp
-	ln -s $(STELLACODE)/response_matrix.fpp $(BUILD_F90_DIR)/response_matrix.fpp
-	ln -s $(STELLACODE)/sfincs_interface.fpp $(BUILD_F90_DIR)/sfincs_interface.fpp
-	ln -s $(STELLACODE)/define.inc $(BUILD_F90_DIR)/define.inc
+# utils/mini_libstell/makefile and it will invoke its clean target as well.
+# Here '@' does not print the command to the command prompt
+.PHONY: remove-build-files remove-build-files-quick remove-build-files-all
+remove-build-files: remove-build-files-quick remove-build-files-all
+remove-build-files-quick:
+	@echo "                     "
+	@echo "Clean stella project:"
+	@echo "   - remove compiled files"
+	@-rm -rf $(BUILD_DIR)
+	@-rm -f *.o *.mod *.g90 *.h core */core *~ *.smod 
+	@-rm -f $(GEO)/*.o $(GEO)/*~
+	@-rm -f Makefiles/*~
+	@-rm -f $(UTILS_DIR)/*.o $(UTILS)/*~
+	@-rm -f $(COLL)/*.o $(COLL)/*~
+	@-rm -f $(DIAG)/*.o $(DIAG)/*~
+	@-rm -f .compiler_flags 
+remove-build-files-all:  
+	@-rm -f *.a
+	@$(MAKE) --no-print-directory -C $(MINILIBSTELL_DIR) clean
 	
-FPP_FILES = $(addprefix $(UTILS_DIR)/, mp.fpp ran.fpp spfunc.fpp constants.fpp file_utils.fpp job_manage.fpp command_line.fpp netcdf_utils.fpp system_fortran.fpp mu_lu_decomposition.fpp)
-FPP_FILES += $(addprefix $(STELLACODE)/, fields.fpp sources.fpp stella_io.fpp stella_save.fpp response_matrix.fpp sfincs_interface.fpp)
-.PHONY: create-f90-from-fpp
-#create-f90-from-fpp: $(FPP_FILES)
-#$(CPP) $(CPPFLAGS) -J$(BUILD_MODULES_DIR) $^ $(BUILD_F90_DIR)/$@
-#create-f90-from-fpp: $(FPP_FILES)
-#	ar rcs fpp.a $(FPP_FILES)
-create-f90-from-fpp: 
-#create-f90-from-fpp-dummy: 
-#	@$(CPP) $(CPPFLAGS) $(BUILD_F90_DIR)/mp.fpp 
 	
-dummy:
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/ran.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/spfunc.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/constants.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/file_utils.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/job_manage.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/command_line.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/netcdf_utils.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/system_fortran.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/mp_lu_decomposition.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/fields.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/sources.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/stella_io.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/stella_save.fpp
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/response_matrix.fpp 
-	@$(CPP) $(CPPFLAGS) -E $(BUILD_F90_DIR)/sfincs_interface.fpp  
+# ----------------- Symbolic links for *.fpp files -----------------
 	
-# Normally you shouldn't touch the external libraries
-# So don't remove the utils and mini_libstell static libraries
-clean-quick:
-	-rm -f *.o *.mod *.g90 *.h core */core *~ *.smod
-	-rm -f $(GEO)/*.o $(GEO)/*~
-	-rm -f Makefiles/*~ 
-	-rm -f $(COLL)/*.o $(COLL)/*~
-	-rm -f $(DIAG)/*.o $(DIAG)/*~
-	-rm -f .compiler_flags 
+# Get the name of the symbolic links we want to make
+existing_fpp_files = $(wildcard $(UTILS_DIR)/*.fpp) $(wildcard $(STELLACODE)/*.fpp)
+existing_fpp_file_names := $(notdir $(existing_fpp_files))
+symbolic_links_of_fpp_files := $(addprefix $(BUILD_F90_DIR)/, $(existing_fpp_file_names)) 
 
-cleanlib:
-	-rm -f *.a
-
-distclean: unlink clean cleanlib
+# If the symlink '$(BUILD_F90_DIR)/%.fpp' is a prerequisite, and it does not exist, it will be created
+$(BUILD_F90_DIR)/%.fpp: $(UTILS_DIR)/%.fpp 
+	@ln -s $< $(BUILD_F90_DIR)
+$(BUILD_F90_DIR)/%.fpp: $(STELLACODE)/%.fpp 
+	@ln -s $< $(BUILD_F90_DIR)
+    
+# Add the symlinks as the prerequisites of the 'create_symbolic_links' target
+.PHONY: create-symbolic-links
+create-symbolic-links: $(symbolic_links_of_fpp_files)
+	@echo "          "
+	@echo "Create links to the *.fpp files to preprocess them in a separate folder"
+	@echo "   - ln -s STELLACODE/*.fpp COMPILATION/$(BUILD_F90_DIR_NAME)/*.fpp"	
+	@ln -s $(UTILS_DIR)/define.inc $(BUILD_F90_DIR)/define.inc
+	@echo "          "
+	             
+# Make sure we have preprocessed the *.fpp files
+# By making sure that the $(BUILD_F90_DIR)/%.f90 files exist
+# Before this step, make sure 'create-build-directories' is finished
+.PHONY: build-f90-from-fpp build-f90-from-fpp-files
+f90_from_fpp_files = $(symbolic_links_of_fpp_files:.fpp=.f90)
+$(BUILD_F90_DIR)/%.f90: $(BUILD_F90_DIR)/%.fpp 
+	@$(CPP) $(CPPFLAGS) -J$(BUILD_MODULES_DIR) $< $@
+	@echo "    *.fpp to *.f90: $(notdir $<)"
+build-f90-from-fpp: create-build-directories
+	@$(MAKE) --no-print-directory build-f90-from-fpp-files
+build-f90-from-fpp-files: $(f90_from_fpp_files)
+  
 
 

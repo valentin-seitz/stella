@@ -22,26 +22,29 @@ LIBSTELL_OBJ_FILES = ezcdf.o ezcdf_inqvar.o handle_err.o stel_constants.o \
 	ezcdf_GenGet.o ezcdf_opncls.o read_wout_mod.o safe_open_mod.o stel_kinds.o vsvd0.o \
 	parse_extension.o
 
-LIBSTELL_TARGET = mini_libstell.a
-
 .PHONY: all clean
 
-all: $(LIBSTELL_TARGET)
+# The first target in the file, is the one which will be build
+all: mini_libstell.a
 
 %.o: %.f90
-	$(FC) $(EXTRA_COMPILE_FLAGS) -w -DNETCDF -c $<
+	@$(FC) $(EXTRA_COMPILE_FLAGS) -w -DNETCDF -c $<
+	@echo "    mini_libstell: *.f90 to *.o:  $(notdir $<)"
 
 %.o: %.f
-	$(FC) $(EXTRA_COMPILE_FLAGS) -DNETCDF -c $<
+	@$(FC) $(EXTRA_COMPILE_FLAGS) -DNETCDF -c $<
+	@echo "    mini_libstell: *.f to *.o:    $(notdir $<)"
 
 %.o: %.F
-	$(FC) $(EXTRA_COMPILE_FLAGS) -DNETCDF -c $<
+	@$(FC) $(EXTRA_COMPILE_FLAGS) -DNETCDF -c $<
+	@echo "    mini_libstell: *.F to *.o:    $(notdir $<)"
 
-$(LIBSTELL_TARGET): $(LIBSTELL_OBJ_FILES)
-	ar rcs $(LIBSTELL_TARGET) $(LIBSTELL_OBJ_FILES)
+mini_libstell.a: $(LIBSTELL_OBJ_FILES)
+	@ar rcs $@ $(LIBSTELL_OBJ_FILES) 
 
 clean:
-	rm -f *.o *.mod *.MOD *~ $(LIBSTELL_TARGET)
+	@echo "   - remove compiled files (mini_libstell)"
+	@rm -f *.o *.mod *.MOD *~ mini_libstell.a
 
 # Dependencies:
 ezcdf.o: ezcdf_GenGet.o ezcdf_opncls.o

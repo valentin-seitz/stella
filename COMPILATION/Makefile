@@ -126,14 +126,52 @@ CURRENT_DIRECTORY = $(CURDIR)
 
 # Set MAKEFILE_PATH to the location of this Makefile.
 # Using 'abspath' will not resolve symbolic links
-MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST))) 
 
 # Get the directory in which the Makefile is located, 
 # and the directory of the stella code 
-STELLA_PARENT_DIR := $(realpath $(dir $(MAKEFILE_PATH)))
-STELLA_CODE_DIR := $(STELLA_PARENT_DIR)/STELLACODE
-EXTERNALS_DIR := $(STELLA_PARENT_DIR)/externals
-BUILD_DIR := $(STELLA_PARENT_DIR)/build_make
+PROJECT_DIR := $(realpath $(dir $(MAKEFILE_PATH))/..)
+STELLA_DIR := $(PROJECT_DIR)/STELLACODE
+EXTERNALS_DIR := $(PROJECT_DIR)/externals
+BUILD_DIR := $(PROJECT_DIR)/build_make 
+COMPILATION_DIR := $(PROJECT_DIR)/COMPILATION
+
+# Check directories
+.PHONY: print-directories
+print-directories: 
+	@echo "                     " 
+	@echo "Directories for stella:" 
+	@echo "   - CURRENT_DIRECTORY is $(CURRENT_DIRECTORY)"  
+	@echo "   - PROJECT_DIR is $(PROJECT_DIR)" 
+	@echo "   - STELLA_DIR is $(STELLA_DIR)" 
+	@echo "   - COMPILATION_DIR is $(COMPILATION_DIR)" 
+	@echo "   - EXTERNALS_DIR is $(EXTERNALS_DIR)"  
+	@echo "                     " 
+
+# Keep the compilated files in seperate folders
+export BUILD_F90_DIR_NAME := f90fromfpp
+export BUILD_DIR := $(COMPILATION_DIR)/build_make
+export BUILD_MODULES_DIR := $(BUILD_DIR)/modules
+export BUILD_OBJECTS_DIR := $(BUILD_DIR)/objects
+export BUILD_F90_DIR := $(BUILD_DIR)/$(BUILD_F90_DIR_NAME)
+
+# Keep the compilated files in seperate folders
+# These commands can be triggered by the target 'create-build-directories'
+# or they will be triggered if $(BUILD_DIR) is a prerequisite, but it does not exist yet.
+.PHONY: create-build-directories
+$(BUILD_DIR) create-build-directories: 
+	@echo "                     " 
+	@echo "Create the COMPILATION/build_make/* directories"
+	@echo "   - $(BUILD_DIR) "
+	@echo "   - $(BUILD_MODULES_DIR) "
+	@echo "   - $(BUILD_OBJECTS_DIR) "
+	@echo "   - $(BUILD_F90_DIR) "
+	@mkdir -p $(BUILD_DIR) 
+	@mkdir -p $(BUILD_MODULES_DIR)
+	@mkdir -p $(BUILD_OBJECTS_DIR)
+	@mkdir -p $(BUILD_F90_DIR)   
+	@echo "                     "
+	 
 
 ####################################################################
 #                        PLATFORM DEPENDENCE                       #
@@ -144,7 +182,7 @@ BUILD_DIR := $(STELLA_PARENT_DIR)/build_make
 
 # A user can include a 'Makefile.local' to change some compiler flags
 # Here "sinclude" will include the file, without an error if it doesn't exist
-sinclude Makefile.local
+sinclude $(COMPILATION_DIR)/Makefile.local
 
 # Include system-dependent make variables, defined in stella/Makefiles/Makefile.$STELLA_SYSTEM 
 # where e.g., export STELLA_SYSTEM='marconi' inside e.g. ~/.bashrc defined this system variable on your computer 
@@ -170,11 +208,11 @@ endif
 # Read the make file for this specific operating system, set in STELLA_SYSTEM
 # The compiler mode switches (DEBUG, TEST, OPT, STATIC, DBLE) must be set
 # before loading Makefile.$(STELLA_SYSTEM) because they may affect compiler options.
-include $(STELLA_PARENT_DIR)/Makefiles/Makefile.$(STELLA_SYSTEM) 
+include $(COMPILATION_DIR)/Makefiles/Makefile.$(STELLA_SYSTEM) 
 
 # However, Makefile.local may override some options set in Makefile.$(STELLA_SYSTEM),
 # thus it is included before and after Makefile.$(_SYSTEM), if it exists
-sinclude Makefile.local
+sinclude $(COMPILATION_DIR)/Makefile.local
 
 # Export some variables, so they become available to all child processes
 export F90FLAGS
@@ -286,20 +324,7 @@ CFLAGS += $(COPTFLAGS)
 #                              RULES                               #
 #################################################################### 
 
-.PHONY: create-build-directory
-export BUILD_F90_DIR_NAME := f90fromfpp
-export BUILD_DIR := $(STELLA_PARENT_DIR)/build_make
-export BUILD_MODULES_DIR := $(STELLA_PARENT_DIR)/build_make/modules
-export BUILD_OBJECTS_DIR := $(STELLA_PARENT_DIR)/build_make/objects
-export BUILD_F90_DIR := $(STELLA_PARENT_DIR)/build_make/$(BUILD_F90_DIR_NAME)
-create-build-directory: 
-	mkdir -p $(BUILD_DIR) 
-	mkdir -p $(BUILD_MODULES_DIR)
-	mkdir -p $(BUILD_OBJECTS_DIR)
-	mkdir -p $(BUILD_F90_DIR) 
-	@echo "Created the build_cmake directies"
-	@echo "  "
-	
+# @ supresses the output in the command prompt, remove this to debug	
 # -o is a compiler option that specifies the name of the output file
 # -c is a compiler option that tells the compiler to generate an object file
 # $@ is the name of the target being generated -> 'stella'
@@ -308,19 +333,13 @@ create-build-directory:
 # -c $^ -o $@
 
 # We process the following files
-.SUFFIXES: .fpp .f90 .F90 .c .o .i90
+.SUFFIXES: .f90 .o 
 
-# Build fortran files '*.f90' from '*.fpp' using the C preprocessor (CPP) compiler 
-%.f90: %.fpp
-	$(CPP) $(CPPFLAGS) -J$(BUILD_MODULES_DIR) $< $(BUILD_F90_DIR)/$@
-
+# For the external libraries, and for stella, we need to build *.o files from *.f90 files
 # Build object files '*.o' from '*.f90' files using the Fortran f90 compiler, e.g., ifort = The Intel Fortran compiler
 %.o: %.f90
-	$(FC) $(F90FLAGS) $(INC_FLAGS) -J$(BUILD_MODULES_DIR) -o $(BUILD_OBJECTS_DIR)/$@ -c $<
-
-# Build object files '*.o' from '*.c' using the C compiler 
-%.o: %.c
-	$(CC) $(CFLAGS) -J$(BUILD_MODULES_DIR) -c $(BUILD_F90_DIR)/$<
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) -J$(BUILD_MODULES_DIR) -o $(BUILD_OBJECTS_DIR)/$@ -c $<
+	@echo "    *.f90 to *.o: $(notdir $<)" 
 	
 ####################################################################
 #                         EXTERNAL MODULES                         #
@@ -330,112 +349,10 @@ create-build-directory:
 # 'pFunit' is processed in tests/automated_fortran_tests/Makefile
 ####################################################################
 
-# --------------------- UTILS AND MINI_LIBSTELL --------------------
-
-# We will compile the static library <mini_libstell> and we link LIBSTELL_LIB to the static library
-# In a static library, the modules are bound into the executable file before execution. 
-# Static libraries are commonly named libname.a. The .a suffix refers to archive. 
-export MINILIBSTELL_DIR=$(EXTERNALS_DIR)/mini_libstell
-export UTILS_DIR=$(EXTERNALS_DIR)/utils
-LIBSTELL_LIB=$(MINILIBSTELL_DIR)/mini_libstell.a
-
-# stella needs two modules 'utils.a' and 'mini_libstell.a'
-# we will build all modules using the 'modules' target 
-.PHONY: external_modules 
-external_modules: utils.a mini_libstell.a 
-
-# The 'utils.a' static library contains all external python scripts
-# Note that in UTIL_OBJ we do not need to include all files in utils,
-# because 'stella' will compile all other files which aren't included in 'utils' 
-# $@ is the name of the target being generated -> 'stella'
-# $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
-# $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
-UTIL_OBJ = command_line.o constants.o convert.o fft_work.o file_utils.o gauss_quad.o job_manage.o linear_solve.o mp.o mp_lu_decomposition.o mt19937.o netcdf_utils.o ran.o redistribute.o smooth_step.o sort.o spfunc.o spl.o system_fortran.o text_options.o
-#UTIL_OBJ = $(addprefix $(BUILD_OBJECTS_DIR)/, command_line.o constants.o convert.o fft_work.o file_utils.o gauss_quad.o job_manage.o linear_solve.o mp.o mp_lu_decomposition.o mt19937.o netcdf_utils.o ran.o redistribute.o smooth_step.o sort.o spfunc.o spl.o system_fortran.o text_options.o )
-utils.a: $(UTIL_OBJ)
-	$(ARCH) $(ARCHFLAGS) $@ $(addprefix $(BUILD_OBJECTS_DIR)/, $^)
-	$(RANLIB) $@
-
-# The mini_libstell.a is an external library to read VMEC files
-# It has no dependencies, so only write the build commands
-mini_libstell.a:
-	$(MAKE) -C $(MINILIBSTELL_DIR) 
-	
-# --------------------- GIT_VERSION AND NEASYF ---------------------
-
-# External libraries
-GIT_VERSION_PARENT_DIR := $(EXTERNALS_DIR)/git_version
-GIT_VERSION_DIR := $(EXTERNALS_DIR)/git_version/src
-NEASYF_DIR := $(EXTERNALS_DIR)/neasyf/src
-
-# Files that we know are going to be in the submodule directories.
-# This is in case the directories exist but the submodules haven't actually been initialised
-GIT_VERSION_SENTINEL := $(GIT_VERSION_PARENT_DIR)/Makefile
-NEASYF_SENTINEL := $(NEASYF_DIR)/neasyf.f90
-
-# If make is killed or interrupted during the execution of their recipes, 
-# the targets in ".PRECIOUS" are not deleted.
-.PRECIOUS: $(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL)
-
-# Make sure the submodules exist; they all currently share the same recipe
-$(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL) submodules:
-	@echo "Downloading submodules"
-	git submodule update --init --recursive
-
-# Dump the compilation flags to a file, so we can check if they change between
-# invocations of `make`. The `cmp` bit checks if the file contents
-# change. Adding a dependency of a file on `.compiler_flags` causes it to be
-# rebuilt when the flags change. Taken from
-# https://stackoverflow.com/a/3237349/2043465
-COMPILER_FLAGS_CONTENTS = "FC = $(FC)\n CPPFLAGS = $(CPPFLAGS)\n F90FLAGS = $(F90FLAGS)\n INC_FLAGS = $(INC_FLAGS)\n CFLAGS = $(CFLAGS)"
-COMPILER_FLAGS_CONTENTS += "\n FORTRAN_GIT_DEFS = $(FORTRAN_GIT_DEFS)"
-.PHONY: force
-.compiler_flags: force
-	@echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
-
-# Use the make rules from fortran-git-version, which requires ensuring the submodules exist
-include $(GIT_VERSION_PARENT_DIR)/Makefile
-
-# We have some extra macros to add when preprocessing this file. We'll
-# need the submodule to exist first
-git_version_impl.f90: $(GIT_VERSION_DIR)/git_version_impl.F90 | $(GIT_VERSION_SENTINEL)
-	$(CPP) $(CPPFLAGS) $(FORTRAN_GIT_DEFS) $< $@
-
-# The fortdep script doesn't know about Fortran submodules, so we need
-# to write the dependency ourselves
-git_version_impl.o: git_version_impl.f90 git_version.o .compiler_flags
-$(GIT_VERSION_DIR)/git_version_impl.F90: .compiler_flags
-
-# There is an undefined reference to `get_git_state` or `get_git_hash` error. 
-# We need to manually add the dependency of stella on `$(OBJDIR)/git_version_impl.o`
-# by writing 'stella: $(external_modules) $(stella_mod)' when defining the target.
-# This file needs to be first in the list of dependencies so that the file that 
-# needs the functions can find them. Yes this is unpleasant, no we (probably?) 
-# can`t automate this like for the other dependencies. `fortdep` doesn't 
-# understand Fortran submodules, so it can't pick this up.
-external_modules_dependencies := git_version_impl.o
-
-
-
-
-
-
-
-
-############################################################### SPECIAL RULES
-
-# comment this out to keep intermediate .f90 files
-#.PRECIOUS: $(F90FROMFPP)
-
-.INTERMEDIATE: stella_transforms.f90 stella_io.f90 stella_save.f90 \
-		mp.f90 fft_work.f90 response_matrix.f90 sources.f90 \
-		fields.f90 mp_lu_decomposition.f90 git_version_impl.f90
+include $(COMPILATION_DIR)/Makefile.externals
 
 ############################################################# MORE DIRECTIVES
 
-
-unlink:
-	-rm -f $(F90FROMFPP)
 
 revision:
 	@LANG=C svn info | awk '{if($$1=="Revision:") printf("%20d",$$2) }' > Revision
@@ -443,29 +360,10 @@ revision:
 TAGS:	*.f90 *.fpp */*.f90 */*.fpp
 	etags $^
 
-############################################################# Documentation
-
-create_namelist_markdown:
-	docs/pages/user_manual/namelist_files/combine_namelists.sh
-
-ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
-check_ford_install:
-	@echo "Using ford at $(shell which $(FORD))"
-else
-check_ford_install:
-	@echo "Ford command $(FORD) not in path -- is it installed?\\n\\tConsider installing with 'pip install --user ford' and add ${HOME}/.local/bin to PATH" ; which $(FORD)
-endif
-
-doc: docs/stella_docs.md create_namelist_markdown check_ford_install
-	$(FORD) $(INC_FLAGS) -r $(GIT_VERSION) $<
-
-cleandoc:
-	@echo "FORD docs"
-	-rm -rf docs/html
-
 
 ####################################################################
 #                              STELLA                              #
 ####################################################################
 
-include $(STELLA_PARENT_DIR)/Makefile.stella
+include $(COMPILATION_DIR)/Makefile.stella
+

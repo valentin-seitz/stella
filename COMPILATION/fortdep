@@ -847,7 +847,9 @@ sub write_dependency{
     open(DEP,">$$option{'depfile'}") ||
 	die ( "cannot open file: $$option{'depfile'}!" );
     print DEP "#\n";
-    print DEP "# Auto-generated file by fortdep. Do not edit!\n";
+    print DEP "# Auto-generated file by fortdep. Do not edit manually!\n";
+    print DEP "# Instead run the following command in the project folder:\n";
+    print DEP "# >> make depend\n";
     print DEP "#\n";
 
     foreach my $key ( sort ( keys %$objlist ) ){
