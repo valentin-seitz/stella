@@ -191,7 +191,6 @@ ifndef STELLA_SYSTEM
 $(warning WARNING: SYSTEM environment variable is obsolete, use GK_SYSTEM instead)
 $(info    )
 	GK_SYSTEM = $(SYSTEM)
-	STELLA_SYSTEM = $(SYSTEM)
 	else ifdef GK_SYSTEM
 $(warning WARNING: GK_SYSTEM environment variable is obsolete, use STELLA_SYSTEM instead)
 $(info    )
