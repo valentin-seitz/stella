@@ -33,6 +33,7 @@ jobs:
     - name: Build documentation
       run: |
         export GK_SYSTEM=gnu_ubuntu
+        git submodule update --init --recursive
         make -I Makefiles doc
         
     - name: Checkout pages branch
