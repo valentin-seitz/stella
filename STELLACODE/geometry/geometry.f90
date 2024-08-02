@@ -2,16 +2,27 @@
 !###############################################################################
 !############################### STELLA GEOMETRY ###############################
 !###############################################################################
-! 
-! Routines for calculating the geometry needed by stella.
-! 
-! This routine will call the <vmec_geometry> or <geometry_miller> modules.
-! Which each uses specific (x, psi) coordinates. Nonetheless, stella is 
-! completely general, it just needs geometric variables as a function of
-! <psi> as well as the factor <dxdpsi> and <dpsitdpsi>.
-! 
+!> 
+!> # STELLA GEOMETRY 
+!> 
+!> Routines for calculating the geometry needed by stella.
+!> 
+!> ### Quick explanation of routine 
+!>
+!> This module will call the `vmec_geometry` or `geometry_miller` modules.
+!> Which each uses specific (x, psi) coordinates. Nonetheless, `stella` is 
+!> completely general, it just needs geometric variables as a function of
+!> `psi` as well as the factor `dxdpsi` and `dpsitdpsi`.
+!>
+!> ### Public routines ###
+!> 
+!> Public routines are called by stella.f90
+!> 
+!> - init_geometry
+!> - finish_init_geometry
+!> - finish_geometry
+!> 
 !###############################################################################
-
 
 module geometry
 
@@ -19,6 +30,7 @@ module geometry
 
    implicit none
 
+   ! Public routines
    public :: init_geometry, finish_init_geometry, finish_geometry
    public :: communicate_geo_multibox, x_displacement_fac 
    
@@ -72,7 +84,12 @@ module geometry
    real :: twist_and_shift_geo_fac, gfac
 
    ! Geometric quantities for the gyrokinetic equations
-   real, dimension(:), allocatable :: zed_eqarc, alpha
+   
+   !> \( \alpha \) is the field line label, 
+   !> defined as \(  \alpha = \theta - \iota \zeta \) in stellarators (VMEC) and
+   !> defined as \(  \alpha = \zeta - q \theta \) in tokamaks (Miller).
+   real, dimension(:), allocatable :: alpha
+   real, dimension(:), allocatable :: zed_eqarc !< Use \( z = \ell = \) arc length, as the parallel coordinate
    real, dimension(:), allocatable :: gradpar, b_dot_grad_z_averaged
    real, dimension(:), allocatable :: dBdrho, d2Bdrdth, dgradpardrho, btor, Rmajor 
    real, dimension(:, :), allocatable :: bmag, bmag_psi0, dbdzed 
@@ -85,13 +102,14 @@ module geometry
    real, dimension(:, :), allocatable :: theta_vmec, zeta
    real, dimension(:, :, :), allocatable :: dVolume
    
-   ! Geometric quantities for full flux surface 
+   !> Geometric quantities for full flux surface 
    real, dimension(:, :), allocatable :: b_dot_grad_z
    
    ! Geometric quantities for the momentum flux
-   real, dimension(:, :), allocatable :: gradzeta_gradx_R2overB2
+   !> \( (\nabla \zeta \cdot \nabla x) R^2/B^2 \) (Check normalisation)
+   real, dimension(:, :), allocatable :: gradzeta_gradx_R2overB2 
    real, dimension(:, :), allocatable :: gradzeta_grady_R2overB2
-   real, dimension(:, :), allocatable :: b_dot_grad_zeta_RR
+   real, dimension(:, :), allocatable :: b_dot_grad_zeta_RR 
 
    integer :: sign_torflux
    integer :: geo_option_switch
@@ -112,9 +130,9 @@ module geometry
 
 contains
 
-   !============================================================================
-   !========================= INITIALIZE THE GEOMETRY ==========================
-   !============================================================================
+   !>============================================================================
+   !>========================= INITIALIZE THE GEOMETRY ==========================
+   !>============================================================================
    subroutine init_geometry(nalpha, naky)
 
       ! Zgrid
