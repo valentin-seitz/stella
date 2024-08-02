@@ -121,8 +121,6 @@ stella_all: build-external-modules build-stella
 # we get the following error: Cannot rename module file ‘.../splines.mod0’ to ‘.../splines.mod’: No such file or directory
 .PHONY: build-stella 
 build-stella: build-f90-from-fpp
-	@$(MAKE) --no-print-directory constants.o
-	@$(MAKE) --no-print-directory spl.o
 	@$(MAKE) --no-print-directory stella
 	@$(MAKE) --no-print-directory stella-finished 
 
