@@ -191,5 +191,6 @@ jobs:
       - name: Build stella (CMake)
         run: |
           set -ex
+          git submodule update --init --recursive
           cmake . -B COMPILATION/build_cmake -DSTELLA_ENABLE_TESTS=on
           cmake --build COMPILATION/build_cmake -j12 --target check
