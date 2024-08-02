@@ -87,6 +87,7 @@ jobs:
         run: |
           cat /etc/*release
           gfortran --version
+          python --version
           nf-config --all
       - uses: actions/checkout@v2
 
