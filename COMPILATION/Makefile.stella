@@ -166,9 +166,9 @@ check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
 #	>> make distclean
 .PHONY: clean clean-verbose distclean
 
-# Remove all previously build *.o and *.mod files, and create symbolic links for the *.fpp files
-clean: remove-build-files clean-pfunit create-build-directories create-symbolic-links
-clean-quick: remove-build-files-quick create-build-directories create-symbolic-links
+# Remove all previously build *.o and *.mod files, and create symbolic links for the *.fpp files create-build-directories create-symbolic-links
+clean: remove-build-files clean-pfunit 
+clean-quick: remove-build-files-quick 
 clean-verbose: print-directories print-directories-externals clean
 
 # 'distclean' should leave only the files that were in the distributions
@@ -190,7 +190,14 @@ remove-build-files-quick:
 	@echo "                     "
 	@echo "Clean stella project:"
 	@echo "   - remove compiled files"
-	@-rm -rf $(BUILD_DIR)
+	@-rm -f $(BUILD_F90_DIR)/*.f90 $(BUILD_F90_DIR)/*.fpp $(BUILD_F90_DIR)/*.inc
+	@-rm -f $(BUILD_MODULES_DIR)/*.mod $(BUILD_MODULES_DIR)/*.smod $(BUILD_MODULES_DIR)/*.mod0
+	@-rm -f $(BUILD_OBJECTS_DIR)/*.o 
+	@if [ -d "$(BUILD_OBJECTS_DIR)" ]; then rmdir $(BUILD_OBJECTS_DIR); fi
+	@if [ -d "$(BUILD_MODULES_DIR)" ]; then rmdir $(BUILD_MODULES_DIR); fi
+	@if [ -d "$(BUILD_F90_DIR)" ]; then rmdir $(BUILD_F90_DIR); fi 
+	@if [ -d "$(BUILD_DIR)" ]; then rmdir $(BUILD_DIR); fi 
+	@echo "   - remove temp files"
 	@-rm -f *.o *.mod *.g90 *.h core */core *~ *.smod 
 	@-rm -f $(GEO)/*.o $(GEO)/*~
 	@-rm -f Makefiles/*~
@@ -222,7 +229,7 @@ create-symbolic-links: $(symbolic_links_of_fpp_files)
 	@echo "          "
 	@echo "Create links to the *.fpp files to preprocess them in a separate folder"
 	@echo "   - ln -s STELLACODE/*.fpp COMPILATION/$(BUILD_F90_DIR_NAME)/*.fpp"	
-	@ln -s $(UTILS_DIR)/define.inc $(BUILD_F90_DIR)/define.inc
+	@ln -sf $(UTILS_DIR)/define.inc $(BUILD_F90_DIR)/define.inc
 	@echo "          "
 	             
 # Make sure we have preprocessed the *.fpp files
