@@ -39,13 +39,13 @@ pip install cmake
 Building stella is then a matter of first configuring the build:
 
 ```
-cmake . -B build
+cmake . -B COMPILATION/build_cmake
 ```
 
 and then building proper:
 
 ```
-cmake --build build
+cmake --build COMPILATION/build_cmake
 ```
 
 You may need to pass a few flags to the first `cmake` command to tell
