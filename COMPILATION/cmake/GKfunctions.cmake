@@ -43,7 +43,7 @@ function(stella_add_standard_tests)
         STELLA_ADD "" "" "TEST_NAMES" ${ARGN}
     )
   foreach(name ${STELLA_ADD_TEST_NAMES})
-    stella_add_test("tests/automated_fortran_tests/test_${name}.pf" ${name})
+    stella_add_test("../tests/automated_fortran_tests/test_${name}.pf" ${name})
   endforeach()
   set(STELLA_CTEST_CASES ${STELLA_CTEST_CASES} PARENT_SCOPE)
 endfunction()
