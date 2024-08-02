@@ -99,8 +99,9 @@ $(PFUNIT_OBJS): $(STELLA_OBJS)
 # Test suite
 ###############################################################
 
-# The test suite executable recipe to execute the Fortran tests
-automated-fortran-tests: $(external_modules_dependencies) $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(STELLA_OBJS)
+# The test suite executable recipe to execute the Fortran tests 
+GIT_OBJ :=  $(BUILD_OBJECTS_DIR)/git_version_impl.o
+automated-fortran-tests: $(GIT_OBJ) $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(STELLA_OBJS)
 	@echo "                       "
 	@echo "Compiling: pFUnit tests"
 	$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I $(PFUNIT_TEST_DIR) -I $(BUILD_OBJECTS_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'

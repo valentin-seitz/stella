@@ -65,7 +65,8 @@ include $(DEPEND_FILE)
 # will trigger the 'submodules' target. We also need to make sure that 
 # the 'build_make' directory exists.  
 .PHONY: depend  
-depend: create-depend-file
+depend: create-build-directories create-symbolic-links
+	@$(MAKE) --no-print-directory create-depend-file
 create-depend-file: $(GIT_VERSION_SENTINEL) $(NEASYF) $(BUILD_DIR)
 	@echo "          "
 	@echo "Write the depencies of the Fortran scripts with fortdep"
@@ -115,6 +116,16 @@ all: $(.DEFAULT_GOAL)
 # target 'build-external-modules'. Finally it compiles the stella code. 
 stella_all: build-external-modules build-stella
 
+# Before we can build stella we need to ensure that we first created all the *.f90 files
+# from the *.fpp files, and that we have spl.o (which depends on constants.o) otherwise
+# we get the following error: Cannot rename module file ‘.../splines.mod0’ to ‘.../splines.mod’: No such file or directory
+.PHONY: build-stella 
+build-stella: build-f90-from-fpp
+	@$(MAKE) --no-print-directory constants.o
+	@$(MAKE) --no-print-directory spl.o
+	@$(MAKE) --no-print-directory stella
+	@$(MAKE) --no-print-directory stella-finished 
+
 # Build the stella executable
 # On the first line of the target 'stella' we define the dependencies 
 # On the second line we define the compilation or build commands
@@ -124,14 +135,13 @@ stella_all: build-external-modules build-stella
 # $@ is the name of the target being generated -> 'stella'
 # $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
 # $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
-.PHONY: build-stella, stella-finished
-build-stella: build-f90-from-fpp 
-	@$(MAKE) --no-print-directory stella
-	@$(MAKE) --no-print-directory stella-finished 
 stella: $(external_modules_dependencies) $(stella_mod) 
 	@$(LD) $(LDFLAGS) -o $@ $(addprefix $(BUILD_OBJECTS_DIR)/, $(notdir $^)) $(LIBS)
 	@echo "                     " 
 	@echo "       ==> Compile stella"
+
+# A message to know whether the compilation has finished
+.PHONY: stella-finished
 stella-finished: 
 	@echo "                     " 
 	@echo "Finished compiling stella."
@@ -167,7 +177,7 @@ check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
 .PHONY: clean clean-verbose distclean
 
 # Remove all previously build *.o and *.mod files, and create symbolic links for the *.fpp files create-build-directories create-symbolic-links
-clean: remove-build-files clean-pfunit 
+clean: remove-build-files clean-pfunit
 clean-quick: remove-build-files-quick 
 clean-verbose: print-directories print-directories-externals clean
 
