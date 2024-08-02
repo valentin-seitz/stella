@@ -112,8 +112,7 @@ automated-fortran-tests: $(GIT_OBJ) $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(STELLA_OBJ
 run-automated-fortran-tests: check-pfunit-install automated-fortran-tests 
 	@echo "                       "
 	@echo "Running: pFUnit tests"
-	#@mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/automated-fortran-tests -verbose -debug
-	@$(PFUNIT_TEST_PATH)/automated-fortran-tests -verbose -debug -robust 
+	@mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/automated-fortran-tests
 
 ###############################################################
 # Coverage
