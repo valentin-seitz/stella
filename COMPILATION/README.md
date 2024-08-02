@@ -36,13 +36,13 @@ pip install cmake
 Building stella is then a matter of first configuring the build:
 
 ```
-cmake . -B build
+cmake . -B COMPILATION/build_cmake
 ```
 
 and then building proper:
 
 ```
-cmake --build build
+cmake --build COMPILATION/build_cmake
 ```
 
 You may need to pass a few flags to the first `cmake` command to tell
@@ -117,8 +117,8 @@ To compile stella with `make` the Makefile, which contains the compilation comma
 
 Some of the external libraries and automated tests are compiled using their own Makefile's:
 
-- externals/mini_libstell/Makefile
-- externals/git_version/Makefile
+- EXTERNALS/mini_libstell/Makefile
+- EXTERNALS/git_version/Makefile
 - tests/automated_fortran_tests/Makefile
 - tests/automated_numerical_tests_for_stella/Makefile
 

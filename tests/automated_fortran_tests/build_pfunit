@@ -23,7 +23,7 @@ make_jobs=1
 
 # Locations of various things
 stella_directory=$(pwd)
-externals_directory="${stella_directory}/externals"
+externals_directory="${stella_directory}/EXTERNALS"
 pfunit_directory="${externals_directory}/pFUnit"
 compilation_directory="${stella_directory}/COMPILATION"
 pfunit_version_directory="${externals_directory}/pFUnit-${pfunit_version}"

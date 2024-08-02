@@ -10,7 +10,7 @@ author_description:
     for a complete list
 src_dir: ..
 page_dir: automatic_documentation_manual_pages
-exclude_dir: ../externals
+exclude_dir: ../EXTERNALS
              ../tests
              ./automatic_documentation_FORD
 output_dir: ./automatic_documentation_FORD

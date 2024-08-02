@@ -215,7 +215,7 @@ endif()
 
 if (STELLA_ENABLE_NETCDF)
   find_package(netCDFFortran REQUIRED)
-  add_subdirectory(../externals/neasyf ${CMAKE_CURRENT_BINARY_DIR}/externals/neasyf)
+  add_subdirectory(../EXTERNALS/neasyf ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/neasyf)
   target_link_libraries(libstella PUBLIC netCDF::netcdff neasyf::neasyf)
   target_compile_definitions(libstella PUBLIC NETCDF=_DEFAULT_)
 endif()
@@ -245,7 +245,7 @@ if (STELLA_ENABLE_PETSC)
 endif()
 
 # Link the <git_version> program
-add_subdirectory(../externals/git_version ${CMAKE_CURRENT_BINARY_DIR}/externals/git_version)
+add_subdirectory(../EXTERNALS/git_version ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/git_version)
 target_link_libraries(libstella PUBLIC fortran_git::fortran_git)
 
 # Ensure FCOMPILER is set
@@ -274,8 +274,8 @@ target_compile_options(libstella PRIVATE
 # Internal libraries: <stella_utils> and <mini_libstell>
 ############################################################
 
-add_subdirectory(../externals/utils ${CMAKE_CURRENT_BINARY_DIR}/externals/utils)
-add_subdirectory(../externals/mini_libstell ${CMAKE_CURRENT_BINARY_DIR}/externals/mini_libstell)
+add_subdirectory(../EXTERNALS/utils ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/utils)
+add_subdirectory(../EXTERNALS/mini_libstell ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/mini_libstell)
 target_link_libraries(libstella PUBLIC mini_libstell stella_utils)
 
 ############################################################
