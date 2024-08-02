@@ -49,7 +49,7 @@ tests/automated_fortran_tests/*.f90
 # Automatic documentation
 docs/html/
 docs/pages/user_manual/namelists.md
-DOCUMENTATION/automatic_documentation_manual_pages/
+DOCUMENTATION/automatic_documentation_FORD/
 DOCUMENTATION/automatic_documentation_manual_pages/user_manual/namelists.md
 
 
