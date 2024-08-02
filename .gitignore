@@ -41,8 +41,8 @@ system_fortran.f90
 # Fortran tests
 automated-fortran-tests
 COMPILATION/pFUnit_build
-tests/automated_fortran_tests/*.F90
-tests/automated_fortran_tests/*.f90
+AUTOMATIC_TESTS/test_fortran_routines/*.F90
+AUTOMATIC_TESTS/test_fortran_routines/*.f90
 .compiler_flags
 .fortran_git_version
 

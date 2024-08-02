@@ -119,8 +119,8 @@ Some of the external libraries and automated tests are compiled using their own 
 
 - EXTERNALS/mini_libstell/Makefile
 - EXTERNALS/git_version/Makefile
-- tests/automated_fortran_tests/Makefile
-- tests/automated_numerical_tests_for_stella/Makefile
+- AUTOMATIC_TESTS/test_fortran_routines/Makefile
+- AUTOMATIC_TESTS/test_fortran_routines/Makefile
 
 For each operating system, a specific Makefile is written, e.g.:
 

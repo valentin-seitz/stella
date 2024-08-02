@@ -1,7 +1,7 @@
 # See README.md for more information on these automated stella tests
 
 # Test directory
-test_dir = $(PROJECT_DIR)/tests
+test_dir = $(PROJECT_DIR)/AUTOMATIC_TESTS
 
 # Create a virtualenv and install the test dependencies there
 create-test-virtualenv:

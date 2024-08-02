@@ -151,15 +151,15 @@ stella-finished:
 #===================================================================
 
 # Include the automated Fortran tests
-# Inside 'tests/automated_fortran_tests/Makefile' we define the commands 
+# Inside 'AUTOMATIC_TESTS/test_fortran_routines/Makefile' we define the commands 
 # >> build-pfunit-library 
 # >> run-automated-fortran-tests
 # Note that if we do 'make clean' it will also invoke the 'clean' commands in all include makefiles
-$(PROJECT_DIR)/tests/automated_fortran_tests/Makefile:
-include $(PROJECT_DIR)/tests/automated_fortran_tests/Makefile
+$(PROJECT_DIR)/AUTOMATIC_TESTS/test_fortran_routines/Makefile:
+include $(PROJECT_DIR)/AUTOMATIC_TESTS/test_fortran_routines/Makefile
 
-$(PROJECT_DIR)/tests/automated_numerical_tests_for_stella/Makefile:
-include $(PROJECT_DIR)/tests/automated_numerical_tests_for_stella/Makefile
+$(PROJECT_DIR)/AUTOMATIC_TESTS/numerical_tests_for_stella/Makefile:
+include $(PROJECT_DIR)/AUTOMATIC_TESTS/numerical_tests_for_stella/Makefile
  
 # Run all tests together with the 'check' command
 check: run-automated-fortran-tests run-automated-numerical-tests-for-stella

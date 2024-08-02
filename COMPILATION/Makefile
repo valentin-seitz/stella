@@ -346,7 +346,7 @@ CFLAGS += $(COPTFLAGS)
 ####################################################################
 # Stella uses the external modules 'git_version' and 'neasyf'. 
 # Note that the automated Fortran tests use the external module 
-# 'pFunit' is processed in tests/automated_fortran_tests/Makefile
+# 'pFunit' is processed in AUTOMATIC_TESTS/test_fortran_routines/Makefile
 ####################################################################
 
 include $(COMPILATION_DIR)/Makefile.externals

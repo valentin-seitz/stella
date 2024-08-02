@@ -1,10 +1,10 @@
 
 
 # Directory
-PFUNIT_TEST_DIR = $(PROJECT_DIR)/tests/automated_fortran_tests
+PFUNIT_TEST_DIR = $(PROJECT_DIR)/AUTOMATIC_TESTS/test_fortran_routines
 PFUNIT_TEST_PATH :=.
 
-# Find the pFUnit tests inside $(PROJECT_DIR)/tests/automated_fortran_tests/
+# Find the pFUnit tests inside $(PROJECT_DIR)/AUTOMATIC_TESTS/test_fortran_routines/
 PFUNIT_TESTS:= $(shell find $(PFUNIT_TEST_DIR) -name '[^.\#]*.pf')
 PFUNIT_TEST_LIST := $(PFUNIT_TEST_DIR)/testSuites.inc
 
@@ -63,7 +63,7 @@ PFUNIT_INTERMEDIATES := $(PFUNIT_TESTS:.pf=.F90)
 
 build-pfunit-library:
 	@echo "Building pFUnit in default location: $(COMPILATION_DIR)/pFUnit_build/install"
-	@tests/automated_fortran_tests/build_pfunit -v ${PFUNIT_VERSION_MAJOR}
+	@AUTOMATIC_TESTS/test_fortran_routines/build_pfunit -v ${PFUNIT_VERSION_MAJOR}
 
 check-pfunit-install:
 ifeq ("$(wildcard $(PFUNIT_PREPROCESSOR))","")
@@ -72,7 +72,7 @@ endif
 
 clean-pfunit-library:
 	@echo "Removing pFUnit library"
-	@tests/automated_fortran_tests/build_pfunit -r
+	@AUTOMATIC_TESTS/test_fortran_routines/build_pfunit -r
 
 distclean: clean-pfunit-library
 

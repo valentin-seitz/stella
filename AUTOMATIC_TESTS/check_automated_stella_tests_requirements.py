@@ -32,7 +32,7 @@ if failed_modules:
             Could not import: {list_of_failed_modules}
             Run:
                 make create-test-virtualenv
-                source tests/venv/bin/activate
+                source AUTOMATIC_TESTS/venv/bin/activate
             to install and activate test dependencies
             """
         )

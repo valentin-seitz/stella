@@ -38,11 +38,10 @@ The automated stella tests here are written using the Python [pytest][pytest] pa
 and make use of [xarray][xarray] for reading in the data. To install these
 packages in a standalone environment, you can run:
 
-    export GK_HEAD_DIR=your_path_to_stella/stella
+    export STELLA_HEAD_DIR=your_path_to_stella/stella
     export STELLA_EXE_PATH=your_path_to_stella/stella/stella
-    cd $GK_HEAD_DIR/
     make create-test-virtualenv
-    source $GK_HEAD_DIR/tests/venv/bin/activate
+    source $STELLA_HEAD_DIR/AUTOMATIC_TESTS/venv/bin/activate
 
 This will create a Python [virtual environment][venv] with the packages needed
 for running the tests. You can then run all the tests:
