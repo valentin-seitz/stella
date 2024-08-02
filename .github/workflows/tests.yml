@@ -191,5 +191,5 @@ jobs:
       - name: Build stella (CMake)
         run: |
           set -ex
-          cmake . -B build -DSTELLA_ENABLE_TESTS=on
-          cmake --build build -j12 --target check
+          cmake . -B COMPILATION/build_cmake -DSTELLA_ENABLE_TESTS=on
+          cmake --build COMPILATION/build_cmake -j12 --target check
