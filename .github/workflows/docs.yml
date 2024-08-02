@@ -1,5 +1,8 @@
-name: Documenation
-on: [push, pull_request]
+name: Documentation
+on:
+  push:
+    branches:
+      - master
 
 jobs:
   docs:
