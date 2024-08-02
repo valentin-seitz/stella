@@ -101,9 +101,10 @@ jobs:
       - name: Perform automated Fortran tests
         run: |
           set -ex
+          export GK_SYSTEM=gnu_ubuntu
           export STELLA_SYSTEM=gnu_ubuntu
-          make -I Makefiles -j12 build-pfunit-library
-          make -I Makefiles -j12 run-automated-fortran-tests 
+          make -I Makefiles -j4 build-pfunit-library
+          make -I Makefiles -j4 run-automated-fortran-tests 
 
   # Build stella with Make and run automatic python tests
   test3:
