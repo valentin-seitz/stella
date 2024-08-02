@@ -132,7 +132,7 @@ fi
 # Check if we're in a git repo and, if so, that the pFUnit submodule is up-to-date
 if [[ ! $(git rev-parse --git-dir >/dev/null 2>&1 || [[ -d ${stella_directory}/.git ]]) ]]; then
     echo "Making sure pFUnit submodule is up-to-date"
-    git submodule update --init --recursive externals/pFUnit
+    git submodule update --init --recursive EXTERNALS/pFUnit
 fi
 
 # If we're not in a git repo and the pFUnit submodule isn't there, best download it
