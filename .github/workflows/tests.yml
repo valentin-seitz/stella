@@ -152,7 +152,7 @@ jobs:
         run: |
           set -ex
           export STELLA_SYSTEM=gnu_ubuntu
-          make -I Makefiles run-automated-numerical-tests-for-stella
+          make -I Makefiles numerical-tests
         
   # Build stella with CMake and run automatic Fortran tests
   # Cmake has to run on 1 node or it will run into parallelisation errors
