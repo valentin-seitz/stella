@@ -2,6 +2,7 @@
 
 # Test directory
 test_dir = $(PROJECT_DIR)/AUTOMATIC_TESTS
+.PHONY: create-test-virtualenv check-automated-stella-tests-dependencies run-automated-numerical-tests-for-stella run-automated-numerical-tests-for-stella-verbose tests
 
 # Create a virtualenv and install the test dependencies there
 create-test-virtualenv:
@@ -20,6 +21,7 @@ check-automated-stella-tests-dependencies:
 run-automated-numerical-tests-for-stella: check-automated-stella-tests-dependencies $(PROJECT_DIR)/stella
 	@echo "Running: automated stella tests"
 	@pytest -v -rF -W ignore::DeprecationWarning
+tests: run-automated-numerical-tests-for-stella
 	
 # Run the automated stella tests (the -r flag shows the full stella output)
 # -rA shows all outputs, -rf shows only failed outputs 

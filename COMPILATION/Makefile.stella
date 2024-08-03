@@ -150,14 +150,11 @@ stella-finished:
 #                          AUTOMATED TESTS                         #
 #===================================================================
 
-# Include the automated Fortran tests
-# Inside 'AUTOMATIC_TESTS/test_fortran_routines/Makefile' we define the commands 
-# >> build-pfunit-library 
-# >> run-automated-fortran-tests
-# Note that if we do 'make clean' it will also invoke the 'clean' commands in all include makefiles
+# Test the Fortran subroutines
 $(PROJECT_DIR)/AUTOMATIC_TESTS/test_fortran_routines/Makefile:
 include $(PROJECT_DIR)/AUTOMATIC_TESTS/test_fortran_routines/Makefile
 
+# Numerical tests performed on stella runs
 $(PROJECT_DIR)/AUTOMATIC_TESTS/numerical_tests_for_stella/Makefile:
 include $(PROJECT_DIR)/AUTOMATIC_TESTS/numerical_tests_for_stella/Makefile
  
@@ -204,7 +201,8 @@ remove-build-files-quick:
 	@if [ -d "$(BUILD_OBJECTS_DIR)" ]; then rmdir $(BUILD_OBJECTS_DIR); fi
 	@if [ -d "$(BUILD_MODULES_DIR)" ]; then rmdir $(BUILD_MODULES_DIR); fi
 	@if [ -d "$(BUILD_F90_DIR)" ]; then rmdir $(BUILD_F90_DIR); fi 
-	@if [ -d "$(BUILD_DIR)" ]; then rmdir $(BUILD_DIR); fi 
+	@if [ -d "$(BUILD_DIR)" ]; then rmdir $(BUILD_DIR); fi
+	@if [ -d "$(COMPILATION_DIR)/build_cmake" ]; then rm -rf $(COMPILATION_DIR)/build_cmake; fi
 	@echo "   - remove temp files"
 	@-rm -f *.o *.mod *.g90 *.h core */core *~ *.smod 
 	@-rm -f $(GEO)/*.o $(GEO)/*~
