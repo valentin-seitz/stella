@@ -13,8 +13,7 @@ import numpy as np
 import xarray as xr  
 
 # Package to run stella 
-print(str(pathlib.Path(__file__)))
-module_path = pathlib.Path(str(pathlib.Path(__file__)).split('BENCHMARKS')[0]) / 'AUTOMATIC_TESTS/run_local_stella_simulation.py'
+module_path = str(pathlib.Path(__file__).parent.parent.parent / 'run_local_stella_simulation.py')
 with open(module_path, 'r') as file: exec(file.read())
 
 # Global variables  

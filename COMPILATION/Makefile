@@ -339,7 +339,7 @@ CFLAGS += $(COPTFLAGS)
 # Build object files '*.o' from '*.f90' files using the Fortran f90 compiler, e.g., ifort = The Intel Fortran compiler
 %.o: %.f90
 	@echo "    *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) -I $(BUILD_MODULES_DIR) -J $(BUILD_MODULES_DIR) -o $(BUILD_OBJECTS_DIR)/$@ -c $< 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) -I $(BUILD_MODULES_DIR) -I $(BUILD_OBJECTS_DIR) -J $(BUILD_MODULES_DIR) -o $(BUILD_OBJECTS_DIR)/$@ -c $< 
 	
 ####################################################################
 #                         EXTERNAL MODULES                         #
