@@ -157,6 +157,8 @@ include $(PROJECT_DIR)/AUTOMATIC_TESTS/test_fortran_routines/Makefile
 # Numerical tests performed on stella runs
 $(PROJECT_DIR)/AUTOMATIC_TESTS/numerical_tests_for_stella/Makefile:
 include $(PROJECT_DIR)/AUTOMATIC_TESTS/numerical_tests_for_stella/Makefile
+$(PROJECT_DIR)/BENCHMARKS/Makefile:
+include $(PROJECT_DIR)/BENCHMARKS/Makefile
  
 # Run all tests together with the 'check' command
 check: run-automated-fortran-tests run-automated-numerical-tests-for-stella
