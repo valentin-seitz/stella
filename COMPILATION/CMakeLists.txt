@@ -42,66 +42,66 @@ option(STELLA_UPDATE_GIT_SUBMODULES "Check submodules are up-to-date during buil
 
 # Sources that don't need preprocessing
 set(STELLA_SOURCES_f90
-  ../STELLACODE/common_types.f90
-  ../STELLACODE/define.inc
-  ../STELLACODE/dist_fn.f90
-  ../STELLACODE/dist_fn_arrays.f90
-  ../STELLACODE/dist_redistribute.f90
-  ../STELLACODE/euterpe_interface.f90
-  ../STELLACODE/extended_zgrid.f90
-  ../STELLACODE/ffs_solve.f90
-  ../STELLACODE/fields_arrays.f90
-  ../STELLACODE/finite_differences.f90
-  ../STELLACODE/flow_shear.f90
-  ../STELLACODE/g_tofrom_h.f90
-  ../STELLACODE/gyro_averages.f90
-  ../STELLACODE/implicit_solve.f90
-  ../STELLACODE/init_g.f90
-  ../STELLACODE/kt_grids.f90
-  ../STELLACODE/mirror_terms.f90
-  ../STELLACODE/multibox.f90
-  ../STELLACODE/neoclassical_terms.f90
-  ../STELLACODE/parallel_streaming.f90
-  ../STELLACODE/physics_flags.f90
-  ../STELLACODE/physics_parameters.f90
-  ../STELLACODE/run_parameters.f90
-  ../STELLACODE/species.f90
-  ../STELLACODE/stella_layouts.f90
-  ../STELLACODE/stella_time.f90
-  ../STELLACODE/stella_transforms.f90
-  ../STELLACODE/time_advance.f90
-  ../STELLACODE/volume_averages.f90
-  ../STELLACODE/vpamu_grids.f90
-  ../STELLACODE/zgrid.f90
-  ../STELLACODE/diagnostics/parameters_diagnostics.f90
-  ../STELLACODE/diagnostics/diagnostics.f90
-  ../STELLACODE/diagnostics/diagnostics_distribution.f90
-  ../STELLACODE/diagnostics/diagnostics_fluxes_fluxtube.f90
-  ../STELLACODE/diagnostics/diagnostics_fluxes_fullfluxsurface.f90 
-  ../STELLACODE/diagnostics/diagnostics_fluxes_radialvariation.f90
-  ../STELLACODE/diagnostics/diagnostics_fluxes.f90 
-  ../STELLACODE/diagnostics/diagnostics_moments.f90
-  ../STELLACODE/diagnostics/diagnostics_omega.f90
-  ../STELLACODE/diagnostics/diagnostics_potential.f90
-  ../STELLACODE/dissipation/coll_dougherty.f90
-  ../STELLACODE/dissipation/coll_fokkerplanck.f90
-  ../STELLACODE/dissipation/dissipation.f90
-  ../STELLACODE/dissipation/hyper.f90
-  ../STELLACODE/geometry/geometry.f90
-  ../STELLACODE/geometry/geometry_miller.f90
-  ../STELLACODE/geometry/geometry_vmec.f90
-  ../STELLACODE/geometry/geometry_vmec_read_netCDF_file.f90 
-  ../STELLACODE/geometry/geometry_inputprofiles_interface.f90
+  ../STELLA_CODE//common_types.f90
+  ../STELLA_CODE//define.inc
+  ../STELLA_CODE//dist_fn.f90
+  ../STELLA_CODE//dist_fn_arrays.f90
+  ../STELLA_CODE//dist_redistribute.f90
+  ../STELLA_CODE//euterpe_interface.f90
+  ../STELLA_CODE//extended_zgrid.f90
+  ../STELLA_CODE//ffs_solve.f90
+  ../STELLA_CODE//fields_arrays.f90
+  ../STELLA_CODE//finite_differences.f90
+  ../STELLA_CODE//flow_shear.f90
+  ../STELLA_CODE//g_tofrom_h.f90
+  ../STELLA_CODE//gyro_averages.f90
+  ../STELLA_CODE//implicit_solve.f90
+  ../STELLA_CODE//init_g.f90
+  ../STELLA_CODE//kt_grids.f90
+  ../STELLA_CODE//mirror_terms.f90
+  ../STELLA_CODE//multibox.f90
+  ../STELLA_CODE//neoclassical_terms.f90
+  ../STELLA_CODE//parallel_streaming.f90
+  ../STELLA_CODE//physics_flags.f90
+  ../STELLA_CODE//physics_parameters.f90
+  ../STELLA_CODE//run_parameters.f90
+  ../STELLA_CODE//species.f90
+  ../STELLA_CODE//stella_layouts.f90
+  ../STELLA_CODE//stella_time.f90
+  ../STELLA_CODE//stella_transforms.f90
+  ../STELLA_CODE//time_advance.f90
+  ../STELLA_CODE//volume_averages.f90
+  ../STELLA_CODE//vpamu_grids.f90
+  ../STELLA_CODE//zgrid.f90
+  ../STELLA_CODE//diagnostics/parameters_diagnostics.f90
+  ../STELLA_CODE//diagnostics/diagnostics.f90
+  ../STELLA_CODE//diagnostics/diagnostics_distribution.f90
+  ../STELLA_CODE//diagnostics/diagnostics_fluxes_fluxtube.f90
+  ../STELLA_CODE//diagnostics/diagnostics_fluxes_fullfluxsurface.f90 
+  ../STELLA_CODE//diagnostics/diagnostics_fluxes_radialvariation.f90
+  ../STELLA_CODE//diagnostics/diagnostics_fluxes.f90 
+  ../STELLA_CODE//diagnostics/diagnostics_moments.f90
+  ../STELLA_CODE//diagnostics/diagnostics_omega.f90
+  ../STELLA_CODE//diagnostics/diagnostics_potential.f90
+  ../STELLA_CODE//dissipation/coll_dougherty.f90
+  ../STELLA_CODE//dissipation/coll_fokkerplanck.f90
+  ../STELLA_CODE//dissipation/dissipation.f90
+  ../STELLA_CODE//dissipation/hyper.f90
+  ../STELLA_CODE//geometry/geometry.f90
+  ../STELLA_CODE//geometry/geometry_miller.f90
+  ../STELLA_CODE//geometry/geometry_vmec.f90
+  ../STELLA_CODE//geometry/geometry_vmec_read_netCDF_file.f90 
+  ../STELLA_CODE//geometry/geometry_inputprofiles_interface.f90
 )
 
 # Sources that _do_ need preprocessing (because they have MPI flags, ...)
 set(STELLA_SOURCES_fpp
-  ../STELLACODE/fields.fpp
-  ../STELLACODE/response_matrix.fpp
-  ../STELLACODE/sfincs_interface.fpp
-  ../STELLACODE/sources.fpp
-  ../STELLACODE/stella_io.fpp
-  ../STELLACODE/stella_save.fpp
+  ../STELLA_CODE//fields.fpp
+  ../STELLA_CODE//response_matrix.fpp
+  ../STELLA_CODE//sfincs_interface.fpp
+  ../STELLA_CODE//sources.fpp
+  ../STELLA_CODE//stella_io.fpp
+  ../STELLA_CODE//stella_save.fpp
 )
 
 set_source_files_properties(${STELLA_SOURCES_fpp} PROPERTIES
@@ -138,7 +138,7 @@ target_compile_options(libstella PRIVATE
 
 # Main executable
 add_executable(stella
-  ../STELLACODE/stella.f90
+  ../STELLA_CODE//stella.f90
   )
 
 # Use <libstella> when linking the <stella> target

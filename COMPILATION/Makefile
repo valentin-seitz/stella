@@ -131,7 +131,7 @@ MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 # Get the directory in which the Makefile is located, 
 # and the directory of the stella code 
 PROJECT_DIR := $(realpath $(dir $(MAKEFILE_PATH))/..)
-STELLA_DIR := $(PROJECT_DIR)/STELLACODE
+STELLA_DIR := $(PROJECT_DIR)/STELLA_CODE
 EXTERNALS_DIR := $(PROJECT_DIR)/EXTERNALS
 BUILD_DIR := $(PROJECT_DIR)/build_make 
 COMPILATION_DIR := $(PROJECT_DIR)/COMPILATION
