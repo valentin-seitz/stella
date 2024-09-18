@@ -155,13 +155,22 @@ clean:
 #===================================================================
 
 # Dependencies
-$(OBJ)/file_utils.o: $(OBJ)/command_line.o
-$(OBJ)/mp.o: $(OBJ)/file_utils.o
-$(OBJ)/text_options.o: $(OBJ)/mp.o
-$(OBJ)/job_manage.o: $(OBJ)/mp.o
-$(OBJ)/gauss_quad.o: $(OBJ)/mp.o
-$(OBJ)/fft_work.o: $(OBJ)/mp.o
-$(OBJ)/netcdf_utils.o: $(OBJ)/mp.o $(OBJ)/file_utils.o
+$(OBJ)/command_line.o: 
+$(OBJ)/constants.o: 
+$(OBJ)/convert.o: 
+$(OBJ)/fft_work.o: $(OBJ)/mp.o $(OBJ)/constants.o
+$(OBJ)/file_utils.o: $(OBJ)/command_line.o 
+$(OBJ)/gauss_quad.o: $(OBJ)/file_utils.o $(OBJ)/mp.o $(OBJ)/constants.o
+$(OBJ)/job_manage.o: $(OBJ)/file_utils.o $(OBJ)/mp.o
+$(OBJ)/linear_solve.o:  
+$(OBJ)/mp.o: $(OBJ)/file_utils.o $(OBJ)/constants.o
+$(OBJ)/mp_lu_decomposition.o: $(OBJ)/linear_solve.o
+$(OBJ)/mt19937.o: 
+$(OBJ)/netcdf_utils.o: $(OBJ)/constants.o $(OBJ)/mp.o $(OBJ)/file_utils.o
+$(OBJ)/ran.o: $(OBJ)/mt19937.o
 $(OBJ)/redistribute.o: $(OBJ)/mp.o $(OBJ)/job_manage.o
+$(OBJ)/spfunc.o: $(OBJ)/constants.o
 $(OBJ)/spl.o: $(OBJ)/constants.o
+$(OBJ)/system_fortran.o: 
+$(OBJ)/text_options.o: $(OBJ)/mp.o
 

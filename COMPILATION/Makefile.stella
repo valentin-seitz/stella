@@ -270,18 +270,18 @@ ensure-that-all-f90-files-exist-step-2: $(f90_from_fpp_files)
 # from EXTERNALS/utils/*.fpp and STELLA_CODE/*.fpp to $(FPP)/*.fpp
 # Moreover the $(FPP)/define.inc needs to exist, which contains the $(CPP) settings
 $(FPP)/%.f90: $(FPP)/%.fpp $(FPP)/define.inc | $(FPP)
-	@echo "   (stella) *.fpp to *.f90: $(notdir $<)"
+	@echo "       (stella) *.fpp to *.f90: $(notdir $<)"
 	@$(CPP) $(CPPFLAGS) -J$(MOD) $< $@
 	
 # Create symbolic links from STELLA_CODE/*.fpp and EXTERNALS/utils/*.fpp to $(FPP)/*.fpp 
 $(FPP)/%.fpp: $(STELLA_DIR)/%.fpp | $(FPP)
-	@echo "   (stella) ln -s STELLA_CODE/$(notdir $<) COMPILATION/$(FPP_NAME)/$(notdir $<)"	
+	@echo "       (stella) ln -s STELLA_CODE/$(notdir $<) COMPILATION/$(FPP_NAME)/$(notdir $<)"	
 	@ln -sf $< $(FPP)
 	
 # Create a symbolic link from $(UTILS_DIR)/define.inc to $(FPP)/define.inc
 # Before we can do this, we need to make sure that the build directories exist
 $(FPP)/define.inc: | $(FPP)
-	@echo "   (define.inc) ln -s EXTERNALS/utils/define.inc COMPILATION/$(FPP_NAME)/define.inc"	
+	@echo "       (define.inc) ln -s EXTERNALS/utils/define.inc COMPILATION/$(FPP_NAME)/define.inc"	
 	@ln -sf $(UTILS_DIR)/define.inc $(FPP)/define.inc
 
 # Without this line, the *.fpp  files are sometimes deleted because they are intermediate files
