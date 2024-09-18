@@ -54,6 +54,11 @@ If you would like to see more information while running the tests run:
     
 (TODO-HT) Besides the numerical tests create a package for quick
 and slow physics tests, used as benchmarks.
+
+
+Number of threads
+-----------------
+The simulations can be run on as many threads as your local computer supports. The number of threads can be set in config.ini.
     
 
 Writing new Python tests

@@ -1,13 +1,13 @@
- 
-! Simple nonlinear example using CBC
-! Rosenbluth-Hinton test witout gradients
+
+
+
 
 &physics_flags
-  adiabatic_option = 'field-line-average-term' 
+  adiabatic_option = 'field-line-average-term'
   nonlinear = .false.
 /
 &species_knobs
-  nspec = 1 
+  nspec = 1
 /
 &species_parameters_1
   dens = 1.0
@@ -17,7 +17,7 @@
   tprim = 0.0
   type = 'ion'
   z = 1.0
-/ 
+/
 &kt_grids_range_parameters
   naky = 1
   aky_min = 0.0
@@ -29,13 +29,13 @@
   nzed = 48
 /
 &vpamu_grids_parameters
-  nmu = 12 
-  nvgrid = 48 
+  nmu = 12
+  nvgrid = 48
 /
 &knobs
-  delt = 0.1 
+  delt = 0.1
   nstep = 3000
-  print_extra_info_to_terminal = .false.  
+  print_extra_info_to_terminal = .false.
 /
 &stella_diagnostics_knobs
   nsave = 3000
@@ -54,7 +54,7 @@
 &kt_grids_knobs
   grid_option = 'range'
 /
-&time_advance_knobs 
+&time_advance_knobs
   explicit_option = 'rk3'
 /
 &millergeo_parameters
@@ -73,4 +73,4 @@
   d2qdr2 = 0.0
   d2psidr2 = 0.0
   betadbprim = 0.0
-/ 
+/

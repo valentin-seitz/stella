@@ -4,6 +4,7 @@ import shutil
 import pathlib
 import difflib
 import subprocess   
+import configparser
 
 ################################################################################
 #                 Routines to launch a local stella simulation                 #
@@ -11,6 +12,19 @@ import subprocess
 # Note that the argument of any test function is the temporary path where the 
 # test is performed, i.e., test_*(tmp_path) executes stella in <tmp_path>. 
 ################################################################################
+ 
+#-------------------------------------------------------------------------------
+def read_nproc():
+    test_directory = get_automatic_tests_directory() 
+    config = configparser.ConfigParser() 
+    config.read(test_directory / 'config.ini')
+    nproc = config['DEFAULT']['nproc']
+    return nproc
+    
+#-------------------------------------------------------------------------------
+def get_automatic_tests_directory():
+    '''Get the directory of the test modules'''
+    return pathlib.Path(str(pathlib.Path(__file__)).split('AUTOMATIC_TESTS')[0]) / 'AUTOMATIC_TESTS'
  
 #-------------------------------------------------------------------------------
 def get_stella_expected_run_directory():
@@ -28,7 +42,8 @@ def get_stella_path():
 #-------------------------------------------------------------------------------
 def run_stella(stella_path, input_file):
     '''Run stella with a given input file.''' 
-    subprocess.run(['mpirun', '-np', '2', stella_path, input_file], check=True)
+    nproc = read_nproc()
+    subprocess.run(['mpirun', '-np', f'{nproc}', stella_path, input_file], check=True)
 
 #-------------------------------------------------------------------------------
 def copy_input_file(input_file: str, destination):

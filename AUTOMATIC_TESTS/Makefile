@@ -16,6 +16,7 @@ create-test-virtualenv:
 	
 # Check that all the Python dependencies are importable
 check-tests-dependencies:
+	@echo "Running: check-tests-dependencies"
 	@python3 $(TEST_DIR)/check_automated_stella_tests_requirements.py
 	
 # Run the automated stella tests (the -r flag shows the full stella output and -rf shows extra info about the failed outputs)
