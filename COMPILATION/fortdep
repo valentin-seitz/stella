@@ -856,7 +856,7 @@ sub write_dependency{
 	print DEP "$key\_mod = ";
 	foreach my $obj ( sort ( keys %{$$objlist{$key}} ) ){
 	    print DEP "\\\n";
-	    print DEP "\t $obj ";
+	    print DEP "\t \$(OBJ_DIR)\/$obj ";
 	}
 	print DEP "\n\n";
     }
@@ -864,12 +864,12 @@ sub write_dependency{
     foreach my $key ( sort ( keys %$reqfile ) ){
 	my $keyo=$key;
 	$keyo =~ s/\.f90$/\.o/g;
-	print DEP "$keyo: ";
+	print DEP "\$(OBJ_DIR)\/$keyo: ";
 	foreach my $obj ( sort ( keys %{$$reqfile{$key}} ) ){
 	    my $objo = $obj;
 	    $objo =~ s/\.f90$/\.o/g;
 	    print DEP "\\\n";
-	    print DEP "\t $objo ";
+	    print DEP "\t \$(OBJ_DIR)\/$objo ";
 	}
 	print DEP "\n";
     }

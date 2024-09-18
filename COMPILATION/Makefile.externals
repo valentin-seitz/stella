@@ -71,8 +71,9 @@
 #===================================================================
 
 # Define the directories where the external libraries are located 
-MINILIBSTELL_DIR := $(EXTERNALS_DIR)/mini_libstell
-UTILS_DIR := $(EXTERNALS_DIR)/utils
+# Export UTILS_DIR and MINILIBSTELL_DIR because they're used in their make files
+export MINILIBSTELL_DIR := $(EXTERNALS_DIR)/mini_libstell
+export UTILS_DIR := $(EXTERNALS_DIR)/utils
 GIT_VERSION_DIR := $(EXTERNALS_DIR)/git_version/src
 NEASYF_DIR := $(EXTERNALS_DIR)/neasyf/src
 
@@ -80,74 +81,74 @@ NEASYF_DIR := $(EXTERNALS_DIR)/neasyf/src
 .PHONY: print-directories-externals
 print-directories-externals:
 	@echo "          " 
-	@echo "Directories of external libraries:" 
-	@echo "   - $(UTILS_DIR)/utils.a)"
-	@echo "   - $(MINILIBSTELL_DIR)/mini_libstell.a)"
+	@echo "Directories of external libraries:"  
 	@echo "   - $(NEASYF_DIR)/neasyf.a)"
 	@echo "   - $(GIT_VERSION_DIR)/git_version.a)"
 	@echo "          " 
-
-# If make is killed or interrupted during the execution of their recipes, 
-# the targets in ".PRECIOUS" are not deleted.
-.PRECIOUS: $(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL)
-
-# stella needs two modules 'utils.a' and 'mini_libstell.a'
-# we will build both external modules using the 'build-external-modules' target 
-# Here '.PHONY' declares that the target 'build-external-modules' does not create an object file
-.PHONY: build-external-modules 
-build-external-modules: build-utils build-minilibstell
 
 #===================================================================
 #                              UTILS                               #
 #===================================================================
 
-# The 'utils.a' static library contains all external python scripts 
-UTIL_OBJ = command_line.o constants.o convert.o fft_work.o file_utils.o gauss_quad.o job_manage.o linear_solve.o mp.o mp_lu_decomposition.o mt19937.o netcdf_utils.o ran.o redistribute.o smooth_step.o sort.o spfunc.o spl.o system_fortran.o text_options.o
+# The 'utils' directory contains all external python scripts 
+# We compile them as a seperate package, since usually we do not need to recompile it
+files_in_utils_folder = $(subst $(UTILS_DIR)/makefile,,$(wildcard $(UTILS_DIR)/*))
+$(BUILD_DIR)/utils.a: $(files_in_utils_folder) 
+	@$(MAKE) --no-print-directory -C $(UTILS_DIR)
+	
+# Check whether the objects exist within the $(OBJ) folder, 
+# if not the makefile will create symbolic links (happens after clean-quick)
+$(OBJ)/mp.o: $(UTILS_OBJ)/mp.o
+	@$(MAKE) --no-print-directory -C $(UTILS_DIR)
+	
+# Extra commands so we can compile the utils separately through
+# >> make utils_clean; make utils
+utils:  
+	@echo " "; echo "Compile utils static library:" 
+	@$(MAKE) --no-print-directory -s $(BUILD_DIR)/utils.a 
+	@$(MAKE) --no-print-directory -s $(OBJ)/mp.o
+	@echo "    ==> Finished compiling utils" 
+utils_clean: 
+	@$(MAKE) --no-print-directory -C $(UTILS_DIR) clean
+.PHONY: utils utils_clean
 
-# Create the static library 'utils.a' 
-# $@ is the name of the target being generated -> 'utils.a' 
-# $^ are all the prerequisites -> all files in '$(UTIL_OBJ)'  
-.PHONY: build-utils
-build-utils: build-f90-from-fpp
-	@$(MAKE) --no-print-directory utils.a 
-utils.a: $(UTIL_OBJ) 
-	@$(ARCH) $(ARCHFLAGS) $@ $(addprefix $(BUILD_OBJECTS_DIR)/, $(notdir $^))
-	@$(RANLIB) $@
-	@echo "     "
-	@echo "       ==> Compile utils.a"
-	@echo "     " 
+# In the main make file we have "LIBS += $(UTILS_STELLA_LIB)" so we have to define the static library here.
+UTILS_STELLA_LIB = $(BUILD_DIR)/utils.a
 	
 #===================================================================
 #                          MINI LIBSTELL                           #
 #===================================================================
-
-# We create the static library 'mini_libstell.a' and we link LIBSTELL_LIB to the static library
-LIBSTELL_LIB=$(MINILIBSTELL_DIR)/mini_libstell.a
  
 # The mini_libstell.a is an external library to read VMEC files
 # We invoke 'make' on 'MINILIBSTELL_DIR' to execute its Makefile
-.PHONY: build-minilibstell
-build-minilibstell: mini_libstell.a
-mini_libstell.a:
-	@echo "     "
+$(BUILD_DIR)/mini_libstell.a: $(wildcard $(MINILIBSTELL_DIR)/*)  
 	@$(MAKE) --no-print-directory -C $(MINILIBSTELL_DIR)
-	@echo "     "
-	@echo "       ==> Compile mini_libstell.a"
-	@echo "     " 
-	 
+	
+# The only script that uses the mini_libstell library is geometry_vmec_read_netCDF_file
+# In the main make file we have "LIBS += $(LIBSTELL_LIB)" so we have to define the static library here.
+LIBSTELL_LIB = $(BUILD_DIR)/mini_libstell.a
+	
+# Extra commands so we can compile mini_libstell separately through
+# >> make mini_libstell_clean; make mini_libstell
+mini_libstell: 
+	@echo " "; echo "Compile mini_libstell static library:" 
+	@$(MAKE) --no-print-directory -s $(BUILD_DIR)/mini_libstell.a
+	@echo "   ==> Finished compiling mini_libstell" 
+mini_libstell_clean: 
+	@$(MAKE) --no-print-directory -C $(MINILIBSTELL_DIR) clean
+.PHONY: mini_libstell mini_libstell_clean
+
 #===================================================================
 #                              NEASYF                              #
 #===================================================================
 # In stella we use the 'neasyf' module in 'stella_io.f90'. To use 
 # this module, we need the 'neasyf.f90' file.
+neasyf_file := $(NEASYF_DIR)/neasyf.f90
 
-# Define a file that should be present in the 'neasyf' directory.
-# If the file is not present, the 'submodules' target is triggered, 
-# which executes 'git submodule update --init --recursive'
-NEASYF_SENTINEL := $(NEASYF_DIR)/neasyf.f90
+# TODO: test this
 
-# Make sure the module exists
-ifeq (,$(wildcard $(NEASYF_SENTINEL)))
+# Make sure that the submodule exists
+ifeq (,$(wildcard $(neasyf_file)))
 $(info   )
 $(info The neasyf module is missing, please download it:)
 $(info     >> git submodule update --init --recursive )
@@ -155,16 +156,46 @@ $(info   )
 $(error  The neasyf module is missing, please download it)
 endif
 
+# If the 'neasyf.f90' file is needed, but doesn't exist, download the submodules
+neasyf_file:
+	@echo "Downloading submodules"
+	git submodule update --init --recursive 
+	
+# Create *.o files from *.f90 files using the Fortran f90 (FC) compiler 
+$(OBJ)/neasyf.o: $(NEASYF_DIR)/neasyf.f90 
+	@echo "   (neasyf) *.f90 to *.o: $(notdir $<)" 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) -I $(MOD) -J $(MOD) -o $@ -c $<
+
+# If make is killed or interrupted during the execution of their recipes, 
+# the targets in ".PRECIOUS" are not deleted.
+.PRECIOUS: $(neasyf_file)
+
+# Extra commands so we can compile mini_libstell separately through
+# >> make mini_libstell_clean; make mini_libstell
+neasyf: 
+	@echo " "; echo "Compile neasyf static library:" 
+	@$(MAKE) --no-print-directory -s $(OBJ)/neasyf.o
+	@echo "   ==> Finished compiling neasyf" 
+.PHONY: git
+
 #===================================================================
 #                            GIT VERSION                           #
 #===================================================================
 # In stella we use the 'git_version' module in 'stella.f90'. To use 
 # this module, we need the 'git_version_impl.o' file. 
 
+# Extra commands so we can compile mini_libstell separately through
+# >> make mini_libstell_clean; make mini_libstell
+git: 
+	@echo " "; echo "Compile git static library:" 
+	@$(MAKE) --no-print-directory -s $(OBJ)/git_version_impl.o
+	@echo "   ==> Finished compiling git" 
+.PHONY: git
+
 # Define a file that should be present in the 'git version' directory.
 # If the file is not present, the 'submodules' target is triggered, 
 # which executes 'git submodule update --init --recursive' 
-GIT_VERSION_SENTINEL := $(GIT_VERSION_DIR)/git_version.f90
+git_version_file := $(GIT_VERSION_DIR)/git_version.f90
 
 # Dump the compilation flags to a file, so we can check if they change between
 # invocations of `make`. The `cmp` bit checks if the file contents
@@ -173,49 +204,55 @@ GIT_VERSION_SENTINEL := $(GIT_VERSION_DIR)/git_version.f90
 COMPILER_FLAGS_CONTENTS = "FC = $(FC)\n CPPFLAGS = $(CPPFLAGS)\n F90FLAGS = $(F90FLAGS)\n INC_FLAGS = $(INC_FLAGS)\n CFLAGS = $(CFLAGS)"
 COMPILER_FLAGS_CONTENTS += "\n FORTRAN_GIT_DEFS = $(FORTRAN_GIT_DEFS)"
 .PHONY: force
-.compiler_flags: force | $(GIT_VERSION_SENTINEL)
+$(BUILD_DIR)/.compiler_flags: force $(BUILD_DIR) | $(git_version_file)
 	@echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
 
 # Use the make rules from fortran-git-version 
-ifeq (,$(wildcard $(GIT_VERSION_SENTINEL)))
+ifeq (,$(wildcard $(git_version_file)))
 $(info   )
 $(info The git version module is missing, please download it:)
 $(info     >> git submodule update --init --recursive )
 $(info   )
 $(error  The git version module is missing, please download it)
 endif
-include $(GIT_VERSION_DIR)/../Makefile
 
-# We have some extra macros to add when preprocessing this file.  
-$(BUILD_F90_DIR)/git_version_impl.f90: $(GIT_VERSION_DIR)/git_version_impl.F90 | $(GIT_VERSION_SENTINEL)
-	@$(CPP) $(CPPFLAGS) $(FORTRAN_GIT_DEFS) $< $@
-	@echo "    git_version: *.f90 to *.o: $(notdir $<)" 
+# If the 'git_version.f90' file is needed, but doesn't exist, download the submodules
+git_version_file:
+	@echo "Downloading submodules"
+	git submodule update --init --recursive 
+
+# Now that we made sure that the submodule exists, include its makefile
+include $(GIT_VERSION_DIR)/../Makefile
 
 # The fortdep script doesn't know about Fortran submodules,
 # so we need to write the dependencies ourselves:
-git_version_impl.o: $(BUILD_F90_DIR)/git_version_impl.f90 git_version.o .compiler_flags
-$(GIT_VERSION_DIR)/git_version_impl.F90: .compiler_flags
+$(OBJ)/git_version_impl.o: $(FPP)/git_version_impl.f90 $(OBJ)/git_version.o $(BUILD_DIR)/.compiler_flags
+$(GIT_VERSION_DIR)/git_version_impl.F90: $(BUILD_DIR)/.compiler_flags
 
-# There is an undefined reference to `get_git_state` or `get_git_hash` error. 
-# We need to manually add the dependency of stella on `$(OBJDIR)/git_version_impl.o`
-# by writing 'stella: $(external_modules) $(stella_mod)' when defining the target.
-# This file needs to be first in the list of dependencies so that the file that 
-# needs the functions can find them. Yes this is unpleasant, no we (probably?) 
-# can`t automate this like for the other dependencies. `fortdep` doesn't 
-# understand Fortran submodules, so it can't pick this up.
-external_modules_dependencies := git_version_impl.o
+# Create *.f90 files from *.F90 files using the C preprocessor (CPP) compiler 
+$(FPP)/git_version_impl.f90: $(GIT_VERSION_DIR)/git_version_impl.F90 | $(git_version_file)
+	@echo "   (git) *.F90 to *.f90: $(notdir $<)" 
+	@$(CPP) $(CPPFLAGS) $(FORTRAN_GIT_DEFS) $< $@
+	
+# Create *.o files from *.f90 files using the Fortran f90 (FC) compiler 
+$(OBJ)/git_version.o: $(GIT_VERSION_DIR)/git_version.f90 
+	@echo "   (git) *.f90 to *.o: $(notdir $<)" 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) -I $(MOD) -J $(MOD) -o $@ -c $<
+$(OBJ)/git_version_impl.o: $(FPP)/git_version_impl.f90 
+	@echo "   (git) *.f90 to *.o: $(notdir $<)" 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) -I $(MOD) -J $(MOD) -o $@ -c $<
+
+
+# If make is killed or interrupted during the execution of their recipes, 
+# the targets in ".PRECIOUS" are not deleted.
+.PRECIOUS: $(git_version_file)
 
 #===================================================================
-#                      DOWNLOAD GIT SUBMODULES                     #
+#                  DOWNLOAD GIT SUBMODULES MANUALLY                #
 #===================================================================
 
-# Make sure the submodules exist; they all currently share the same recipe.
-# If we perform the command 'make submodules', or any other target has 
-# one of the following files amongst its prerequisites:
-#	 $(NEASYF_SENTINEL) = $(NEASYF_DIR)/neasyf.f90
-#	 $(GIT_VERSION_SENTINEL) = $(GIT_VERSION_DIR)/../Makefile
-# then the following commands will be performed, to ensure that the submodules exist.
-$(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL) submodules:
+# Download the submodules manually through 'make submodules'
+submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive 
 	
@@ -223,7 +260,6 @@ $(GIT_VERSION_SENTINEL) $(NEASYF_SENTINEL) submodules:
 #                   FORD AUTOMATIC DOCUMENTATION                   #
 #===================================================================
  
-
 # Check whether 'FORD' is installed
 ifneq ("$(wildcard $(shell which $(FORD) 2>/dev/null))","")
 check_ford_install:

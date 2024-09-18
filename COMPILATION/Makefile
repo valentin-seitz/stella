@@ -68,8 +68,8 @@ USE_FFT ?= fftw3
 MAKE		 = make
 CPP		     = cpp
 CPPFLAGS	 = -P -traditional
-export FC	 = f90
-export MPIFC?= mpif90
+FC	         = f90
+MPIFC       ?= mpif90
 H5FC		?= h5fc
 H5FC_par	?= h5pfc
 F90FLAGS	 =
@@ -106,79 +106,17 @@ PETSC_INC ?=
 LIBSTELL_LIB ?=
 
 ####################################################################
-#                            DIRECTORIES                           #
-####################################################################
-
-# In the make file we can use CURDIR, which is set to the absolute 
-# pathname of the current working directory. When GNU make starts 
-# (after it has processed any -C options) it sets the variable
-# CURDIR to the pathname of the current working directory.
-CURRENT_DIRECTORY = $(CURDIR)
-
-# As make reads various makefiles, including any obtained from the 
-# MAKEFILES variable, the command line, the default files, or from 
-# include directives, their names will be automatically appended to 
-# the MAKEFILE_LIST variable. They are added right before make begins
-# to parse them. This means that if the first thing a makefile does 
-# is examine the last word in this variable, it will be the name of 
-# the current makefile. Once the current makefile has used include, 
-# however, the last word will be the just-included makefile. 
-
-# Set MAKEFILE_PATH to the location of this Makefile.
-# Using 'abspath' will not resolve symbolic links
-MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST))) 
-
-# Get the directory in which the Makefile is located, 
-# and the directory of the stella code 
-PROJECT_DIR := $(realpath $(dir $(MAKEFILE_PATH))/..)
-STELLA_DIR := $(PROJECT_DIR)/STELLA_CODE
-EXTERNALS_DIR := $(PROJECT_DIR)/EXTERNALS
-BUILD_DIR := $(PROJECT_DIR)/build_make 
-COMPILATION_DIR := $(PROJECT_DIR)/COMPILATION
-
-# Check directories
-.PHONY: print-directories
-print-directories: 
-	@echo "                     " 
-	@echo "Directories for stella:" 
-	@echo "   - CURRENT_DIRECTORY is $(CURRENT_DIRECTORY)"  
-	@echo "   - PROJECT_DIR is $(PROJECT_DIR)" 
-	@echo "   - STELLA_DIR is $(STELLA_DIR)" 
-	@echo "   - COMPILATION_DIR is $(COMPILATION_DIR)" 
-	@echo "   - EXTERNALS_DIR is $(EXTERNALS_DIR)"  
-	@echo "                     " 
-
-# Keep the compilated files in seperate folders
-export BUILD_F90_DIR_NAME := f90fromfpp
-export BUILD_DIR := $(COMPILATION_DIR)/build_make
-export BUILD_MODULES_DIR := $(BUILD_DIR)/modules
-export BUILD_OBJECTS_DIR := $(BUILD_DIR)/objects
-export BUILD_F90_DIR := $(BUILD_DIR)/$(BUILD_F90_DIR_NAME)
-
-# Keep the compilated files in seperate folders
-# These commands can be triggered by the target 'create-build-directories'
-# or they will be triggered if $(BUILD_DIR) is a prerequisite, but it does not exist yet.
-.PHONY: create-build-directories
-$(BUILD_DIR) create-build-directories: 
-	@echo "                     " 
-	@echo "Create the COMPILATION/build_make/* directories"
-	@echo "   - $(BUILD_DIR) "
-	@echo "   - $(BUILD_MODULES_DIR) "
-	@echo "   - $(BUILD_OBJECTS_DIR) "
-	@echo "   - $(BUILD_F90_DIR) "
-	@mkdir -p $(BUILD_DIR) 
-	@mkdir -p $(BUILD_MODULES_DIR)
-	@mkdir -p $(BUILD_OBJECTS_DIR)
-	@mkdir -p $(BUILD_F90_DIR)   
-	@echo "                     "
-	 
-
-####################################################################
 #                        PLATFORM DEPENDENCE                       #
 ####################################################################
 # Each platform will need slightly different compiler flags, thus
 # each platform has its owm 'Makefiles/Makefile.STELLA_SYSTEM' file. 
 ####################################################################
+
+# Set MAKEFILE_PATH to the location of this Makefile.
+# Using 'abspath' will not resolve symbolic links
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST))) 
+PROJECT_DIR := $(realpath $(dir $(MAKEFILE_PATH))/..)
+COMPILATION_DIR := $(PROJECT_DIR)/COMPILATION
 
 # A user can include a 'Makefile.local' to change some compiler flags
 # Here "sinclude" will include the file, without an error if it doesn't exist
@@ -213,11 +151,6 @@ include $(COMPILATION_DIR)/Makefiles/Makefile.$(STELLA_SYSTEM)
 # However, Makefile.local may override some options set in Makefile.$(STELLA_SYSTEM),
 # thus it is included before and after Makefile.$(_SYSTEM), if it exists
 sinclude $(COMPILATION_DIR)/Makefile.local
-
-# Export some variables, so they become available to all child processes
-export F90FLAGS
-export NETCDF_INC
-export NETCDF_LIB
 
 ####################################################################
 #                        PROCESS SOME FLAGS                        #
@@ -310,7 +243,7 @@ endif
 # List of all the used libraries
 # Here $LIBSTELL_LIB points to utils/mini_libstell which contains a stellarator resource library
 LIBS += $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
-		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LIBSTELL_LIB) $(LAPACK_LIB)
+		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LAPACK_LIB) $(LIBSTELL_LIB) $(UTILS_STELLA_LIB)
 
 # Include flags
 INC_FLAGS= $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) \
@@ -320,39 +253,7 @@ INC_FLAGS= $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) \
 F90FLAGS += $(F90OPTFLAGS)
 CFLAGS += $(COPTFLAGS)
 
-####################################################################
-#                              RULES                               #
-#################################################################### 
-
-# @ supresses the output in the command prompt, remove this to debug	
-# -o is a compiler option that specifies the name of the output file
-# -c is a compiler option that tells the compiler to generate an object file
-# $@ is the name of the target being generated -> 'stella'
-# $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
-# $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
-# -c $^ -o $@
-
-# We process the following files
-.SUFFIXES: .f90 .o 
-
-# For the external libraries, and for stella, we need to build *.o files from *.f90 files
-# Build object files '*.o' from '*.f90' files using the Fortran f90 compiler, e.g., ifort = The Intel Fortran compiler
-%.o: %.f90
-	@echo "    *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) -I $(BUILD_MODULES_DIR) -I $(BUILD_OBJECTS_DIR) -J $(BUILD_MODULES_DIR) -o $(BUILD_OBJECTS_DIR)/$@ -c $< 
-	
-####################################################################
-#                         EXTERNAL MODULES                         #
-####################################################################
-# Stella uses the external modules 'git_version' and 'neasyf'. 
-# Note that the automated Fortran tests use the external module 
-# 'pFunit' is processed in AUTOMATIC_TESTS/test_fortran_routines/Makefile
-####################################################################
-
-include $(COMPILATION_DIR)/Makefile.externals
-
 ############################################################# MORE DIRECTIVES
-
 
 revision:
 	@LANG=C svn info | awk '{if($$1=="Revision:") printf("%20d",$$2) }' > Revision
@@ -360,6 +261,24 @@ revision:
 TAGS:	*.f90 *.fpp */*.f90 */*.fpp
 	etags $^
 
+####################################################################
+#                              EXPORTS                             #
+####################################################################
+
+# Export some variable, so they become available to compile mini_libstell
+export F90FLAGS
+export NETCDF_INC
+export NETCDF_LIB
+export COMPILATION_DIR
+export FC 
+
+# Export some variable, so they become available to compile the utils scripts
+export INC_FLAGS
+export CPPFLAGS
+export CPP
+export RANLIB
+export ARCH
+export ARCHFLAGS
 
 ####################################################################
 #                              STELLA                              #
