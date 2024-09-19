@@ -166,7 +166,7 @@ add_custom_command(TARGET stella POST_BUILD
 # Dependencies and build options
 ############################################################
 
-# Adapted from https:/cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
+# Adapted from https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
 # Update submodules as needed
 if(STELLA_UPDATE_GIT_SUBMODULES)
   find_package(Git QUIET)
@@ -182,7 +182,7 @@ if(STELLA_UPDATE_GIT_SUBMODULES)
 endif()
 
 # This might not be entirely sensible, but helps CMake to find the
-# correct MPI, workaround for https:/gitlab.kitware.com/cmake/cmake/issues/18895
+# correct MPI, workaround for https://gitlab.kitware.com/cmake/cmake/issues/18895
 find_program(MPIEXEC_EXECUTABLE NAMES mpiexec mpirun)
 find_package(MPI REQUIRED)
 target_link_libraries(libstella PUBLIC MPI::MPI_Fortran)
@@ -305,7 +305,7 @@ if (STELLA_ENABLE_TESTS)
   if (STELLA_DOWNLOAD_PFUNIT)
     message(STATUS "Downloading pFUnit...")
     include(FetchContent)
-    set(STELLA_DOWNLOAD_PFUNIT_URL "https:/github.com/Goddard-Fortran-Ecosystem/pFUnit"
+    set(STELLA_DOWNLOAD_PFUNIT_URL "https://github.com/Goddard-Fortran-Ecosystem/pFUnit"
       CACHE STRING "URL of pFUnit repository")
     set(STELLA_PFUNIT_LOCATION "${STELLA_DOWNLOAD_PFUNIT_URL}")
     FetchContent_Declare(
