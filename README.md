@@ -14,7 +14,9 @@ stellarators.
   * [Installation and Compilation](#installation-and-compilation)
     + [CMake](#cmake)
     + [Make](#make)
-
+  * [Verification of stella output](#verification-of-stella-output)
+    + [Set-up](#set-up)
+    + [Numerical tests](#numerical-tests)
 
 
 ## Dependencies
@@ -119,3 +121,26 @@ make
 # or in one line:
 make -IMakefiles GK_SYSTEM=gnu_ubuntu
 ```
+
+
+## Verification of stella output
+
+Automated python tests are available to test the output of stella. 
+
+### Set-up
+The first time you want to run these tests, you need to install the python virtual environment:
+```
+make create-test-virtualenv
+```
+Next, activate the virtual environment:
+```
+source AUTOMATIC_TESTS/venv/bin/activate
+```
+
+### Numerical tests
+Run the automated python tests, which tests the numerical output of stella:
+```
+make numerical-tests
+```
+
+
