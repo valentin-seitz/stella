@@ -8,11 +8,14 @@ evolving electrostatic fluctuations with fully kinetic electrons and an
 arbitrary number of ion species in general magnetic geometry, including
 stellarators.
 
+
 ## Table of contents
   * [Dependencies](#dependencies)
   * [Installation and Compilation](#installation-and-compilation)
     + [CMake](#cmake)
     + [Make](#make)
+
+
 
 ## Dependencies
 
@@ -22,10 +25,13 @@ stella requires MPI, and has several optional dependencies:
 - FFTW3
 - LAPACK
 
+
+
 ## Installation and Compilation
 
 There are two ways to build stella: with CMake (experimental) or with
 plain `make`.
+
 
 ### CMake
 
@@ -83,6 +89,7 @@ directory:
 ```
 cmake -LH
 ```
+
 
 ### Make
 
