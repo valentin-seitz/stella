@@ -141,25 +141,13 @@ mini_libstell_clean:
 #===================================================================
 #                              NEASYF                              #
 #===================================================================
-# In stella we use the 'neasyf' module in 'stella_io.f90'. To use 
-# this module, we need the 'neasyf.f90' file.
-neasyf_file := $(NEASYF_DIR)/neasyf.f90
 
-# TODO: test this
-
-# Make sure that the submodule exists
-ifeq (,$(wildcard $(neasyf_file)))
-$(info   )
-$(info The neasyf module is missing, please download it:)
-$(info     >> git submodule update --init --recursive )
-$(info   )
-$(error  The neasyf module is missing, please download it)
-endif
-
-# If the 'neasyf.f90' file is needed, but doesn't exist, download the submodules
-neasyf_file:
-	@echo "Downloading submodules"
+# In stella we use the 'neasyf' module in 'stella_io.f90'. If the 
+# 'neasyf.f90' file is needed, but doesn't exist, download the submodules
+$(NEASYF_DIR)/neasyf.f90:
+	@echo "  "; echo "Downloading submodules:"
 	git submodule update --init --recursive 
+	@echo "  "
 	
 # Create *.o files from *.f90 files using the Fortran f90 (FC) compiler 
 $(OBJ)/neasyf.o: $(NEASYF_DIR)/neasyf.f90 
@@ -168,11 +156,11 @@ $(OBJ)/neasyf.o: $(NEASYF_DIR)/neasyf.f90
 
 # If make is killed or interrupted during the execution of their recipes, 
 # the targets in ".PRECIOUS" are not deleted.
-.PRECIOUS: $(neasyf_file)
+.PRECIOUS: $(NEASYF_DIR)/neasyf.f90
 
 # Extra commands so we can compile mini_libstell separately through
 # >> make mini_libstell_clean; make mini_libstell
-neasyf: 
+neasyf: | $(NEASYF_DIR)/neasyf.f90
 	@echo " "; echo "Compile neasyf static library:" 
 	@$(MAKE) --no-print-directory -s $(OBJ)/neasyf.o
 	@echo "   ==> Finished compiling neasyf" 
@@ -184,19 +172,6 @@ neasyf:
 # In stella we use the 'git_version' module in 'stella.f90'. To use 
 # this module, we need the 'git_version_impl.o' file. 
 
-# Extra commands so we can compile mini_libstell separately through
-# >> make mini_libstell_clean; make mini_libstell
-git: 
-	@echo " "; echo "Compile git static library:" 
-	@$(MAKE) --no-print-directory -s $(OBJ)/git_version_impl.o
-	@echo "   ==> Finished compiling git" 
-.PHONY: git
-
-# Define a file that should be present in the 'git version' directory.
-# If the file is not present, the 'submodules' target is triggered, 
-# which executes 'git submodule update --init --recursive' 
-git_version_file := $(GIT_VERSION_DIR)/git_version.f90
-
 # Dump the compilation flags to a file, so we can check if they change between
 # invocations of `make`. The `cmp` bit checks if the file contents
 # change. Adding a dependency of a file on `.compiler_flags` causes it to be
@@ -204,25 +179,17 @@ git_version_file := $(GIT_VERSION_DIR)/git_version.f90
 COMPILER_FLAGS_CONTENTS = "FC = $(FC)\n CPPFLAGS = $(CPPFLAGS)\n F90FLAGS = $(F90FLAGS)\n INC_FLAGS = $(INC_FLAGS)\n CFLAGS = $(CFLAGS)"
 COMPILER_FLAGS_CONTENTS += "\n FORTRAN_GIT_DEFS = $(FORTRAN_GIT_DEFS)"
 .PHONY: force
-$(BUILD_DIR)/.compiler_flags: force $(BUILD_DIR) | $(git_version_file)
+$(BUILD_DIR)/.compiler_flags: force $(BUILD_DIR) | $(GIT_VERSION_DIR)/git_version.f90
 	@echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
 
-# Use the make rules from fortran-git-version 
-ifeq (,$(wildcard $(git_version_file)))
-$(info   )
-$(info The git version module is missing, please download it:)
-$(info     >> git submodule update --init --recursive )
-$(info   )
-$(error  The git version module is missing, please download it)
-endif
-
 # If the 'git_version.f90' file is needed, but doesn't exist, download the submodules
-git_version_file:
-	@echo "Downloading submodules"
-	git submodule update --init --recursive 
+$(GIT_VERSION_DIR)/git_version.f90:
+	@echo "  "; echo "Downloading submodules:"
+	git submodule update --init --recursive
+	@echo "  "
 
 # Now that we made sure that the submodule exists, include its makefile
-include $(GIT_VERSION_DIR)/../Makefile
+sinclude $(GIT_VERSION_DIR)/../Makefile
 
 # The fortdep script doesn't know about Fortran submodules,
 # so we need to write the dependencies ourselves:
@@ -230,7 +197,7 @@ $(OBJ)/git_version_impl.o: $(FPP)/git_version_impl.f90 $(OBJ)/git_version.o $(BU
 $(GIT_VERSION_DIR)/git_version_impl.F90: $(BUILD_DIR)/.compiler_flags
 
 # Create *.f90 files from *.F90 files using the C preprocessor (CPP) compiler 
-$(FPP)/git_version_impl.f90: $(GIT_VERSION_DIR)/git_version_impl.F90 | $(git_version_file)
+$(FPP)/git_version_impl.f90: $(GIT_VERSION_DIR)/git_version_impl.F90 | $(GIT_VERSION_DIR)/git_version.f90
 	@echo "   (git) *.F90 to *.f90: $(notdir $<)" 
 	@$(CPP) $(CPPFLAGS) $(FORTRAN_GIT_DEFS) $< $@
 	
@@ -242,10 +209,17 @@ $(OBJ)/git_version_impl.o: $(FPP)/git_version_impl.f90
 	@echo "   (git) *.f90 to *.o: $(notdir $<)" 
 	@$(FC) $(F90FLAGS) $(INC_FLAGS) -I $(MOD) -J $(MOD) -o $@ -c $<
 
+# Extra commands so we can compile mini_libstell separately through
+# >> make mini_libstell_clean; make mini_libstell
+git: | $(GIT_VERSION_DIR)/git_version.f90
+	@echo " "; echo "Compile git static library:" 
+	@$(MAKE) --no-print-directory -s $(OBJ)/git_version_impl.o
+	@echo "   ==> Finished compiling git" 
+.PHONY: git
 
 # If make is killed or interrupted during the execution of their recipes, 
 # the targets in ".PRECIOUS" are not deleted.
-.PRECIOUS: $(git_version_file)
+.PRECIOUS: $(GIT_VERSION_DIR)/git_version.f90
 
 #===================================================================
 #                  DOWNLOAD GIT SUBMODULES MANUALLY                #
@@ -253,8 +227,9 @@ $(OBJ)/git_version_impl.o: $(FPP)/git_version_impl.f90
 
 # Download the submodules manually through 'make submodules'
 submodules:
-	@echo "Downloading submodules"
+	@echo "  "; echo "Downloading submodules:"
 	git submodule update --init --recursive 
+	@echo "  "
 	
 #===================================================================
 #                   FORD AUTOMATIC DOCUMENTATION                   #

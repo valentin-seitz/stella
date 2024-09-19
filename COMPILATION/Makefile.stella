@@ -131,8 +131,8 @@ include $(DEPEND_FILE)
 # will trigger the 'submodules' target. We also need to make sure that 
 # the 'build_make' directory exists.  
 .PHONY: depend  
-depend: $(GIT_VERSION_SENTINEL) $(NEASYF) $(BUILD_DIR) ensure-that-all-f90-files-exist
-	@$(MAKE) --no-print-directory -C $(UTILS_DIR) ensure-that-all-f90-files-exist
+depend: $(GIT_VERSION_DIR)/git_version.f90 $(NEASYF_DIR)/neasyf.f90 $(BUILD_DIR) ensure-that-all-f90-files-exist
+	@$(MAKE) --no-print-directory -C $(UTILS_DIR) ensure-that-all-f90-files-exist 
 	@echo "          "
 	@echo "Write the depencies of the Fortran scripts with fortdep"
 	@$(DEPEND_CMD) -makecmd "$(MAKE)" -file $(DEPEND_FILE) -1 -overwrite -verbose=0 -fppfolder $(FPP_NAME) $(VPATH)
@@ -168,7 +168,7 @@ DEFAULT_LIB = $(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && e
 # In a static library, the modules are bound into the executable file before execution. 
 # Static libraries are commonly named libname.a. The *.a suffix refers to archive.  
 # TODO: Check whetere utils.a and mini_libstella.a are made so we can add the directories explictely.
-external_modules = $(BUILD_DIR)/utils.a $(BUILD_DIR)/mini_libstell.a
+external_modules = $(BUILD_DIR)/utils.a $(BUILD_DIR)/mini_libstell.a $(GIT_VERSION_DIR)/git_version.f90 $(NEASYF_DIR)/neasyf.f90
 
 # The dependencies of the stella program are automatically defined by the 
 # 'fortdep' script, executed by 'make depend' (see target 'depend' above).
@@ -312,7 +312,7 @@ check: numerical-tests benchmarks
 #	>> make clean
 #	>> make clean-verbose
 #	>> make distclean
-.PHONY: clean distclean
+.PHONY: clean distclean clean-quick clean-submodules
 
 # Remove all compiled files, but keep the stella executable
 clean: 
@@ -321,19 +321,33 @@ clean:
 	@echo "Clean externals:"
 	@$(MAKE) --no-print-directory -C $(MINILIBSTELL_DIR) clean
 	@$(MAKE) --no-print-directory -C $(UTILS_DIR) clean
-	@if [ -d "$(BUILD_DIR)" ]; then rmdir $(BUILD_DIR); fi
-	@echo "                     "
 
 # Only clean stella, not the external modules
 clean-quick: 
 	@echo "                     "
 	@echo "Clean stella project:"
 	@$(MAKE) --no-print-directory remove-stella-files
-
-# Remove all compiled files, as well as the stella executable
-distclean:  
+	@$(MAKE) --no-print-directory remove-cmake
+	
+# Clean submodules
+clean-submodules:
 	@$(MAKE) --no-print-directory clean
-	-rm -f stella 
+	@echo "                     "
+	@echo "Github submodules:" 
+	@echo "   - remove git_version" 
+	@-rm -rf $(PROJECT_DIR)/EXTERNALS/git_version
+	@echo "   - remove neasyf" 
+	@-rm -rf $(PROJECT_DIR)/EXTERNALS/neasyf
+	@echo "   - remove pFUnit" 
+	@-rm -rf $(PROJECT_DIR)/EXTERNALS/pFUnit
+	@echo "                     "
+
+# Remove all compiled files, including the submodules, as well as the stella executable
+# This is executed by 'distclean' in the pfunit makefile: @$(MAKE) --no-print-directory clean-pfunit-library 
+distclean:   
+	@$(MAKE) --no-print-directory clean
+	@-rm -f stella 
+	@-rm -f $(COMPILATION_DIR)/stella 
 	
 
 # ----------------------- Remove build files -----------------------
@@ -341,7 +355,7 @@ distclean:
 # *.o and *.mod files. Here '$(MAKE) -C $(MINILIBSTELL) clean' will look at 
 # utils/mini_libstell/makefile and it will invoke its clean target as well.
 # Here '@' does not print the command to the command prompt
-.PHONY: remove-stella-files remove-temp-files
+.PHONY: remove-stella-files remove-temp-files remove-cmake
 remove-stella-files:
 	@echo "   - remove compiled stella files"
 	@-rm -f $(BUILD_DIR)/.compiler_flags
@@ -355,6 +369,19 @@ remove-temp-files:
 	@echo "   - remove temp files" 
 	@-rm -f $(GEO)/*~ $(UTILS)/*~ $(COLL)/*~ $(DIAG)/*~ 
 	
+	
+# In case cmake was used, clean it up as well
+CMAKE := $(COMPILATION_DIR)/build_cmake
+CMAKE1 := $(COMPILATION_DIR)/build_cmake/CMakeFiles
+CMAKE2 := $(COMPILATION_DIR)/build_cmake/COMPILATION
+remove-cmake:
+	@-rm -f $(CMAKE)/Makefile $(CMAKE)/compile_commands.json $(CMAKE)/cmake_install.cmake $(CMAKE)/CMakeCache.txt 
+	@-rm -rf $(CMAKE1)/* $(CMAKE2)/*
+	@if [ -d "$(CMAKE1)" ]; then rmdir $(CMAKE1); fi
+	@if [ -d "$(CMAKE2)" ]; then rmdir $(CMAKE2); fi 
+	@if [ -d "$(CMAKE)" ]; then rmdir $(CMAKE); fi
+	 
+	 
 	
   
 

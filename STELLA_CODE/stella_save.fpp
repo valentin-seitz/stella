@@ -1,4 +1,4 @@
-# include "../EXTERNALS/utils/define.inc"
+#include "define.inc"
 
 module stella_save
 

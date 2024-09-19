@@ -144,6 +144,9 @@ add_executable(stella
 # Use <libstella> when linking the <stella> target
 target_link_libraries(stella PRIVATE libstella)
 
+# The include.inc file is located in EXTERNALS/utils/
+include_directories("${CMAKE_SOURCE_DIR}/EXTERNALS/utils")
+
 # When target `stella` is built, a symlink will be created
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_custom_command(TARGET stella POST_BUILD
