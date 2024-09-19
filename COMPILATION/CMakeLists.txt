@@ -42,66 +42,66 @@ option(STELLA_UPDATE_GIT_SUBMODULES "Check submodules are up-to-date during buil
 
 # Sources that don't need preprocessing
 set(STELLA_SOURCES_f90
-  ../STELLA_CODE//common_types.f90
-  ../STELLA_CODE//define.inc
-  ../STELLA_CODE//dist_fn.f90
-  ../STELLA_CODE//dist_fn_arrays.f90
-  ../STELLA_CODE//dist_redistribute.f90
-  ../STELLA_CODE//euterpe_interface.f90
-  ../STELLA_CODE//extended_zgrid.f90
-  ../STELLA_CODE//ffs_solve.f90
-  ../STELLA_CODE//fields_arrays.f90
-  ../STELLA_CODE//finite_differences.f90
-  ../STELLA_CODE//flow_shear.f90
-  ../STELLA_CODE//g_tofrom_h.f90
-  ../STELLA_CODE//gyro_averages.f90
-  ../STELLA_CODE//implicit_solve.f90
-  ../STELLA_CODE//init_g.f90
-  ../STELLA_CODE//kt_grids.f90
-  ../STELLA_CODE//mirror_terms.f90
-  ../STELLA_CODE//multibox.f90
-  ../STELLA_CODE//neoclassical_terms.f90
-  ../STELLA_CODE//parallel_streaming.f90
-  ../STELLA_CODE//physics_flags.f90
-  ../STELLA_CODE//physics_parameters.f90
-  ../STELLA_CODE//run_parameters.f90
-  ../STELLA_CODE//species.f90
-  ../STELLA_CODE//stella_layouts.f90
-  ../STELLA_CODE//stella_time.f90
-  ../STELLA_CODE//stella_transforms.f90
-  ../STELLA_CODE//time_advance.f90
-  ../STELLA_CODE//volume_averages.f90
-  ../STELLA_CODE//vpamu_grids.f90
-  ../STELLA_CODE//zgrid.f90
-  ../STELLA_CODE//diagnostics/parameters_diagnostics.f90
-  ../STELLA_CODE//diagnostics/diagnostics.f90
-  ../STELLA_CODE//diagnostics/diagnostics_distribution.f90
-  ../STELLA_CODE//diagnostics/diagnostics_fluxes_fluxtube.f90
-  ../STELLA_CODE//diagnostics/diagnostics_fluxes_fullfluxsurface.f90 
-  ../STELLA_CODE//diagnostics/diagnostics_fluxes_radialvariation.f90
-  ../STELLA_CODE//diagnostics/diagnostics_fluxes.f90 
-  ../STELLA_CODE//diagnostics/diagnostics_moments.f90
-  ../STELLA_CODE//diagnostics/diagnostics_omega.f90
-  ../STELLA_CODE//diagnostics/diagnostics_potential.f90
-  ../STELLA_CODE//dissipation/coll_dougherty.f90
-  ../STELLA_CODE//dissipation/coll_fokkerplanck.f90
-  ../STELLA_CODE//dissipation/dissipation.f90
-  ../STELLA_CODE//dissipation/hyper.f90
-  ../STELLA_CODE//geometry/geometry.f90
-  ../STELLA_CODE//geometry/geometry_miller.f90
-  ../STELLA_CODE//geometry/geometry_vmec.f90
-  ../STELLA_CODE//geometry/geometry_vmec_read_netCDF_file.f90 
-  ../STELLA_CODE//geometry/geometry_inputprofiles_interface.f90
+  ../EXTERNALS/utils/define.inc
+  ../STELLA_CODE/common_types.f90
+  ../STELLA_CODE/dist_fn.f90
+  ../STELLA_CODE/dist_fn_arrays.f90
+  ../STELLA_CODE/dist_redistribute.f90
+  ../STELLA_CODE/euterpe_interface.f90
+  ../STELLA_CODE/extended_zgrid.f90
+  ../STELLA_CODE/ffs_solve.f90
+  ../STELLA_CODE/fields_arrays.f90
+  ../STELLA_CODE/finite_differences.f90
+  ../STELLA_CODE/flow_shear.f90
+  ../STELLA_CODE/g_tofrom_h.f90
+  ../STELLA_CODE/gyro_averages.f90
+  ../STELLA_CODE/implicit_solve.f90
+  ../STELLA_CODE/init_g.f90
+  ../STELLA_CODE/kt_grids.f90
+  ../STELLA_CODE/mirror_terms.f90
+  ../STELLA_CODE/multibox.f90
+  ../STELLA_CODE/neoclassical_terms.f90
+  ../STELLA_CODE/parallel_streaming.f90
+  ../STELLA_CODE/physics_flags.f90
+  ../STELLA_CODE/physics_parameters.f90
+  ../STELLA_CODE/run_parameters.f90
+  ../STELLA_CODE/species.f90
+  ../STELLA_CODE/stella_layouts.f90
+  ../STELLA_CODE/stella_time.f90
+  ../STELLA_CODE/stella_transforms.f90
+  ../STELLA_CODE/time_advance.f90
+  ../STELLA_CODE/volume_averages.f90
+  ../STELLA_CODE/vpamu_grids.f90
+  ../STELLA_CODE/zgrid.f90
+  ../STELLA_CODE/diagnostics/parameters_diagnostics.f90
+  ../STELLA_CODE/diagnostics/diagnostics.f90
+  ../STELLA_CODE/diagnostics/diagnostics_distribution.f90
+  ../STELLA_CODE/diagnostics/diagnostics_fluxes_fluxtube.f90
+  ../STELLA_CODE/diagnostics/diagnostics_fluxes_fullfluxsurface.f90 
+  ../STELLA_CODE/diagnostics/diagnostics_fluxes_radialvariation.f90
+  ../STELLA_CODE/diagnostics/diagnostics_fluxes.f90 
+  ../STELLA_CODE/diagnostics/diagnostics_moments.f90
+  ../STELLA_CODE/diagnostics/diagnostics_omega.f90
+  ../STELLA_CODE/diagnostics/diagnostics_potential.f90
+  ../STELLA_CODE/dissipation/coll_dougherty.f90
+  ../STELLA_CODE/dissipation/coll_fokkerplanck.f90
+  ../STELLA_CODE/dissipation/dissipation.f90
+  ../STELLA_CODE/dissipation/hyper.f90
+  ../STELLA_CODE/geometry/geometry.f90
+  ../STELLA_CODE/geometry/geometry_miller.f90
+  ../STELLA_CODE/geometry/geometry_vmec.f90
+  ../STELLA_CODE/geometry/geometry_vmec_read_netCDF_file.f90 
+  ../STELLA_CODE/geometry/geometry_inputprofiles_interface.f90
 )
 
 # Sources that _do_ need preprocessing (because they have MPI flags, ...)
 set(STELLA_SOURCES_fpp
-  ../STELLA_CODE//fields.fpp
-  ../STELLA_CODE//response_matrix.fpp
-  ../STELLA_CODE//sfincs_interface.fpp
-  ../STELLA_CODE//sources.fpp
-  ../STELLA_CODE//stella_io.fpp
-  ../STELLA_CODE//stella_save.fpp
+  ../STELLA_CODE/fields.fpp
+  ../STELLA_CODE/response_matrix.fpp
+  ../STELLA_CODE/sfincs_interface.fpp
+  ../STELLA_CODE/sources.fpp
+  ../STELLA_CODE/stella_io.fpp
+  ../STELLA_CODE/stella_save.fpp
 )
 
 set_source_files_properties(${STELLA_SOURCES_fpp} PROPERTIES
@@ -138,7 +138,7 @@ target_compile_options(libstella PRIVATE
 
 # Main executable
 add_executable(stella
-  ../STELLA_CODE//stella.f90
+  ../STELLA_CODE/stella.f90
   )
 
 # Use <libstella> when linking the <stella> target
@@ -163,7 +163,7 @@ add_custom_command(TARGET stella POST_BUILD
 # Dependencies and build options
 ############################################################
 
-# Adapted from https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
+# Adapted from https:/cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
 # Update submodules as needed
 if(STELLA_UPDATE_GIT_SUBMODULES)
   find_package(Git QUIET)
@@ -179,7 +179,7 @@ if(STELLA_UPDATE_GIT_SUBMODULES)
 endif()
 
 # This might not be entirely sensible, but helps CMake to find the
-# correct MPI, workaround for https://gitlab.kitware.com/cmake/cmake/issues/18895
+# correct MPI, workaround for https:/gitlab.kitware.com/cmake/cmake/issues/18895
 find_program(MPIEXEC_EXECUTABLE NAMES mpiexec mpirun)
 find_package(MPI REQUIRED)
 target_link_libraries(libstella PUBLIC MPI::MPI_Fortran)
@@ -302,7 +302,7 @@ if (STELLA_ENABLE_TESTS)
   if (STELLA_DOWNLOAD_PFUNIT)
     message(STATUS "Downloading pFUnit...")
     include(FetchContent)
-    set(STELLA_DOWNLOAD_PFUNIT_URL "https://github.com/Goddard-Fortran-Ecosystem/pFUnit"
+    set(STELLA_DOWNLOAD_PFUNIT_URL "https:/github.com/Goddard-Fortran-Ecosystem/pFUnit"
       CACHE STRING "URL of pFUnit repository")
     set(STELLA_PFUNIT_LOCATION "${STELLA_DOWNLOAD_PFUNIT_URL}")
     FetchContent_Declare(

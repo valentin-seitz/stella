@@ -1,4 +1,4 @@
-# include "define.inc"
+# include "../EXTERNALS/utils/define.inc"
 
 ! TODO-GA: Print input parameters to netcdf file
 
