@@ -8,6 +8,12 @@ evolving electrostatic fluctuations with fully kinetic electrons and an
 arbitrary number of ion species in general magnetic geometry, including
 stellarators.
 
+## Table of contents
+  * [Dependencies](#dependencies)
+  * [Installation](#installation)
+    + [CMake](#cmake)
+    + [Makefiles](#makefiles)
+
 ## Dependencies
 
 stella requires MPI, and has several optional dependencies:
