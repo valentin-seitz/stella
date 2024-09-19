@@ -98,11 +98,16 @@ jobs:
           git submodule update --init --recursive
           make -I Makefiles -j12
 
-      - name: Perform automated Fortran tests
+      - name: Build pFUnit library
         run: |
           set -ex
           export STELLA_SYSTEM=gnu_ubuntu
-          make -I Makefiles -j4 build-pfunit-library
+          make -I Makefiles -j4 build-pfunit-library  
+
+      - name: Perform automated Fortran tests
+        run: |
+          set -ex
+          export STELLA_SYSTEM=gnu_ubuntu 
           make -I Makefiles -j4 run-automated-fortran-tests 
 
   # Build stella with Make and run automatic python tests
