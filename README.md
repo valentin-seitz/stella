@@ -121,7 +121,17 @@ make
 # or in one line:
 make -IMakefiles GK_SYSTEM=gnu_ubuntu
 ```
-
+If the exports of GK_SYSTEM and MAKEFLAGS are set, compiling stella is achieved through:
+```
+make
+```
+To clean the directory, the following commands exist:
+```
+make clean # removes compiled stella files, utils files and mini_libstell files
+make clean-quick # only removes the compiled stella files, not the utils and mini_libstell files
+make clean-submodules # clean + remove git_version, neasyf and pFUnit folders
+make distclean # clean + remove stelle executable + invoke clean on pFUnit
+```
 
 ## Verification of stella output
 
