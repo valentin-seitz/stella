@@ -19,7 +19,8 @@ PFUNIT_ERROR:=pfunit.error
 
 # Installation directory of pFUnit
 # Default is the directory where `scripts/build_pfunit` puts it
-PFUNIT_DIR ?= $(COMPILATION_DIR)/pFUnit_build/install/PFUNIT-4.2
+# Note that the folder was called PFUNIT-4.2 when a previous version of pFUnit was used.
+PFUNIT_DIR ?= $(COMPILATION_DIR)/pFUnit_build/install/PFUNIT-4.10
 PFUNIT_DRIVER := $(PFUNIT_DIR)/include/driver.F90
 
 # Preprocessor flags
