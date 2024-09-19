@@ -14,7 +14,9 @@ stellarators.
   * [Installation and Compilation](#installation-and-compilation)
     + [CMake](#cmake)
     + [Make](#make)
-
+  * [Verification of stella output](#verification-of-stella-output)
+    + [Set-up](#set-up)
+    + [Numerical tests](#numerical-tests)
 
 
 ## Dependencies
@@ -119,3 +121,36 @@ make
 # or in one line:
 make -IMakefiles GK_SYSTEM=gnu_ubuntu
 ```
+If the exports of `GK_SYSTEM` and `MAKEFLAGS` are set, compiling stella is achieved through:
+```
+make
+```
+To `clean` the directory, the following commands exist:
+```
+make clean              # removes compiled stella files, utils files and mini_libstell files
+make clean-quick        # only removes the compiled stella files, not the utils and mini_libstell files
+make clean-submodules   # clean + remove git_version, neasyf and pFUnit folders
+make distclean          # clean + remove stelle executable + invoke clean on pFUnit
+```
+
+## Verification of stella output
+
+Automated python tests are available to test the output of stella. 
+
+### Set-up
+The first time you want to run these tests, you need to install the python virtual environment:
+```
+make create-test-virtualenv
+```
+Next, activate the virtual environment:
+```
+source AUTOMATIC_TESTS/venv/bin/activate
+```
+
+### Numerical tests
+Run the automated python tests, which tests the numerical output of stella:
+```
+make numerical-tests
+```
+
+
