@@ -113,6 +113,7 @@ automated-fortran-tests: $(GIT_OBJ) $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(STELLA_OBJ
 	@echo "                       "
 	@echo "Compiling pFUnit tests executable:"
 	@$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I $(PFUNIT_TEST_DIR) $(MOD_FLAGS_TESTS) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
+	@echo "   ==> Created the executable automated-fortran-tests"
 
 # To run the automated Fortran tests, we first need to check
 # that the pfunit package has been installed correctly, and
