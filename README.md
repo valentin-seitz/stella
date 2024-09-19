@@ -10,9 +10,9 @@ stellarators.
 
 ## Table of contents
   * [Dependencies](#dependencies)
-  * [Installation](#installation)
+  * [Installation and Compilation](#installation-and-compilation)
     + [CMake](#cmake)
-    + [Makefiles](#makefiles)
+    + [Make](#make)
 
 ## Dependencies
 
@@ -22,7 +22,7 @@ stella requires MPI, and has several optional dependencies:
 - FFTW3
 - LAPACK
 
-## Installation
+## Installation and Compilation
 
 There are two ways to build stella: with CMake (experimental) or with
 plain `make`.
@@ -84,7 +84,7 @@ directory:
 cmake -LH
 ```
 
-### Makefiles
+### Make
 
 The other build system uses plain `make`:
 
