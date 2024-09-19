@@ -243,7 +243,12 @@ endif
 # List of all the used libraries
 # Here $LIBSTELL_LIB points to utils/mini_libstell which contains a stellarator resource library
 LIBS += $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
-		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LAPACK_LIB) $(LIBSTELL_LIB) $(UTILS_STELLA_LIB)
+		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LAPACK_LIB) $(LIBSTELL_LIB) 
+		
+# Note that either you define the dependencies on imports manually, like in the makefile.depend
+# file, or you attach the library where the compiler can find the functions. Since all utils
+# have been linked through fortdep in makefile.depend, we do not need to explicitly import its library
+#LIBS += $(UTILS_STELLA_LIB)
 
 # Include flags
 INC_FLAGS= $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) \

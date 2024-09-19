@@ -43,10 +43,11 @@ endif
 # Preprocessor flags
 CPPFLAGS += -DPFUNIT_MOD=$(PFUNIT_MOD)
 
-# We need the stella fortran scripts
-# These should already be compiled in $(BUILD_OBJECTS_DIR)
-#STELLA_OBJS := $(filter-out stella.o, $(stella_mod))
-STELLA_OBJS := $(filter-out stella.o, $(stella_mod))
+# We need the stella fortran objects, which should already be compiled in $(OBJ)
+# Note that we need to remove stella, because it is a "main" program, if we add
+# this together with $(PFUNIT_DRIVER), the compiler will not know which one to
+# choose for the main program of the executable "automated-fortran-tests"
+STELLA_OBJS := $(filter-out $(OBJ)/stella.o, $(stella_mod))
 
 # To build the pFUnit executable, we need to build the 
 # PFUNIT_TESTS.pf into PFUNIT_TESTS.F90 and then into PFUNIT_TESTS.o files
@@ -84,7 +85,8 @@ distclean: clean-pfunit-library
 ############################################################### 
 
 # The -I $(MOD) flag makes sure that the compiler looks for the *.mod files in the $(MOD) directory 
-MOD_FLAGS = -I $(MOD) -I $(UTILS_MOD) -I $(MINILIBSTELL_MOD)
+MOD_FLAGS_TESTS := -I $(OBJ) -I $(UTILS_OBJ)  -I $(MOD) -I $(UTILS_MOD) 
+#-I $(MINILIBSTELL_MOD)
 
 %.o: %.pf
 	@echo "   (test_fortran_routines) %.pf to %.o $<"
@@ -93,7 +95,7 @@ ifdef ONE_STEP_PP
 	@$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I $(PROJECT_DIR) -o $@
 else
 	@$(QUIETSYM)$(CPP) $(FPPFLAGS) $(basename $<).F90 -o $(basename $<).f90
-	@$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) $(MOD_FLAGS) -o $@
+	@$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) $(MOD_FLAGS_TESTS) -o $@
 endif
 
 $(PFUNIT_DRIVER): $(PFUNIT_TEST_LIST)
@@ -110,7 +112,14 @@ GIT_OBJ :=  $(OBJ_DIR)/git_version_impl.o
 automated-fortran-tests: $(GIT_OBJ) $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(STELLA_OBJS)
 	@echo "                       "
 	@echo "Compiling: pFUnit tests"
-	@$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I $(PFUNIT_TEST_DIR) $(MOD_FLAGS) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
+	@echo "   PFUNIT_INC: $(PFUNIT_INC)"
+	@echo "   PFUNIT_LIB: $(PFUNIT_LIB)"
+	@echo "   SIMPLEDATAIO_LIB_ABS: $(SIMPLEDATAIO_LIB_ABS)"
+	@echo "   LIBS: $(LIBS)"
+	@echo "   F90FLAGS: $(F90FLAGS)"
+	@echo "   PFUNIT_TEST_DIR: $(PFUNIT_TEST_DIR)"
+	@echo "   MOD_FLAGS_TESTS: $(MOD_FLAGS_TESTS)"
+	@$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I $(PFUNIT_TEST_DIR) $(MOD_FLAGS_TESTS) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
 
 # To run the automated Fortran tests, we first need to check
 # that the pfunit package has been installed correctly, and
@@ -133,9 +142,6 @@ run-automated-fortran-tests-step1: check-pfunit-install automated-fortran-tests
 	@echo "                       "
 	@echo "Running: pFUnit tests"
 	@mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/automated-fortran-tests
-	
-	
-	source AUTOMATIC_TESTS/venv/bin/activate
 
 ###############################################################
 # Coverage

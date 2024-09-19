@@ -17,7 +17,7 @@ SRC := $(UTILS_DIR)
 # Keep the compilated files in seperate folders
 BUILD := $(COMPILATION_DIR)/build_make
 PARENT := $(COMPILATION_DIR)/build_make/utils
-FPP := $(PARENT)/f90fromfpp
+FPP := $(UTILS_FPP)
 OBJ := $(UTILS_OBJ)
 MOD := $(UTILS_MOD)
 OBJ_GENERAL := $(OBJ_DIR)
@@ -71,7 +71,7 @@ $(BUILD)/utils.a: $(utils_objects) | $(OBJ)
 	
 # The -J $(MOD) flag makes sure that the compiler writes the *.mod files to the $(MOD) directory
 # The -I $(MOD) flag makes sure that the compiler looks for the *.mod files in the $(MOD) directory
-MOD_FLAGS = -I $(MOD) -J $(MOD)
+MOD_FLAGS_UTILS := -I $(MOD) -J $(MOD)
 
 # Pattern rules to compile the scripts
 # Create *.o files from *.f90 files using the $(FC) compiler 
@@ -79,10 +79,10 @@ MOD_FLAGS = -I $(MOD) -J $(MOD)
 # Where the $(FPP) directory contains the prepocessed *.f90 from *.fpp files 
 $(OBJ)/%.o: $(SRC)/%.f90 | $(OBJ)
 	@echo "       (utils) *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS) -o $@ -c $< 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_UTILS) -o $@ -c $< 
 $(OBJ)/%.o: $(FPP)/%.f90 | $(OBJ)
 	@echo "       (utils) *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS) -o $@ -c $< 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_UTILS) -o $@ -c $< 
 	
 # Make the utils objects accesible in the main objects folder
 $(OBJ_GENERAL)/%.o: $(OBJ)/%.o 

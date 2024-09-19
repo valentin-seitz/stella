@@ -71,6 +71,7 @@ export OBJ := $(BUILD_DIR)/objects
 export FPP := $(BUILD_DIR)/$(FPP_NAME)
 export UTILS_OBJ := $(BUILD_DIR)/utils/objects
 export UTILS_MOD := $(BUILD_DIR)/utils/modules
+export UTILS_FPP := $(BUILD_DIR)/utils/f90fromfpp
 export MINILIBSTELL_MOD := $(BUILD_DIR)/mini_libstell/modules
 
 # Export OBJ_DIR to the fortdep script
@@ -114,7 +115,7 @@ include $(COMPILATION_DIR)/Makefile.externals
 
 # Add the external modules to the VPATH
 # Export VPATH so that the utils makefile can add its fpp folder to it
-export VPATH := $(VPATH):$(UTILS_DIR):$(MINILIBSTELL_DIR):$(NEASYF_DIR):$(GIT_VERSION_DIR):
+export VPATH := $(VPATH):$(UTILS_DIR):$(UTILS_FPP):$(MINILIBSTELL_DIR):$(NEASYF_DIR):$(GIT_VERSION_DIR):
 
 #===================================================================
 #            READ THE DEPENDENCIES OF THE SOURCE FILES             #
@@ -190,7 +191,7 @@ stella_objects := $(stella_mod) $(OBJ)/git_version_impl.o
 # $@ is the name of the target being generated -> 'stella'
 # $< is the first prerequisite -> the first file in '$(external_modules_dependencies)'
 # $^ are all the prerequisites -> all files in '$(external_modules_dependencies)' and '$(stella_mod)'
-# @ supresses the output in the command prompt, remove this to debug	
+# @ supresses the output in the command prompt, remove this to debug
 stella: $(external_modules) $(stella_objects)
 	@$(LD) $(LDFLAGS) -o $@ $(filter %.o, $^) $(LIBS)
 	@echo "    ==> Created stella executable"; echo "  "
@@ -218,28 +219,28 @@ setup-stella: ensure-that-all-f90-files-exist
 
 # The -I $(MOD) flag makes sure that the compiler looks for the *.mod files in the $(MOD) directory
 # The -J $(MOD) flag makes sure that the compiler writes the *.mod files to the $(MOD) directory
-MOD_FLAGS = -I $(MOD) -I $(UTILS_MOD) -I $(MINILIBSTELL_MOD) -J $(MOD)
+MOD_FLAGS_STELLA := -I $(MOD) -I $(UTILS_MOD) -I $(MINILIBSTELL_MOD) -J $(MOD)
  
 # Build object files '*.o' from '*.f90' files using the Fortran f90 compiler
 $(OBJ)/%.o: $(STELLA_DIR)/%.f90 $(external_modules) | $(OBJ)
 	@echo "   (stella) *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS) -o $@ -c $< 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_STELLA) -o $@ -c $< 
 	
 $(OBJ)/%.o: $(DIAG)/%.f90 $(external_modules) | $(OBJ)
 	@echo "   (stella) *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS) -o $@ -c $< 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_STELLA) -o $@ -c $< 
 	
 $(OBJ)/%.o: $(GEO)/%.f90 $(external_modules) | $(OBJ)
 	@echo "   (stella) *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS) -o $@ -c $< 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_STELLA) -o $@ -c $< 
 	
 $(OBJ)/%.o: $(COLL)/%.f90 $(external_modules) | $(OBJ)
 	@echo "   (stella) *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS) -o $@ -c $< 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_STELLA) -o $@ -c $< 
 	
 $(OBJ)/%.o: $(FPP)/%.f90 $(external_modules) | $(OBJ)
 	@echo "   (stella) *.f90 to *.o: $(notdir $<)" 
-	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS) -o $@ -c $< 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_STELLA) -o $@ -c $< 
 
 #===================================================================
 #              Preprocess *.fpp files to *.f90 files               #
@@ -361,7 +362,7 @@ remove-stella-files:
 	@-rm -f $(BUILD_DIR)/.compiler_flags
 	@-rm -f $(FPP)/*.f90 $(FPP)/*.fpp $(FPP)/*.inc
 	@-rm -f $(MOD)/*.mod $(MOD)/*.smod $(MOD)/*.mod0
-	@-rm -f $(OBJ)/*.o 
+	@-rm -f $(OBJ)/*.o *.mod
 	@if [ -d "$(OBJ)" ]; then rmdir $(OBJ); fi
 	@if [ -d "$(MOD)" ]; then rmdir $(MOD); fi
 	@if [ -d "$(FPP)" ]; then rmdir $(FPP); fi 

@@ -72,29 +72,29 @@ $(BUILD)/mini_libstell.a: $(libstell_objects) | $(OBJ)
 	
 # The -J $(MOD) flag makes sure that the compiler writes the *.mod files to the $(MOD) directory
 # The -I $(MOD) flag makes sure that the compiler looks for the *.mod files in the $(MOD) directory
-MOD_FLAGS = -I $(MOD) -J $(MOD)
+MOD_FLAGS_MINI := -I $(MOD) -J $(MOD)
 
 # Pattern rules to compile the scripts
 # For the preprocessed files *.F, we need to give the "NETCDF" option through the -D flag
 # Without this flag, stella will compile and run but the netcdf file won't be written correctly
 $(OBJ)/%.o: $(SRC)/%.f90 | $(OBJ)
 	@echo "       (mini_libstell) *.f90 to *.o:  $(notdir $<)"
-	@$(FC) $(EXTRA_COMPILE_FLAGS) $(MOD_FLAGS) -o $@ -c $<
+	@$(FC) $(EXTRA_COMPILE_FLAGS) $(MOD_FLAGS_MINI) -o $@ -c $<
 
 $(OBJ)/%.o: $(SRC)/%.f | $(OBJ)
 	@echo "       (mini_libstell) *.f to *.o:    $(notdir $<)"
-	@$(FC) $(EXTRA_COMPILE_FLAGS) $(MOD_FLAGS) -o $@ -c $<
+	@$(FC) $(EXTRA_COMPILE_FLAGS) $(MOD_FLAGS_MINI) -o $@ -c $<
 
 $(OBJ)/%.o: $(SRC)/%.F | $(OBJ)
 	@echo "       (mini_libstell) *.F to *.o:    $(notdir $<)"
-	@$(FC) $(EXTRA_COMPILE_FLAGS) $(MOD_FLAGS) -DNETCDF -o $@ -c $<
+	@$(FC) $(EXTRA_COMPILE_FLAGS) $(MOD_FLAGS_MINI) -DNETCDF -o $@ -c $<
 
 # The "ezcdf_GenGet.f90" script has a rank mistmatch warning which we will supress.
 # Warning: Type mismatch between actual argument at (1) and actual argument at (2) (REAL(4)/COMPLEX(4)).
 # The -w flag will suppress the warnings, while allowing for errors
 $(OBJ)/ezcdf_GenGet.o: $(SRC)/ezcdf_GenGet.f90 | $(OBJ)
 	@echo "       (mini_libstell) *.f90 to *.o:  $(notdir $<)"
-	@$(FC) $(EXTRA_COMPILE_FLAGS) $(MOD_FLAGS) -w -o $@ -c $<
+	@$(FC) $(EXTRA_COMPILE_FLAGS) $(MOD_FLAGS_MINI) -w -o $@ -c $<
 	
 # Remove the compiled files 
 clean:
