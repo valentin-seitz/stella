@@ -322,6 +322,7 @@ clean:
 	@echo "Clean externals:"
 	@$(MAKE) --no-print-directory -C $(MINILIBSTELL_DIR) clean
 	@$(MAKE) --no-print-directory -C $(UTILS_DIR) clean
+	@$(MAKE) --no-print-directory clean-pfunit
 
 # Only clean stella, not the external modules
 clean-quick: 
@@ -341,6 +342,7 @@ clean-submodules:
 	@-rm -rf $(PROJECT_DIR)/EXTERNALS/neasyf
 	@echo "   - remove pFUnit" 
 	@-rm -rf $(PROJECT_DIR)/EXTERNALS/pFUnit
+	@-rm -rf $(COMPILATION_DIR)/pFUnit_build
 	@echo "                     "
 
 # Remove all compiled files, including the submodules, as well as the stella executable

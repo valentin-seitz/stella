@@ -69,7 +69,7 @@ build-pfunit-library:
 check-pfunit-install:
 ifeq ("$(wildcard $(PFUNIT_PREPROCESSOR))","")
 	$(info "Please install the pfunit package through:")
-	$(info "  >> build-pfunit-library")
+	$(info "  >> make build-pfunit-library")
 	$(info "      ")
 	$(error Could not find $(PFUNIT_PREPROCESSOR). Make sure pFUnit is installed and PFUNIT_DIR ($(PFUNIT_DIR)) is set to the current location)
 endif
@@ -111,14 +111,7 @@ $(PFUNIT_OBJS): $(STELLA_OBJS)
 GIT_OBJ :=  $(OBJ_DIR)/git_version_impl.o
 automated-fortran-tests: $(GIT_OBJ) $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(STELLA_OBJS)
 	@echo "                       "
-	@echo "Compiling: pFUnit tests"
-	@echo "   PFUNIT_INC: $(PFUNIT_INC)"
-	@echo "   PFUNIT_LIB: $(PFUNIT_LIB)"
-	@echo "   SIMPLEDATAIO_LIB_ABS: $(SIMPLEDATAIO_LIB_ABS)"
-	@echo "   LIBS: $(LIBS)"
-	@echo "   F90FLAGS: $(F90FLAGS)"
-	@echo "   PFUNIT_TEST_DIR: $(PFUNIT_TEST_DIR)"
-	@echo "   MOD_FLAGS_TESTS: $(MOD_FLAGS_TESTS)"
+	@echo "Compiling pFUnit tests executable:"
 	@$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB_ABS) $(LIBS) $(F90FLAGS) -I $(PFUNIT_TEST_DIR) $(MOD_FLAGS_TESTS) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
 
 # To run the automated Fortran tests, we first need to check
@@ -137,11 +130,14 @@ run-automated-fortran-tests:
 	@echo "  >> make create-test-virtualenv"
 	@echo "  >> source AUTOMATIC_TESTS/venv/bin/activate"
 	@echo "                       "
+	@echo "Create testing scripts:"
 	@$(MAKE) --no-print-directory run-automated-fortran-tests-step1 
 run-automated-fortran-tests-step1: check-pfunit-install automated-fortran-tests 
 	@echo "                       "
+	@echo "======================================================================"
 	@echo "Running: pFUnit tests"
 	@mpirun -np $(PFUNIT_NPROC) $(PFUNIT_TEST_PATH)/automated-fortran-tests
+	@echo "======================================================================"
 
 ###############################################################
 # Coverage
