@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update
-          brew install gcc-10
+          brew install gcc@10
           brew install make
           brew install openmpi
           brew install fftw
