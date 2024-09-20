@@ -15,7 +15,7 @@ jobs:
     name: "Test sed"
     runs-on: macos-13
           
-      steps:
+    steps:
       - name: Use 4 processors for mpirun
         run: |
           cat AUTOMATIC_TESTS/config.ini
