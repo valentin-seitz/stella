@@ -11,9 +11,51 @@ defaults:
 # First build stella, and then perform python tests
 jobs:
 
-  # Build stella with Make  
-  compile-stella:
+  # Build stella with make  
+  compile-stella-make:
     name: "Compile stella with make on mac"  
+    runs-on: macos-13
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: yes
+      MPIRUN: mpiexec -np 
+      
+    steps:
+
+      # Install dependencies brew install gfortran
+      - name: Install dependencies
+        run: brew install gcc@10 make openmpi fftw netcdf-fortran
+      
+      # Make the gfortran command available
+      - name: Symlink gfortran (macOS)
+        if: runner.os == 'macOS'
+        run: | 
+          sudo ln -s /usr/local/bin/gfortran-10 /usr/local/bin/gfortran
+          sudo mkdir /usr/local/gfortran
+          sudo ln -s /usr/local/Cellar/gcc@10/*/lib/gcc/10 /usr/local/gfortran/lib
+          gfortran --version
+
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4 
+          
+      # Build stella executable
+      - name: Build stella (make) 
+        run: |
+          export STELLA_SYSTEM=macosx
+          git submodule update --init --recursive
+          make -j 1
+          
+      # Upload stella 
+      - name: Upload stella 
+        uses: actions/upload-artifact@v4
+        with:
+          name: stella-executable-macos-make
+          path: stella
+          retention-days: 1
+
+  # Build stella with Make  
+  compile-stella-cmake:
+    name: "Compile stella with cmake on mac"  
     runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -89,13 +131,13 @@ jobs:
       - name: Upload stella 
         uses: actions/upload-artifact@v4
         with:
-          name: stella-executable
+          name: stella-executable-macos-cmake
           path: stella
           retention-days: 1
 
   # Run automatic python tests, after stella has been compiled
   numerical-tests: 
-    needs: compile-stella
+    needs: compile-stella-cmake
     runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -135,7 +177,7 @@ jobs:
       - name: Download stella 
         uses: actions/download-artifact@v4
         with:
-           name: stella-executable
+           name: stella-executable-macos-cmake
            
       # Make stella executable and run on 4 processors
       - name: Make stella executable
