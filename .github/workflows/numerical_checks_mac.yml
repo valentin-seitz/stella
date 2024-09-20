@@ -27,7 +27,6 @@ jobs:
           brew install gcc
           brew install make
           brew install openmpi
-          brew install openmpi-devel
           brew install fftw
           brew install fftw-mpi
           brew install fftw-devel
@@ -44,6 +43,7 @@ jobs:
           brew install python3-pip 
           brew install openmpi-bin 
           brew install libopenmpi-dev 
+          brew install openmpi-devel
 
       # Print system information
       - name: System information
