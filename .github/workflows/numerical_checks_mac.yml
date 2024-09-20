@@ -136,12 +136,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
            name: stella-executable
-          
-      # Run stella on 4 processors
-      - name: Use 4 processors for mpirun
+           
+      # Make stella executable and run on 4 processors
+      - name: Make stella executable
         run: |
-          gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
-          cat AUTOMATIC_TESTS/config.ini
+            echo " "; echo "Make stella executable:"
+            chmod +x stella
+            echo " "; echo "Running directory:"; echo "  $(pwd)"
+            echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
+            gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
           
       # Install python environment
       - name: Install python virtual environment
