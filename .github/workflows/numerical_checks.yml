@@ -101,7 +101,8 @@ jobs:
       # Make stella executable
       - name: Make stella executable
         run: |
-            echo " "; echo "Make stella executable:"; chmod +x stella
+            echo " "; echo "Make stella executable:"
+            chmod +x stella
             echo " "; echo "Running directory:"; echo "  $(pwd)"
             echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
 
@@ -112,36 +113,27 @@ jobs:
       # Perform python tests 1
       - name: Numerical python tests 1 - Does stella run
         if: ${{ contains(matrix.config.name, '1 -') }}
-        run: | 
-          export STELLA_SYSTEM=gnu_ubuntu
-          make numerical-tests-1
+        run: export STELLA_SYSTEM=gnu_ubuntu; make numerical-tests-1
 
       # Perform python tests 2
       - name: Numerical python tests 2 - Geometry
         if: ${{ contains(matrix.config.name, '2 -') }}
-        run: | 
-          export STELLA_SYSTEM=gnu_ubuntu
-          make numerical-tests-2
+        run: export STELLA_SYSTEM=gnu_ubuntu; make numerical-tests-2
 
       # Perform python tests 3
       - name: Numerical python tests 3 - Gyrokinetic equation
         if: ${{ contains(matrix.config.name, '3 -') }}
-        run: | 
-          export STELLA_SYSTEM=gnu_ubuntu
-          make numerical-tests-3
+        run: export STELLA_SYSTEM=gnu_ubuntu; make numerical-tests-3
 
       # Perform python tests 4
       - name: Numerical python tests 4 - Flux tube
         if: ${{ contains(matrix.config.name, '4 -') }}
-        run: | 
-          export STELLA_SYSTEM=gnu_ubuntu
-          make numerical-tests-4
+        run: export STELLA_SYSTEM=gnu_ubuntu; make numerical-tests-4
 
       # Perform python tests 5
       - name: Numerical python tests 5 - Diagnostics
         if: ${{ contains(matrix.config.name, '5 -') }}
-        run: |  
-          make numerical-tests-5
+        run: export STELLA_SYSTEM=gnu_ubuntu; make numerical-tests-5
 
 
 
