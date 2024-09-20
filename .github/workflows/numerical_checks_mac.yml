@@ -16,6 +16,10 @@ jobs:
     runs-on: macos-13
           
     steps:
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+        
       - name: Use 4 processors for mpirun
         run: |
           cat AUTOMATIC_TESTS/config.ini
