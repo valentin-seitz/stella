@@ -30,11 +30,11 @@ jobs:
           
       # Make gfortran available
       - name: Symlink gfortran (macOS)
-      run: |
-        sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
-        sudo mkdir /usr/local/gfortran
-        sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
-        gfortran --version
+        run: |
+          sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
+          sudo mkdir /usr/local/gfortran
+          sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
+          gfortran --version
         
       # Install dependencies brew install gfortran
       - name: Install dependencies - backup
