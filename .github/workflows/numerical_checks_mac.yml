@@ -78,7 +78,7 @@ jobs:
         run: |
           export STELLA_SYSTEM=macosx
           git submodule update --init --recursive
-          make -j 12
+          make -j 1
           
       # Upload stella 
       - name: Upload stella 
