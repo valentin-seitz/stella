@@ -21,13 +21,18 @@ jobs:
       
     steps:
 
-      # Install dependencies
+      # Install dependencies brew install gfortran
       - name: Install dependencies
-        run: |
-          brew install gfortran
+        run: | 
           brew install make
-          brew install libfftw3-dev libnetcdf-dev libnetcdff-dev
-          brew install netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev 
+          brew install libfftw3-dev
+          brew install libnetcdf-dev 
+          brew install libnetcdff-dev
+          brew install netcdf-bin 
+          brew install python3 
+          brew install python3-pip 
+          brew install openmpi-bin 
+          brew install libopenmpi-dev 
 
       # Print system information
       - name: System information
