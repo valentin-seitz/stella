@@ -23,13 +23,7 @@ jobs:
 
       # Install dependencies brew install gfortran
       - name: Install dependencies
-        run: |
-          brew update
-          brew install gcc@10
-          brew install make
-          brew install openmpi
-          brew install fftw
-          brew install netcdf-fortran
+        run: brew install gcc@10 make openmpi fftw netcdf-fortran
         
       # Install dependencies brew install gfortran
       - name: Install dependencies - backup
@@ -122,10 +116,7 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        run: | 
-          sudo apt update
-          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
-          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev 
+        run: brew install gcc@10 make openmpi fftw netcdf-fortran
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
