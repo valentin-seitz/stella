@@ -15,18 +15,17 @@ defaults:
 # Next, only the step corresponding to the test will be executed.
 jobs:
         
-  # Build stella with Make in debug mode, here the python tests do not work!
-  # Specifically, the flush statement in mini_libstell's 
-  # read_wout_mod.F module in the readw_and_open() routine breaks 
-  # when reading a VMEC equilibirium during the python tests.
+  # Build stella with Make  
   compile-stella:
-    name: "Make stella in debug mode"  
+    name: "Compile stella with make"  
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
       MPIRUN: mpiexec -np 
       
     steps:
+    
+      # Install packages needed for stella compilation 	
       - name: Install dependencies
         run: sudo apt update &&
              sudo apt install -y
