@@ -12,5 +12,5 @@ endif
 
 ifdef USE_NETCDF
 	NETCDF_INC = -I/usr/local/lib
-	NETCDF_LIB = /usr/local/lib/libnetcdff.dylib -lnetcdf
+	NETCDF_LIB = -L/usr/local/lib/libnetcdff.dylib -L/opt/homebrew/include -lnetcdf
 endif

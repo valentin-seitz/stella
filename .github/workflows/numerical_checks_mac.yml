@@ -27,8 +27,9 @@ jobs:
         
       # Install dependencies brew install gfortran
       - name: Check directory
-        run: ls -al /usr/include
-        run: ls -al /usr/local/lib
+        run: |
+          ls -al /usr/include
+          ls -al /usr/local/lib
 
   # Build stella with make  
   compile-stella-make:
