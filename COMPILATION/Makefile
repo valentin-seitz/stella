@@ -253,6 +253,7 @@ LIBS += $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
 # Include flags
 INC_FLAGS= $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) \
 	   $(SFINCS_INC) $(PETSC_INC) $(LAPACK_INC)
+$(info INC_FLAGS: $(INC_FLAGS))
 
 # Flags for the fortran compiler and the C compiler
 F90FLAGS += $(F90OPTFLAGS)
