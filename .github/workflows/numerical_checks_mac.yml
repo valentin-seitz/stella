@@ -29,9 +29,7 @@ jobs:
           brew install make
           brew install openmpi
           brew install fftw
-          brew install openmpi-devel
           brew install fftw-mpi
-          brew install fftw-devel
         
       # Install dependencies brew install gfortran
       - name: Install dependencies - backup
