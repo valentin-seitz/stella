@@ -51,12 +51,11 @@ jobs:
       # Build stella executable
       - name: Build stella  
         run: |
-          set -ex
           export STELLA_SYSTEM=gnu_ubuntu
           git submodule update --init --recursive
-          make -I Makefiles -j12
+          make -j 12
 
-  # Build stella with Make and run automatic fortran tests
+  # Run automatic python tests, after stella has been compiled
   numerical-tests:
     name: "Perform fortran tests of the stella code" 
     runs-on: ubuntu-latest
