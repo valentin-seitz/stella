@@ -22,8 +22,7 @@ jobs:
           brew install gnu-sed
           gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
           cat AUTOMATIC_TESTS/config.ini
-          
-      steps:
+         
       - name: Use 4 processors for mpirun
         run: sed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
 
