@@ -100,7 +100,7 @@ jobs:
           echo " "; echo "Running directory:"; echo "  $(pwd)"
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
 
-      # Set.up cmake
+      # Set-up cmake
       - name: Set-up CMake
         run: | 
           git submodule update --init --recursive

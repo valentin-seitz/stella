@@ -11,9 +11,11 @@ defaults:
 # First build stella, and then perform python tests
 jobs:
 
-  # Build stella with Make  
-  compile-stella:
-    name: "Compile stella with make on ubuntu"  
+#-----------------------------------------------------------------------
+#                         Build stella with Make                        
+#-----------------------------------------------------------------------
+  compile-stella-make:
+    name: "Build stella on ubuntu (Make)"  
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -46,7 +48,7 @@ jobs:
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
 
       # Build stella executable
-      - name: Build stella  
+      - name: Build stella (Make)
         run: |
           export STELLA_SYSTEM=gnu_ubuntu
           git submodule update --init --recursive
@@ -56,13 +58,76 @@ jobs:
       - name: Upload stella 
         uses: actions/upload-artifact@v4
         with:
-          name: stella-executable
+          name: stella-executable-ubuntu-make
           path: stella
           retention-days: 1
 
+
+
+#-----------------------------------------------------------------------
+#                         Build stella with CMake                        
+#-----------------------------------------------------------------------
+  compile-stella-cmake:
+    name: "Build stella on ubuntu (CMake)"  
+    runs-on: ubuntu-latest
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: yes
+      MPIRUN: mpiexec -np 
+      
+    steps:
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
+          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
+
+      # Print system information
+      - name: System information
+        run: |
+          echo " "; echo "System information:"; echo "$(cat /etc/*release | sed 's/^/  /')"
+          echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
+          echo " "; echo "Netcdf version:"; echo "$(nf-config --all | sed 's/^/  /')"
+
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4
+          
+      # Check $GITHUB_WORKSPACE
+      - name: Check Github Workspace
+        run: | 
+          echo " "; echo "Running directory:"; echo "  $(pwd)"
+          echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
+
+      # Set-up CMake
+      - name: Set-up CMake
+        run: | 
+          git submodule update --init --recursive
+          cmake . -B COMPILATION/build_cmake  
+          echo " "; echo "--------- DIRECTORIES ----------"
+          cat COMPILATION/build_cmake/CMakeCache.txt
+
+      # Build stella executable with CMake
+      - name: Build stella (CMake)
+        run: | 
+          cmake --build COMPILATION/build_cmake -j 12 
+          
+      # Upload stella 
+      - name: Upload stella 
+        uses: actions/upload-artifact@v4
+        with:
+          name: stella-executable-ubuntu-cmake
+          path: stella
+          retention-days: 1
+          
+#-----------------------------------------------------------------------
+#                             Python tests                              
+#-----------------------------------------------------------------------
+
   # Run automatic python tests, after stella has been compiled
   numerical-tests: 
-    needs: compile-stella
+    needs: compile-stella-cmake
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -96,7 +161,7 @@ jobs:
       - name: Download stella 
         uses: actions/download-artifact@v4
         with:
-           name: stella-executable
+           name: stella-executable-ubuntu-cmake
           
       # Make stella executable
       - name: Make stella executable
