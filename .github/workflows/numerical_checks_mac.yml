@@ -13,6 +13,7 @@ jobs:
 
   dummy:
     name: "Test sed"
+    runs-on: macos-13
           
       steps:
       - name: Use 4 processors for mpirun
