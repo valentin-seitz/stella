@@ -10,7 +10,7 @@ defaults:
 
 # First build stella, and then perform python tests
 jobs:
-        
+
   # Build stella with Make  
   compile-stella:
     name: "Compile stella with make"  
@@ -76,21 +76,6 @@ jobs:
       MPIRUN: mpiexec -np 
       
     steps:
-
-      # Install dependencies
-      - name: Install dependencies
-        run: sudo apt update &&
-             sudo apt install -y
-                 gfortran
-                 make
-                 libfftw3-dev
-                 libnetcdf-dev
-                 libnetcdff-dev
-                 netcdf-bin
-                 python3
-                 python3-pip
-                 openmpi-bin
-                 libopenmpi-dev
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
