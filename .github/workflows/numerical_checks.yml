@@ -37,14 +37,14 @@ jobs:
                  python3-pip
                  openmpi-bin
                  libopenmpi-dev
-  
+
       - name: System information
         run: |
           cat /etc/*release
           gfortran --version
           nf-config --all
       - uses: actions/checkout@v2 
-        
+
       - name: Build stella in debug mode
         run: |
           set -ex
