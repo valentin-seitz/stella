@@ -11,8 +11,24 @@ defaults:
 # First build stella, and then perform python tests
 jobs:
 
+  dummy:
+    name: "Test sed"
+          
+      steps:
+      - name: Use 4 processors for mpirun
+        run: |
+          cat AUTOMATIC_TESTS/config.ini
+          brew install gnu-sed
+          gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
+          cat AUTOMATIC_TESTS/config.ini
+          
+      steps:
+      - name: Use 4 processors for mpirun
+        run: sed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
+
   # Build stella with Make  
   compile-stella:
+    needs: dummy
     name: "Compile stella with make on mac"  
     runs-on: macos-13
     env:
