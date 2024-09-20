@@ -46,6 +46,15 @@ jobs:
           brew install openmpi-devel
           brew install fftw-mpi
           brew install fftw-devel
+      
+      # Make the gfortran command available
+      - name: Symlink gfortran (macOS)
+        if: runner.os == 'macOS'
+        run: | 
+          sudo ln -s /usr/local/bin/gfortran-10 /usr/local/bin/gfortran
+          sudo mkdir /usr/local/gfortran
+          sudo ln -s /usr/local/Cellar/gcc@10/*/lib/gcc/10 /usr/local/gfortran/lib
+          gfortran --version
 
       # Print system information
       - name: System information
