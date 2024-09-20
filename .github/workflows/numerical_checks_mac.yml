@@ -13,7 +13,7 @@ jobs:
 
   # Build stella with make  
   compile-stella-make:
-    name: "Compile stella with make on mac"  
+    name: "Build stella on mac (Make)"  
     runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -23,22 +23,22 @@ jobs:
 
       # Install dependencies brew install gfortran
       - name: Install dependencies
-        run: brew install gcc@10 make openmpi fftw netcdf-fortran
+        run: brew install gcc@11 make openmpi fftw netcdf-fortran
       
       # Make the gfortran command available
       - name: Symlink gfortran (macOS)
         if: runner.os == 'macOS'
         run: | 
-          sudo ln -s /usr/local/bin/gfortran-10 /usr/local/bin/gfortran
+          sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
           sudo mkdir /usr/local/gfortran
-          sudo ln -s /usr/local/Cellar/gcc@10/*/lib/gcc/10 /usr/local/gfortran/lib
+          sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
           gfortran --version
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
         uses: actions/checkout@v4 
           
-      # Build stella executable
+      # Build stella executable with make
       - name: Build stella (make) 
         run: |
           export STELLA_SYSTEM=macosx
@@ -55,7 +55,7 @@ jobs:
 
   # Build stella with Make  
   compile-stella-cmake:
-    name: "Compile stella with cmake on mac"  
+    name: "Build stella on mac (CMake)"  
     runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -66,24 +66,6 @@ jobs:
       # Install dependencies brew install gfortran
       - name: Install dependencies
         run: brew install gcc@10 make openmpi fftw netcdf-fortran
-        
-      # Install dependencies brew install gfortran
-      - name: Install dependencies - backup
-        if: ${{ contains(matrix.config.name, 'shalalallaa') }}
-        run: | 
-          brew install make
-          brew install libfftw3-dev
-          brew install libnetcdf-dev 
-          brew install libnetcdff-dev
-          brew install netcdf-bin 
-          brew install python3 
-          brew install python3-pip 
-          brew install openmpi-bin 
-          brew install libopenmpi-dev 
-          brew install openmpi-devel
-          brew install fftw-mpi
-          brew install fftw-devel
-          brew install netcdf
       
       # Make the gfortran command available
       - name: Symlink gfortran (macOS)
@@ -112,20 +94,13 @@ jobs:
           echo " "; echo "Running directory:"; echo "  $(pwd)"
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
 
+      # Build stella executable with cmake
       - name: Build stella (CMake)
         run: |
           set -ex
           git submodule update --init --recursive
           cmake . -B COMPILATION/build_cmake
           cmake --build COMPILATION/build_cmake -j 12 
-          
-      # Build stella executable
-      - name: Build stella (make)
-        if: ${{ contains(matrix.config.name, 'shalalallaa') }}
-        run: |
-          export STELLA_SYSTEM=macosx
-          git submodule update --init --recursive
-          make -j 1
           
       # Upload stella 
       - name: Upload stella 
