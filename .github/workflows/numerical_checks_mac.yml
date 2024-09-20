@@ -62,6 +62,7 @@ jobs:
           echo " "; echo "System information:"; echo "$(cat /etc/*release | sed 's/^/  /')"
           echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
           echo " "; echo "Netcdf version:"; echo "$(nf-config --all | sed 's/^/  /')"
+          echo " "; echo "Gfortran version:"; echo "$(clang --version | sed 's/^/  /')"
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
