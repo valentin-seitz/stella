@@ -37,7 +37,7 @@ jobs:
                  python3-pip
                  openmpi-bin
                  libopenmpi-dev
-	
+
       - name: System information
         run: |
           cat /etc/*release
