@@ -55,7 +55,6 @@ jobs:
       # Install python environment
       - name: Install python virtual environment
         run: |
-          pytest --version
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
           pytest --version
 
