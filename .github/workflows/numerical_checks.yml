@@ -27,9 +27,20 @@ jobs:
     
       # Install packages needed for stella compilation 	
       - name: Install dependencies
-        run: sudo apt update
+        run: sudo apt update &&
+             sudo apt install -y
+                 gfortran
+                 make
+                 libfftw3-dev
+                 libnetcdf-dev
+                 libnetcdff-dev
+                 netcdf-bin
+                 python3
+                 python3-pip
+                 openmpi-bin
+                 libopenmpi-dev
 
-	  # Check the system information		
+# Check the system information		
       - name: System information
         run: |
           cat /etc/*release
