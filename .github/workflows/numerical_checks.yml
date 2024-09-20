@@ -20,15 +20,12 @@ jobs:
   # read_wout_mod.F module in the readw_and_open() routine breaks 
   # when reading a VMEC equilibirium during the python tests.
   compile-stella:
+    name: "Make stella in debug mode"  
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      MPIRUN: mpiexec -np
-    strategy:
-      fail-fast: false
-      matrix:
-        config: 
-          - name: "Make stella in debug mode"  
+      MPIRUN: mpiexec -np 
+      
     steps:
       - name: Install dependencies
         run: sudo apt update &&
@@ -60,15 +57,12 @@ jobs:
 
   # Build stella with Make and run automatic fortran tests
   numerical-tests:
+    name: "Perform fortran tests of the stella code" 
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      MPIRUN: mpiexec -np
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - name: "Perform fortran tests of the stella code" 
+      MPIRUN: mpiexec -np 
+      
     steps:
       - name: Install dependencies
         run: sudo apt update &&
