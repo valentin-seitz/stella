@@ -85,6 +85,7 @@ jobs:
           
       # Build stella executable
       - name: Build stella (make)
+        if: ${{ contains(matrix.config.name, 'shalalallaa') }}
         run: |
           export STELLA_SYSTEM=macosx
           git submodule update --init --recursive
