@@ -39,8 +39,7 @@ jobs:
                  python3-pip
                  openmpi-bin
                  libopenmpi-dev
-
-	# Check the system information		
+	
       - name: System information
         run: |
           cat /etc/*release
@@ -48,7 +47,6 @@ jobs:
           nf-config --all
       - uses: actions/checkout@v2 
         
-	# Build stella
       - name: Build stella in debug mode
         run: |
           set -ex
