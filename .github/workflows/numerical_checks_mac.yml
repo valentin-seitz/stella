@@ -28,10 +28,10 @@ jobs:
           brew install make
           brew install openmpi
           brew install fftw
-          brew install fftw-devel
         
       # Install dependencies brew install gfortran
       - name: Install dependencies - backup
+        if: ${{ contains(matrix.config.name, 'shalalallaa') }}
         run: | 
           brew install make
           brew install libfftw3-dev
@@ -44,6 +44,7 @@ jobs:
           brew install libopenmpi-dev 
           brew install openmpi-devel
           brew install fftw-mpi
+          brew install fftw-devel
 
       # Print system information
       - name: System information
