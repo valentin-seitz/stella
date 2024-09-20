@@ -27,7 +27,6 @@ jobs:
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
           sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          export STELLA_SYSTEM=gnu_ubuntu
 
       # Print system information
       - name: System information
@@ -49,6 +48,7 @@ jobs:
       # Build stella executable
       - name: Build stella  
         run: |
+          export STELLA_SYSTEM=gnu_ubuntu
           git submodule update --init --recursive
           make -j 12
           
@@ -86,8 +86,7 @@ jobs:
         run: | 
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
-          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          export STELLA_SYSTEM=gnu_ubuntu
+          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev 
 
       # Install python environment
       - name: Install automated stella test dependencies
@@ -141,9 +140,8 @@ jobs:
       # Perform python tests 5
       - name: Perform numerical tests 5 for stella with Python
         if: ${{ contains(matrix.config.name, 'tests 5') }}
-        run: | 
-          export STELLA_SYSTEM=gnu_ubuntu
-          make numerical-tests-1
+        run: |  
+          make numerical-tests-5
 
 
 
