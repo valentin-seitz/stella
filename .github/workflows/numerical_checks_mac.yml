@@ -140,9 +140,6 @@ jobs:
       # Make stella executable
       - name: Use 4 processors for mpirun
         run: sed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
-            
-      # macos does not run on 8 processors
-      sed -i 's/old-text/new-text/g' input.txt
           
       # Install python environment
       - name: Install python virtual environment
