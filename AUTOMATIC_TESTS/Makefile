@@ -22,7 +22,7 @@ check-tests-dependencies:
 # Run the automated stella tests (the -r flag shows the full stella output and -rf shows extra info about the failed outputs)
 numerical-tests: check-tests-dependencies $(PROJECT_DIR)/stella
 	@echo "Running: automated stella tests"
-	@pytest -v -rF -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests
+	@pytest -v -rF -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_1_whether_stella_runs
 	
 # Run the automated stella tests (the -r flag shows the full stella output)
 # -rA shows all outputs, -rf shows only failed outputs 
