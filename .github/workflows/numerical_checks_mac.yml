@@ -11,28 +11,8 @@ defaults:
 # First build stella, and then perform python tests
 jobs:
 
-  dummy:
-    name: "Test sed"
-    runs-on: macos-13
-          
-    steps:
-
-      - name: Check out repository
-        uses: actions/checkout@v4
-        
-      - name: Use 4 processors for mpirun
-        run: |
-          cat AUTOMATIC_TESTS/config.ini
-          brew install gnu-sed
-          gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
-          cat AUTOMATIC_TESTS/config.ini
-         
-      - name: Use 4 processors for mpirun
-        run: sed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
-
   # Build stella with Make  
   compile-stella:
-    needs: dummy
     name: "Compile stella with make on mac"  
     runs-on: macos-13
     env:
@@ -136,7 +116,7 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        run: brew install gcc@10 make openmpi fftw netcdf-fortran
+        run: brew install gcc@10 make openmpi fftw netcdf-fortran gnu-sed
       
       # Make the gfortran command available
       - name: Symlink gfortran (macOS)
@@ -157,9 +137,11 @@ jobs:
         with:
            name: stella-executable
           
-      # Make stella executable
+      # Run stella on 4 processors
       - name: Use 4 processors for mpirun
-        run: sed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
+        run: |
+          gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
+          cat AUTOMATIC_TESTS/config.ini
           
       # Install python environment
       - name: Install python virtual environment
