@@ -27,10 +27,9 @@ jobs:
           brew update
           brew install gcc@10
           brew install make
-          brew install cmake
           brew install openmpi
           brew install fftw
-          brew install netcdf
+          brew install netcdf-fortran
         
       # Install dependencies brew install gfortran
       - name: Install dependencies - backup
@@ -48,6 +47,7 @@ jobs:
           brew install openmpi-devel
           brew install fftw-mpi
           brew install fftw-devel
+          brew install netcdf
       
       # Make the gfortran command available
       - name: Symlink gfortran (macOS)
