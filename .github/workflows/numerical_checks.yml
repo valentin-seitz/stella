@@ -14,7 +14,6 @@ jobs:
   # Run automatic python tests, after stella has been compiled
   numerical-tests:
     name: "Check stella outputs with python tests" 
-    needs: compile-stella
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
