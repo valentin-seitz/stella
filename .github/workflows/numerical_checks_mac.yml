@@ -117,6 +117,15 @@ jobs:
       # Install dependencies
       - name: Install dependencies
         run: brew install gcc@10 make openmpi fftw netcdf-fortran
+      
+      # Make the gfortran command available
+      - name: Symlink gfortran (macOS)
+        if: runner.os == 'macOS'
+        run: | 
+          sudo ln -s /usr/local/bin/gfortran-10 /usr/local/bin/gfortran
+          sudo mkdir /usr/local/gfortran
+          sudo ln -s /usr/local/Cellar/gcc@10/*/lib/gcc/10 /usr/local/gfortran/lib
+          gfortran --version
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
