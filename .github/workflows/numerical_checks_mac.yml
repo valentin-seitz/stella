@@ -96,7 +96,7 @@ jobs:
   # Run automatic python tests, after stella has been compiled
   numerical-tests: 
     needs: compile-stella
-    runs-on: macos-latest
+    runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
       MPIRUN: mpiexec -np 
