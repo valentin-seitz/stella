@@ -17,7 +17,7 @@ jobs:
         
   # Build stella with Make  
   compile-stella:
-    name: "Build stella with make"  
+    name: "Compile stella with make"  
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -40,7 +40,6 @@ jobs:
                  openmpi-bin
                  libopenmpi-dev
 
-	  # Check the system information
       - name: System information
         run: |
           cat /etc/*release
@@ -48,12 +47,12 @@ jobs:
           nf-config --all
       - uses: actions/checkout@v2 
         
-      # Build stella	
-      - name: Build stella
+      - name: Build stella in debug mode
         run: |
-          export STELLA_SYSTEM=gnu_ubuntu
+          set -ex
+          export STELLA_SYSTEM=gnu_ubuntu_debug
           git submodule update --init --recursive
-          make -j 12
+          make -I Makefiles -j12
 
   # Build stella with Make and run automatic fortran tests
   numerical-tests:
