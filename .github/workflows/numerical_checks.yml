@@ -1,6 +1,6 @@
 # Run these tests automatically on Github
 # on every push and pull request.
-name: NumericalTests
+name: NumericalTestsCookie
 on: [push, pull_request]
 
 # We run the in a bash shell
@@ -19,7 +19,7 @@ jobs:
   # Specifically, the flush statement in mini_libstell's 
   # read_wout_mod.F module in the readw_and_open() routine breaks 
   # when reading a VMEC equilibirium during the python tests.
-  test1:
+  compile-stella:
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -59,7 +59,7 @@ jobs:
           make -I Makefiles -j12
 
   # Build stella with Make and run automatic fortran tests
-  test2:
+  numerical-tests:
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
