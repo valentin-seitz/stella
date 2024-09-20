@@ -28,9 +28,11 @@ jobs:
       # Install dependencies brew install gfortran
       - name: Check directory
         run: |
-          ls -al /usr/include
-          ls -al /usr/local/lib
-
+          echo "$(NETCDF_LIB_DIR)"
+          echo "$(NETCDF_INC_DIR)"
+          echo "$(FFTW_LIB_DIR)"
+          echo "$(FFTW_INC_DIR)"
+          
   # Build stella with make  
   compile-stella-make:
     name: "Build stella on mac (Make)"  
