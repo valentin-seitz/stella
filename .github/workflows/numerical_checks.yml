@@ -25,7 +25,7 @@ jobs:
       
     steps:
     
-	# Install packages needed for stella compilation 	
+      # Install packages needed for stella compilation 	
       - name: Install dependencies
         run: sudo apt update &&
              sudo apt install -y
@@ -48,6 +48,7 @@ jobs:
           nf-config --all
       - uses: actions/checkout@v2 
         
+	# Build stella
       - name: Build stella in debug mode
         run: |
           set -ex
