@@ -22,7 +22,24 @@ check-tests-dependencies:
 # Run the automated stella tests (the -r flag shows the full stella output and -rf shows extra info about the failed outputs)
 numerical-tests: check-tests-dependencies $(PROJECT_DIR)/stella
 	@echo "Running: automated stella tests"
+	@pytest -v -rF -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/
+	
+# Run tests one by one
+numerical-tests-1: check-tests-dependencies $(PROJECT_DIR)/stella
+	@echo "Running: automated stella tests 1"
 	@pytest -v -rF -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_1_whether_stella_runs
+numerical-tests-2: check-tests-dependencies $(PROJECT_DIR)/stella
+	@echo "Running: automated stella tests 2"
+	@pytest -v -rF -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_2_geometry
+numerical-tests-3: check-tests-dependencies $(PROJECT_DIR)/stella
+	@echo "Running: automated stella tests 3"
+	@pytest -v -rF -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_3_gyrokinetic_equation
+numerical-tests-4: check-tests-dependencies $(PROJECT_DIR)/stella
+	@echo "Running: automated stella tests 4"
+	@pytest -v -rF -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_4_fluxtube
+numerical-tests-5: check-tests-dependencies $(PROJECT_DIR)/stella
+	@echo "Running: automated stella tests 5"
+	@pytest -v -rF -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_5_diagnostics
 	
 # Run the automated stella tests (the -r flag shows the full stella output)
 # -rA shows all outputs, -rf shows only failed outputs 
