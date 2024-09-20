@@ -68,7 +68,7 @@ jobs:
       - name: Install python virtual environment
         run: |
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
-          python3 -m pytest --versio
+          python3 -m pytest --version
           
       # Check $GITHUB_WORKSPACE
       - name: Check Github Workspace
