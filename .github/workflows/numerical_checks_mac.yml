@@ -73,7 +73,7 @@ jobs:
           path: stella
           retention-days: 1
 
-  # Build stella with Make  
+  # Build stella with CMake  
   compile-stella-cmake:
     name: "Build stella on mac (CMake)"  
     runs-on: macos-13
@@ -114,12 +114,17 @@ jobs:
           echo " "; echo "Running directory:"; echo "  $(pwd)"
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
 
+      # Set.up cmake
+      - name: Build stella (CMake)
+        run: | 
+          git submodule update --init --recursive
+          cmake . -B COMPILATION/build_cmake  
+          echo " "; echo "--------- DIRECTORIES ----------"
+          cat COMPILATION/build_cmake/CMakeCache.txt
+
       # Build stella executable with cmake
       - name: Build stella (CMake)
-        run: |
-          set -ex
-          git submodule update --init --recursive
-          cmake . -B COMPILATION/build_cmake
+        run: | 
           cmake --build COMPILATION/build_cmake -j 12 
           
       # Upload stella 
