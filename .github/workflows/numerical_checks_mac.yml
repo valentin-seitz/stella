@@ -14,7 +14,7 @@ jobs:
   # Build stella with Make  
   compile-stella:
     name: "Compile stella with make on mac"  
-    runs-on: macos-latest
+    runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
       MPIRUN: mpiexec -np 
@@ -27,14 +27,6 @@ jobs:
           brew install make
           brew install openmpi
           brew install fftw
-          
-      # Make gfortran available
-      - name: Symlink gfortran (macOS)
-        run: |
-          sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
-          sudo mkdir /usr/local/gfortran
-          sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
-          gfortran --version
         
       # Install dependencies brew install gfortran
       - name: Install dependencies - backup
