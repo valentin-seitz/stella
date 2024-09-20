@@ -24,6 +24,17 @@ jobs:
       # Install dependencies brew install gfortran
       - name: Install dependencies
         run: | 
+          brew install gcc
+          brew install make
+          brew install openmpi
+          brew install openmpi-devel
+          brew install fftw
+          brew install fftw-mpi
+          brew install fftw-devel
+        
+      # Install dependencies brew install gfortran
+      - name: Install dependencies - backup
+        run: | 
           brew install make
           brew install libfftw3-dev
           brew install libnetcdf-dev 
