@@ -102,7 +102,7 @@ jobs:
           
       # Check $GITHUB_WORKSPACE
       - name: Check GITHUB_WORKSPACE
-      	run: pwd && ls -la
+        run: pwd && ls -la
 
       # Perform python tests
       - name: Perform numerical tests for stella with Python
