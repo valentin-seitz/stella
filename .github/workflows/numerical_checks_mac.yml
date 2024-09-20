@@ -73,8 +73,15 @@ jobs:
           echo " "; echo "Running directory:"; echo "  $(pwd)"
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
 
+      - name: Build stella (CMake)
+        run: |
+          set -ex
+          git submodule update --init --recursive
+          cmake . -B COMPILATION/build_cmake
+          cmake --build COMPILATION/build_cmake -j 12 
+          
       # Build stella executable
-      - name: Build stella  
+      - name: Build stella (make)
         run: |
           export STELLA_SYSTEM=macosx
           git submodule update --init --recursive
