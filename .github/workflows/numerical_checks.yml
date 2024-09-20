@@ -3,16 +3,12 @@
 name: NumericalTestsCookie
 on: [push, pull_request]
 
-# We run the in a bash shell
+# We run in a bash shell
 defaults:
   run:
     shell: bash
 
-# Define the tests, for now we only have <standard_tests>
-# where we define 3 seperate workflows in matrix/config/name
-# For each of these workflows we need to perform the same
-# initial steps: <Install dependencies>, <System information>
-# Next, only the step corresponding to the test will be executed.
+# First build stella, and then perform python tests
 jobs:
         
   # Build stella with Make  
@@ -46,7 +42,18 @@ jobs:
           cat /etc/*release
           gfortran --version
           nf-config --all
-      - uses: actions/checkout@v2 
+
+      # Check $GITHUB_WORKSPACE
+      - name: Check GITHUB_WORKSPACE
+        run: pwd && ls -la
+
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4
+          
+      # Check $GITHUB_WORKSPACE
+      - name: Check GITHUB_WORKSPACE
+        run: pwd && ls -la
 
       # Build stella executable
       - name: Build stella  
@@ -54,10 +61,19 @@ jobs:
           export STELLA_SYSTEM=gnu_ubuntu
           git submodule update --init --recursive
           make -j 12
+          
+      # Upload stella 
+      - name: Upload stella 
+        uses: actions/upload-artifact@v4
+        with: 
+          event-type: event-compiled-stella 
+          name: stella-executable
+          path: stella
+          retention-days: 1
 
   # Run automatic python tests, after stella has been compiled
   numerical-tests:
-    name: "Perform fortran tests of the stella code" 
+    name: "Check stella outputs with python tests" 
     needs: compile-stella
     runs-on: ubuntu-latest
     env:
@@ -81,33 +97,38 @@ jobs:
                  openmpi-bin
                  libopenmpi-dev
 
-      # Print system information
-      - name: System information
-        run: |
-          cat /etc/*release
-          gfortran --version
-          nf-config --all
-      - uses: actions/checkout@v2
+      # Check $GITHUB_WORKSPACE
+      - name: Check GITHUB_WORKSPACE
+        run: pwd && ls -la
 
-      - name: Build stella 
-        run: |
-          set -ex
-          export STELLA_SYSTEM=gnu_ubuntu
-          git submodule update --init --recursive
-          make -I Makefiles -j12
-
-      # Install python environment
-      - name: Install python virtual environment
-        run: pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4
           
       # Check $GITHUB_WORKSPACE
       - name: Check GITHUB_WORKSPACE
         run: pwd && ls -la
 
-      # Perform python tests
+       # Install python environment
+      - name: Install automated stella test dependencies
+        run: pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
+
+      # Download stella
+      - name: Download stella 
+        uses: actions/download-artifact@v4
+        with:
+           name: stella-executable
+          
+      # Check $GITHUB_WORKSPACE
+      - name: Check GITHUB_WORKSPACE
+        run: pwd && ls -la
+
+      # Perform python tests		
       - name: Perform numerical tests for stella with Python
-        run: |
-          set -ex
+        run: | 
           export STELLA_SYSTEM=gnu_ubuntu
           make numerical-tests
+
+
+
 
