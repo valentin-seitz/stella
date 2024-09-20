@@ -51,12 +51,6 @@ jobs:
           sudo mkdir /usr/local/gfortran
           sudo ln -s /usr/local/Cellar/gcc@10/*/lib/gcc/10 /usr/local/gfortran/lib
           gfortran --version
-          
-      # Install python environment
-      - name: Install python virtual environment
-        run: |
-          pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
-          pytest --version
 
       # Print system information
       - name: System information
@@ -69,6 +63,12 @@ jobs:
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
         uses: actions/checkout@v4
+          
+      # Install python environment
+      - name: Install python virtual environment
+        run: |
+          pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
+          pytest --version
           
       # Check $GITHUB_WORKSPACE
       - name: Check Github Workspace
