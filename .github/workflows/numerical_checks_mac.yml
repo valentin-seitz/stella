@@ -11,29 +11,10 @@ defaults:
 # First build stella, and then perform python tests
 jobs:
 
-  # Build stella with make  
-  find-packages:
-    name: "Find packages"  
-    runs-on: macos-13
-    env:
-      OMPI_MCA_rmaps_base_oversubscribe: yes
-      MPIRUN: mpiexec -np 
-      
-    steps:
 
-      # Install dependencies brew install gfortran
-      - name: Install dependencies
-        run: brew install gcc@11 make openmpi fftw netcdf-fortran
-        
-      # Install dependencies brew install gfortran
-      - name: Check directory
-        run: |
-          echo "$(NETCDF_LIB_DIR)"
-          echo "$(NETCDF_INC_DIR)"
-          echo "$(FFTW_LIB_DIR)"
-          echo "$(FFTW_INC_DIR)"
-          
-  # Build stella with make  
+#-----------------------------------------------------------------------
+#                         Build stella with Make                        
+#-----------------------------------------------------------------------
   compile-stella-make:
     name: "Build stella on mac (Make)"  
     runs-on: macos-13
@@ -75,7 +56,10 @@ jobs:
           path: stella
           retention-days: 1
 
-  # Build stella with CMake  
+
+#-----------------------------------------------------------------------
+#                         Build stella with CMake                        
+#-----------------------------------------------------------------------
   compile-stella-cmake:
     name: "Build stella on mac (CMake)"  
     runs-on: macos-13
@@ -136,6 +120,11 @@ jobs:
           name: stella-executable-macos-cmake
           path: stella
           retention-days: 1
+
+
+#-----------------------------------------------------------------------
+#                             Python tests                              
+#-----------------------------------------------------------------------
 
   # Run automatic python tests, after stella has been compiled
   numerical-tests: 
