@@ -27,6 +27,7 @@ jobs:
           brew update
           brew install gcc@10
           brew install make
+          brew install cmake
           brew install openmpi
           brew install fftw
         
