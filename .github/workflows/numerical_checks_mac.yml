@@ -12,6 +12,25 @@ defaults:
 jobs:
 
   # Build stella with make  
+  find-packages:
+    name: "Find packages"  
+    runs-on: macos-13
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: yes
+      MPIRUN: mpiexec -np 
+      
+    steps:
+
+      # Install dependencies brew install gfortran
+      - name: Install dependencies
+        run: brew install gcc@11 make openmpi fftw netcdf-fortran
+        
+      # Install dependencies brew install gfortran
+      - name: Check directory
+        run: ls -al /usr/include
+        run: ls -al /usr/local/lib
+
+  # Build stella with make  
   compile-stella-make:
     name: "Build stella on mac (Make)"  
     runs-on: macos-13

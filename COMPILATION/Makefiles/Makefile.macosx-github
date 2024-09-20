@@ -1,9 +1,4 @@
-# Makefile for Max OS X
-# Maintainer: bdorland@umd.edu (haha)
-
-define STANDARD_SYSTEM_CONFIGURATION
-export MAKEFLAGS='-j 4 -I Makefiles'
-endef
+# Makefile for Max OS X on github
 
 COMPILER=gnu-gfortran
 include $(COMPILATION_DIR)/Makefiles/Compilers/Makefile.$(COMPILER)
