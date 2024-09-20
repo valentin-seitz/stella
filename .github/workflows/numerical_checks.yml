@@ -24,8 +24,7 @@ jobs:
       MPIRUN: mpiexec -np 
       
     steps:
-    
-      # Install packages needed for stella compilation 	
+
       - name: Install dependencies
         run: sudo apt update &&
              sudo apt install -y
