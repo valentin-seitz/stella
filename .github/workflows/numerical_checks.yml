@@ -10,10 +10,10 @@ defaults:
 
 # First build stella, and then perform python tests
 jobs:
-
-  # Run automatic python tests, after stella has been compiled
-  numerical-tests:
-    name: "Check stella outputs with python tests" 
+        
+  # Build stella with Make  
+  compile-stella:
+    name: "Compile stella with make"  
     runs-on: ubuntu-latest
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -36,9 +36,73 @@ jobs:
                  openmpi-bin
                  libopenmpi-dev
 
+      # Print system information
+      - name: System information
+        run: |
+          cat /etc/*release
+          gfortran --version
+          nf-config --all
+
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
         uses: actions/checkout@v4
+          
+      # Check $GITHUB_WORKSPACE
+      - name: Check GITHUB_WORKSPACE
+        run: pwd && ls -la
+
+      # Build stella executable
+      - name: Build stella  
+        run: |
+          export STELLA_SYSTEM=gnu_ubuntu
+          git submodule update --init --recursive
+          make -j 12
+          
+      # Upload stella 
+      - name: Upload stella 
+        uses: actions/upload-artifact@v4
+        with:
+          name: stella-executable
+          path: stella
+          retention-days: 1
+
+  # Run automatic python tests, after stella has been compiled
+  numerical-tests:
+    name: "Check stella outputs with python tests" 
+    needs: compile-stella
+    runs-on: ubuntu-latest
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: yes
+      MPIRUN: mpiexec -np 
+      
+    steps:
+
+      # Install dependencies
+      - name: Install dependencies
+        run: sudo apt update &&
+             sudo apt install -y
+                 gfortran
+                 make
+                 libfftw3-dev
+                 libnetcdf-dev
+                 libnetcdff-dev
+                 netcdf-bin
+                 python3
+                 python3-pip
+                 openmpi-bin
+                 libopenmpi-dev
+
+      # Check $GITHUB_WORKSPACE
+      - name: Check GITHUB_WORKSPACE
+        run: pwd && ls -la
+
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4
+          
+      # Check $GITHUB_WORKSPACE
+      - name: Check GITHUB_WORKSPACE
+        run: pwd && ls -la
 
        # Install python environment
       - name: Install automated stella test dependencies
@@ -52,7 +116,7 @@ jobs:
           
       # Check $GITHUB_WORKSPACE
       - name: Check GITHUB_WORKSPACE
-        run: pwd && ls -la 
+        run: pwd && ls -la
 
       # Perform python tests		
       - name: Perform numerical tests for stella with Python
