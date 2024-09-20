@@ -100,7 +100,7 @@ $(OBJ_GENERAL)/%.o: $(OBJ)/%.o
 # Moreover the $(FPP)/define.inc needs to exist, which contains the $(CPP) settings
 $(FPP)/%.f90: $(FPP)/%.fpp $(FPP)/define.inc | $(FPP)
 	@echo "       (utils) *.fpp to *.f90: $(notdir $<)"
-	@$(CPP) $(CPPFLAGS) -J$(MOD) $< $@
+	@$(CPP) $(CPPFLAGS) $< $@
 
 # In EXTERNALS/utils/*, we have *.fpp files, that need to be preprocessed into *.f90 files
 # We will use a pattern rule to create symbolic links of these *.fpp files in the $(BUILD_F90_DIR) directory

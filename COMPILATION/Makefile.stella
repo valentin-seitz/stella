@@ -272,7 +272,7 @@ ensure-that-all-f90-files-exist-step-2: $(f90_from_fpp_files)
 # Moreover the $(FPP)/define.inc needs to exist, which contains the $(CPP) settings
 $(FPP)/%.f90: $(FPP)/%.fpp $(FPP)/define.inc | $(FPP)
 	@echo "       (stella) *.fpp to *.f90: $(notdir $<)"
-	@$(CPP) $(CPPFLAGS) -J$(MOD) $< $@
+	@$(CPP) $(CPPFLAGS) $< $@
 	
 # Create symbolic links from STELLA_CODE/*.fpp and EXTERNALS/utils/*.fpp to $(FPP)/*.fpp 
 $(FPP)/%.fpp: $(STELLA_DIR)/%.fpp | $(FPP)
