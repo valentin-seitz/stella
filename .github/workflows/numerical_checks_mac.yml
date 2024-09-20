@@ -51,6 +51,13 @@ jobs:
           sudo mkdir /usr/local/gfortran
           sudo ln -s /usr/local/Cellar/gcc@10/*/lib/gcc/10 /usr/local/gfortran/lib
           gfortran --version
+          
+      # Install python environment
+      - name: Install python virtual environment
+        run: |
+          pytest --version
+          pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
+          pytest --version
 
       # Print system information
       - name: System information
