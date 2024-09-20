@@ -6,11 +6,11 @@ include $(COMPILATION_DIR)/Makefiles/Compilers/Makefile.$(COMPILER)
 USE_LOCAL_SPFUNC=on
 
 ifeq ($(USE_FFT),fftw3)
-	FFT_LIB = -L/usr/local/Cellar/fftw/3.3.4_1/lib -lfftw3 -lfftw3f
-	FFT_INC = -I/usr/include
+	FFT_INC = -I/usr/local/include
+	FFT_LIB = -L/usr/local/Cellar/fftw/3.3.10_1/lib -lfftw3 -lfftw3f
 endif
 
 ifdef USE_NETCDF
-	NETCDF_INC = -I/usr/local/lib
-	NETCDF_LIB = -L/usr/local/lib/libnetcdff.dylib -L/opt/homebrew/include -lnetcdf
+	NETCDF_INC = -I/usr/local/Cellar/netcdf-fortran/4.6.1/include/
+	NETCDF_LIB = -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib -lnetcdf
 endif

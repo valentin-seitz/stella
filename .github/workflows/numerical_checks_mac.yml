@@ -115,7 +115,7 @@ jobs:
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
 
       # Set.up cmake
-      - name: Build stella (CMake)
+      - name: Set-up CMake
         run: | 
           git submodule update --init --recursive
           cmake . -B COMPILATION/build_cmake  
