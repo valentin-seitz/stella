@@ -138,12 +138,11 @@ jobs:
            name: stella-executable
           
       # Make stella executable
-      - name: Make stella executable
-        run: |
-            echo " "; echo "Make stella executable:"
-            chmod +x stella
-            echo " "; echo "Running directory:"; echo "  $(pwd)"
-            echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
+      - name: Use 4 processors for mpirun
+        run: sed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
+            
+      # macos does not run on 8 processors
+      sed -i 's/old-text/new-text/g' input.txt
           
       # Install python environment
       - name: Install python virtual environment
