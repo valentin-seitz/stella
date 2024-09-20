@@ -64,12 +64,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
           
-      # Install python environment
-      - name: Install python virtual environment
-        run: |
-          pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
-          python3 -m pytest --version
-          
       # Check $GITHUB_WORKSPACE
       - name: Check Github Workspace
         run: | 
@@ -150,7 +144,7 @@ jobs:
             chmod +x stella
             echo " "; echo "Running directory:"; echo "  $(pwd)"
             echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
-
+          
       # Install python environment
       - name: Install python virtual environment
         run: pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
