@@ -17,7 +17,7 @@ jobs:
 #-----------------------------------------------------------------------
   compile-stella-make:
     name: "Build stella on mac (Make)"  
-    runs-on: macos-13
+    runs-on: macos-latest
     
     # Set system variables
     env:
