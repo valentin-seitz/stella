@@ -18,9 +18,12 @@ jobs:
   compile-stella-make:
     name: "Build stella on mac (Make)"  
     runs-on: macos-13
+    
+    # Set system variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
       MPIRUN: mpiexec -np 
+      STELLA_SYSTEM: macosx-github
       
     steps:
 
@@ -44,7 +47,6 @@ jobs:
       # Build stella executable with make
       - name: Build stella (make) 
         run: |
-          export STELLA_SYSTEM=macosx-github
           git submodule update --init --recursive
           make -j 1
           
