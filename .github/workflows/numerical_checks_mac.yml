@@ -177,19 +177,19 @@ jobs:
           echo "contains(matrix.config.name, '3 -') = ${{ contains(matrix.config.name, '3 -') }}"
           echo "contains(matrix.config.name, '4 -') = ${{ contains(matrix.config.name, '4 -') }}"
           echo "contains(matrix.config.name, '5 -') = ${{ contains(matrix.config.name, '5 -') }}"
-          if [ ${{ contains(matrix.config.name, '1 -') }} ]; then 
+          if ${{ contains(matrix.config.name, '1 -') }}; then 
              echo " FIRST LOOP "
              make numerical-tests-1
-          elif [ ${{ contains(matrix.config.name, '2 -') }} ]; then 
+          elif ${{ contains(matrix.config.name, '2 -') }}; then 
              echo " SECOND LOOP "
              make numerical-tests-2
-          elif [ ${{ contains(matrix.config.name, '3 -') }} ]; then 
+          elif ${{ contains(matrix.config.name, '3 -') }}; then 
              echo " THIRD LOOP "
              make numerical-tests-3
-          elif [ ${{ contains(matrix.config.name, '4 -') }} ]; then 
+          elif ${{ contains(matrix.config.name, '4 -') }}; then 
              echo " FOURTH LOOP "
              make numerical-tests-4
-          elif [ ${{ contains(matrix.config.name, '5 -') }} ]; then 
+          elif ${{ contains(matrix.config.name, '5 -') }}; then 
              echo " FIFTH LOOP "
              make numerical-tests-5
           fi 
