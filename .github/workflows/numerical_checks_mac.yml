@@ -20,9 +20,6 @@ jobs:
     # Title of check
     name: "Build stella on MacOs"
     
-    # Operaring system
-    runs-on: ${{ matrix.os }}
-    
     # Set environment variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -55,7 +52,11 @@ jobs:
           - name: "Build stella on macOS-13 (CMake)"
             os: macos-13
             STELLA_SYSTEM: macos13
+    
+    # Operaring system
+    runs-on: ${{ matrix.os }}
       
+    # Steps
     steps:
     
       # Set environment variables as echo "{name}={value}" >> $GITHUB_ENV
