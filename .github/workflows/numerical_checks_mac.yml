@@ -172,6 +172,11 @@ jobs:
       - name: Numerical python tests
         run: |
           echo matrix.config.name = "${{ matrix.config.name }}"
+          echo contains(matrix.config.name, '1 -') = ${{ contains(matrix.config.name, '1 -') }}
+          echo contains(matrix.config.name, '2 -') = ${{ contains(matrix.config.name, '2 -') }}
+          echo contains(matrix.config.name, '3 -') = ${{ contains(matrix.config.name, '3 -') }}
+          echo contains(matrix.config.name, '4 -') = ${{ contains(matrix.config.name, '4 -') }}
+          echo contains(matrix.config.name, '5 -') = ${{ contains(matrix.config.name, '5 -') }}
           if [ ${{ contains(matrix.config.name, '1 -') }} ]; then 
              make numerical-tests-1
           elif [ ${{ contains(matrix.config.name, '2 -') }} ]; then 
