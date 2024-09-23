@@ -34,26 +34,17 @@ jobs:
         
           # Compile with Make and CMake on macOS-12
           - name: "Build stella on macOS-12 (Make)" 
-            os: macos-12
-            env:
-            STELLA_SYSTEM: macos12
-            FFTW_LIB_DIR: /opt/homebrew/lib/
-            FFTW_INC_DIR: /opt/homebrew/include/
-            NETCDF_LIB_DIR: /opt/homebrew/lib/
-            NETCDF_INC_DIR: /opt/homebrew/include/
+            os: macos-12 
           - name: "Build stella on macOS-12 (CMake)" 
             os: macos-12
-            STELLA_SYSTEM: macos12
             
           # Compile with Make and CMake on macOS-13
           - name: "Build stella on macOS-13 (Make)"
             os: macos-13
-            STELLA_SYSTEM: macos13
           - name: "Build stella on macOS-13 (CMake)"
             os: macos-13
-            STELLA_SYSTEM: macos13
     
-    # Operaring system
+    # Operating system
     runs-on: ${{ matrix.os }}
       
     # Steps
