@@ -50,14 +50,6 @@ jobs:
             echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
             echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
           elif [ ${{ matrix.os }} == 'macos-13-homebrew' ]; then 
-            echo "Install Homebrew:"
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; brew update
-            echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
-            echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
-            echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
-            echo "NETCDF_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
-            brew install gcc fftw netcdf netcdf-fortran open-mpi python
-            ln -sn /opt/homebrew/bin/gfortran-12 /opt/homebrew/bin/gfortran
           fi
 
       # Install dependencies
@@ -105,9 +97,9 @@ jobs:
           echo " "; echo "Running directory:"; echo "  $(pwd)"
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
           
-      # Upload stella 
+      # Upload stella (macos-13 matches linux)
       - name: Upload stella 
-        if: matrix.compiler == 'CMake' && matrix.os == 'macos-13'
+        if: matrix.compiler == 'CMake' && matrix.os == 'macos-12'
         uses: actions/upload-artifact@v4
         with:
           name: stella-executable-macos-cmake
@@ -196,5 +188,15 @@ jobs:
 # by reading the CMake cache file:
 #    echo " "; echo "--------- DIRECTORIES ----------"
 #    cat COMPILATION/build_cmake/CMakeCache.txt
+
+# We can also install Homebrew and use the following lines of code
+#    echo "Install Homebrew:"
+#    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; brew update
+#    echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
+#    echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
+#    echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
+#    echo "NETCDF_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
+#    brew install gcc fftw netcdf netcdf-fortran open-mpi python
+#    ln -sn /opt/homebrew/bin/gfortran-12 /opt/homebrew/bin/gfortran
 
 
