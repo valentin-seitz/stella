@@ -31,7 +31,7 @@ jobs:
 
       # Build stella, pass the operating system as an input
       - name: Build stella (step)
-        uses: ./.github/workflows/build_stella.yml
+        uses: ./.github/workflows/action.yml
         with:
           os: ${{ matrix.os }}
           
