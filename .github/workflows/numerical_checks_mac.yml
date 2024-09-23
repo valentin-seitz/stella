@@ -93,7 +93,7 @@ jobs:
           
       # Upload stella 
       - name: Upload stella 
-        if: ${{ matrix.compiler }} == 'CMake' && matrix.os == 'macos-13'
+        if: matrix.compiler == 'CMake' && matrix.os == 'macos-13'
         uses: actions/upload-artifact@v4
         with:
           name: stella-executable-macos-cmake
