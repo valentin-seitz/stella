@@ -45,6 +45,11 @@ jobs:
             echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
             echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
           elif [ ${{ matrix.os }} == 'macos-13' ]; then 
+            echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
+            echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
+            echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
+            echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
+          elif [ ${{ matrix.os }} == 'macos-13-homebrew' ]; then 
             echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
             echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
             echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
@@ -74,6 +79,11 @@ jobs:
       # Build stella executable
       - name: Build stella
         run: |
+          echo " "; echo "System variables:" 
+          echo "   FFTW_LIB_DIR = $FFTW_LIB_DIR"
+          echo "   FFTW_INC_DIR = $FFTW_INC_DIR"
+          echo "   NETCDF_LIB_DIR = $NETCDF_LIB_DIR"
+          echo "   NETCDF_INC_DIR = $NETCDF_INC_DIR"
           echo " "; echo "Download submodules:" 
           git submodule update --init --recursive
           echo " "; echo "Build stella with ${{ matrix.compiler }}:" 
