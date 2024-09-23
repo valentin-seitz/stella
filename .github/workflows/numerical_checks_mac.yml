@@ -1,5 +1,5 @@
-# Run these tests automatically on Github
-# on every push and pull request.
+# Run these tests automatically on Github on every push and pull request.
+# Use the macOS operating system, which has 4 cores.
 name: Check stella on macOS
 on: [push, pull_request]
 
@@ -15,7 +15,7 @@ jobs:
 #-----------------------------------------------------------------------
 #                             Build stella                             
 #-----------------------------------------------------------------------
-  compile-stella:
+  build-stella:
   
     # Set environment variables
     env:
@@ -27,19 +27,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-        
-          # Compile with Make and CMake on macOS-12
-          - name: "Build stella (Make)" 
-            os: macos-12 
-          - name: "Build stella (CMake)" 
-            os: macos-12
-            
-          # Compile with Make and CMake on macOS-13
-          - name: "Build stella (Make)"
-            os: macos-13
-          - name: "Build stella (CMake)"
-            os: macos-13
+        os: [macos-12, macos-13]
+        comiler: [Make, CMake]
     
     # Operating system
     runs-on: ${{ matrix.os }}
@@ -51,15 +40,15 @@ jobs:
       - name: Set environment variables
         run: |
           if [ ${{ matrix.os }} == 'macos-12' ]; then 
-            echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
-            echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
-            echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
-            echo "NETCDF_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
-          elif [ ${{ matrix.os }} == 'macos-13' ]; then 
             echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
             echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
             echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
             echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
+          elif [ ${{ matrix.os }} == 'macos-13' ]; then 
+            echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
+            echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
+            echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
+            echo "NETCDF_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
           fi
 
       # Install dependencies
@@ -89,10 +78,10 @@ jobs:
         run: |
           git submodule update --init --recursive
           echo "TEST MATRIX NAME ${{ matrix.name }}, ${{ matrix.os }}"
-          if ${{ contains(matrix.name, '(Make)') }}; then
+          if [ ${{ matrix.compiler }} == 'Make' ]; then 
              make -j 4
           fi
-          if ${{ contains(matrix.name, '(CMake)') }}; then
+          if [ ${{ matrix.compiler }} == 'CMake' ]; then 
              cmake . -B COMPILATION/build_cmake
              cmake --build COMPILATION/build_cmake -j 4
           fi
@@ -105,7 +94,7 @@ jobs:
           
       # Upload stella 
       - name: Upload stella 
-        if: ${{ contains(matrix.config.name, '(CMake)') }} && matrix.os == 'macos-13'
+        if: ${{ matrix.compiler }} == 'CMake' && matrix.os == 'macos-13'
         uses: actions/upload-artifact@v4
         with:
           name: stella-executable-macos-cmake
@@ -119,7 +108,7 @@ jobs:
 
   # Run automatic python tests, after stella has been compiled
   numerical-tests: 
-    needs: compile-stella
+    needs: build-stella
     runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
