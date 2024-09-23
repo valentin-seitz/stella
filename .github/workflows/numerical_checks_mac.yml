@@ -34,7 +34,6 @@ jobs:
         uses: ./.github/workflows/build_stella.yml
         with:
           os: ${{ matrix.os }}
-        secrets: inherit
           
       # Check $GITHUB_WORKSPACE
       - name: Check Github Workspace
