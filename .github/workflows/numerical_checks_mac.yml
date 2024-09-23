@@ -171,6 +171,7 @@ jobs:
       # Perform python tests  
       - name: Numerical python tests
         run: |
+          echo matrix.config.name = "${{ matrix.config.name }}"
           if [ ${{ contains(matrix.config.name, '1 -') }} ]; then 
              make numerical-tests-1
           elif [ ${{ contains(matrix.config.name, '2 -') }} ]; then 
