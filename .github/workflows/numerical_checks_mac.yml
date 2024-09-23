@@ -48,7 +48,7 @@ jobs:
 
   # Run automatic python tests, after stella has been compiled
   numerical-tests: 
-    needs: build-stella
+    needs: check-stella
     runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
