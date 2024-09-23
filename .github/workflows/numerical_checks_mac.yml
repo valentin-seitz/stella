@@ -75,12 +75,13 @@ jobs:
       # Build stella executable
       - name: Build stella
         run: |
+          echo " "; echo "Download submodules:" 
           git submodule update --init --recursive
-          echo "TEST MATRIX NAME ${{ matrix.compiler }}, ${{ matrix.os }}"
-          if [ ${{ matrix.compiler }} = 'Make' ]; then 
+          echo " "; echo "Build stella with ${{ matrix.compiler }}:" 
+          if [ ${{ matrix.compiler }} == 'Make' ]; then 
              make -j 4
           fi
-          if [ ${{ matrix.compiler }} = 'CMake' ]; then 
+          if [ ${{ matrix.compiler }} == 'CMake' ]; then 
              cmake . -B COMPILATION/build_cmake
              cmake --build COMPILATION/build_cmake -j 4
           fi
