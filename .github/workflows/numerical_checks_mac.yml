@@ -65,7 +65,8 @@ jobs:
           - name: "3 - Gyrokinetic equation"
           - name: "4 - Flux tube"
           - name: "5 - Diagnostics"
-      
+
+    # Steps
     steps:
 
       # Install dependencies

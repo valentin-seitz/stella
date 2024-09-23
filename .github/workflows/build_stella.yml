@@ -1,13 +1,7 @@
 
-# Define jobs which can be called by other workflows
+# Define a composite action which can be called by other workflows
 # Takes the OS operating system as an input
 name: Build stella (script)
-on: 
-  workflow_call:
-    inputs:
-      os:
-        type: string
-        required: true
 
 # We always run in a bash shell
 defaults:
@@ -18,9 +12,10 @@ defaults:
 #-----------------------------------------------------------------------
 #                             Build stella                             
 #-----------------------------------------------------------------------
-jobs:
+runs:
 
-  build-stella:
+    # Bundle several commands or actions into a single, reusable unit
+    using: "composite"
 
     # Operating system
     runs-on: ${{ inputs.os }}
