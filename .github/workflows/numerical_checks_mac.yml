@@ -49,7 +49,6 @@ jobs:
             echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
             echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
             echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
-          elif [ ${{ matrix.os }} == 'macos-13-homebrew' ]; then 
           fi
 
       # Install dependencies
