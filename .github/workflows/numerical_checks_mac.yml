@@ -63,11 +63,10 @@ jobs:
       # Print system information
       - name: System information
         run: |
-          echo " "; echo "System information:"; echo "$(cat /etc/*release | sed 's/^/  /')"
+          echo " "; echo "System information:"; echo "$(system_profiler SPHardwareDataType | sed 's/^/  /')"
           echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
           echo " "; echo "Netcdf version:"; echo "$(nf-config --all | sed 's/^/  /')"
-          echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')"
-          echo " "; echo "Number of cores:"; echo "$(system_profiler SPHardwareDataType | sed 's/^/  /')"
+          echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')" 
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check-out repository
@@ -77,11 +76,11 @@ jobs:
       - name: Build stella
         run: |
           git submodule update --init --recursive
-          echo "TEST MATRIX NAME ${{ matrix.name }}, ${{ matrix.os }}"
-          if [ ${{ matrix.compiler }} == 'Make' ]; then 
+          echo "TEST MATRIX NAME ${{ matrix.compiler }}, ${{ matrix.os }}"
+          if [ ${{ matrix.compiler }} = 'Make' ]; then 
              make -j 4
           fi
-          if [ ${{ matrix.compiler }} == 'CMake' ]; then 
+          if [ ${{ matrix.compiler }} = 'CMake' ]; then 
              cmake . -B COMPILATION/build_cmake
              cmake --build COMPILATION/build_cmake -j 4
           fi
@@ -90,7 +89,7 @@ jobs:
       - name: Check Github Workspace
         run: | 
           echo " "; echo "Running directory:"; echo "  $(pwd)"
-          echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')
+          echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
           
       # Upload stella 
       - name: Upload stella 
