@@ -17,9 +17,6 @@ jobs:
 #-----------------------------------------------------------------------
   compile-stella:
   
-    # Title of check
-    name: "Build stella on MacOs"
-    
     # Set environment variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
