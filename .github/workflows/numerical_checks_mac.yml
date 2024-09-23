@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        config:
+        include:
         
           # Compile with Make and CMake on macOS-12
           - name: "Build stella on macOS-12 (Make)" 
