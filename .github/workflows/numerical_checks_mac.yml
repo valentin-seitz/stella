@@ -30,15 +30,15 @@ jobs:
         include:
         
           # Compile with Make and CMake on macOS-12
-          - name: "Build stella on macOS-12 (Make)" 
+          - name: "Build stella (Make)" 
             os: macos-12 
-          - name: "Build stella on macOS-12 (CMake)" 
+          - name: "Build stella (CMake)" 
             os: macos-12
             
           # Compile with Make and CMake on macOS-13
-          - name: "Build stella on macOS-13 (Make)"
+          - name: "Build stella (Make)"
             os: macos-13
-          - name: "Build stella on macOS-13 (CMake)"
+          - name: "Build stella (CMake)"
             os: macos-13
     
     # Operating system
@@ -51,15 +51,15 @@ jobs:
       - name: Set environment variables
         run: |
           if [ ${{ matrix.os }} == 'macos-12' ]; then 
-            echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV
-            echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV
-            echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV
-            echo "NETCDF_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV
+            echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
+            echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
+            echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
+            echo "NETCDF_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
           elif [ ${{ matrix.os }} == 'macos-13' ]; then 
-            echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV
-            echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV
-            echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV
-            echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV
+            echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
+            echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
+            echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
+            echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
           fi
 
       # Install dependencies
@@ -88,12 +88,13 @@ jobs:
       - name: Build stella
         run: |
           git submodule update --init --recursive
-          if ${{ contains(matrix.config.name, '(Make)') }}; then
+          echo "TEST MATRIX NAME ${{ matrix.name }}, ${{ matrix.os }}"
+          if ${{ contains(matrix.name, '(Make)') }}; then
              make -j 4
           fi
-          if ${{ contains(matrix.config.name, '(CMake)') }}; then
+          if ${{ contains(matrix.name, '(CMake)') }}; then
              cmake . -B COMPILATION/build_cmake
-             cmake --build COMPILATION/build_cmake -j 12
+             cmake --build COMPILATION/build_cmake -j 4
           fi
           
       # Check $GITHUB_WORKSPACE
