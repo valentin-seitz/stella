@@ -1,9 +1,9 @@
 # Run these tests automatically on Github
 # on every push and pull request.
-name: NumericalTestsMac
+name: Check stella on macOS
 on: [push, pull_request]
 
-# We run in a bash shell
+# We always run in a bash shell
 defaults:
   run:
     shell: bash
@@ -13,72 +13,70 @@ jobs:
 
 
 #-----------------------------------------------------------------------
-#                         Build stella with Make                        
+#                             Build stella                             
 #-----------------------------------------------------------------------
   compile-stella-make:
-    name: "Build stella on mac (Make)"  
-    runs-on: macos-latest
+  
+    # Title of check
+    name: "Build stella on MacOs"
     
-    # Set system variables
+    # Operaring system
+    runs-on: ${{ matrix.os }}
+    
+    # Set environment variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      MPIRUN: mpiexec -np 
-      STELLA_SYSTEM: macosx-github
+      MPIRUN: mpiexec -np  
+      STELLA_SYSTEM: macos
+    
+    # Run the same set-up multiple times
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        
+          # Compile with Make and CMake on macOS-12
+          - name: "Build stella on macOS-12 (Make)" 
+            os: macos-12
+            env:
+            STELLA_SYSTEM: macos12
+            FFTW_LIB_DIR: /opt/homebrew/lib/
+            FFTW_INC_DIR: /opt/homebrew/include/
+            NETCDF_LIB_DIR: /opt/homebrew/lib/
+            NETCDF_INC_DIR: /opt/homebrew/include/
+          - name: "Build stella on macOS-12 (CMake)" 
+            os: macos-12
+            STELLA_SYSTEM: macos12
+            
+          # Compile with Make and CMake on macOS-13
+          - name: "Build stella on macOS-13 (Make)"
+            os: macos-13
+            STELLA_SYSTEM: macos13
+          - name: "Build stella on macOS-13 (CMake)"
+            os: macos-13
+            STELLA_SYSTEM: macos13
       
     steps:
-
-      # Install dependencies brew install gfortran
-      - name: Install dependencies
-        run: brew install gcc@11 make openmpi fftw netcdf-fortran
-      
-      # Make the gfortran command available
-      - name: Symlink gfortran (macOS)
-        if: runner.os == 'macOS'
-        run: | 
-          sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
-          sudo mkdir /usr/local/gfortran
-          sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
-          gfortran --version
-
-      # Check-out repository under $GITHUB_WORKSPACE
-      - name: Check out repository
-        uses: actions/checkout@v4 
-          
-      # Build stella executable with make
-      - name: Build stella (make) 
+    
+      # Set environment variables as echo "{name}={value}" >> $GITHUB_ENV
+      - name: Set environment variables
         run: |
-          git submodule update --init --recursive
-          make -j 1
-          
-      # Upload stella 
-      - name: Upload stella 
-        uses: actions/upload-artifact@v4
-        with:
-          name: stella-executable-macos-make
-          path: stella
-          retention-days: 1
+          if [ ${{ matrix.os }} == 'macos-12' ]; then 
+            echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV
+            echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV
+            echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV
+            echo "NETCDF_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV
+          elif [ ${{ matrix.os }} == 'macos-13' ]; then 
+            echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV
+            echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV
+            echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV
+            echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV
+          fi
 
-
-#-----------------------------------------------------------------------
-#                         Build stella with CMake                        
-#-----------------------------------------------------------------------
-  compile-stella-cmake:
-    name: "Build stella on mac (CMake)"  
-    runs-on: macos-13
-    env:
-      OMPI_MCA_rmaps_base_oversubscribe: yes
-      MPIRUN: mpiexec -np 
-      
-    steps:
-
-      # Install dependencies brew install gfortran
+      # Install dependencies
       - name: Install dependencies
-        run: brew install gcc@11 make openmpi fftw netcdf-fortran
-      
-      # Make the gfortran command available
-      - name: Symlink gfortran (macOS)
-        if: runner.os == 'macOS'
         run: | 
+          brew install gcc@11 make openmpi fftw netcdf-fortran
           sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
           sudo mkdir /usr/local/gfortran
           sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
@@ -91,32 +89,33 @@ jobs:
           echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
           echo " "; echo "Netcdf version:"; echo "$(nf-config --all | sed 's/^/  /')"
           echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')"
+          echo " "; echo "Number of cores:"; echo "$(system_profiler SPHardwareDataType | sed 's/^/  /')"
 
       # Check-out repository under $GITHUB_WORKSPACE
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Check-out repository
+        uses: actions/checkout@v4 
+          
+      # Build stella executable
+      - name: Build stella
+        run: |
+          git submodule update --init --recursive
+          if ${{ contains(matrix.config.name, '(Make)') }}; then
+             make -j 4
+          fi
+          if ${{ contains(matrix.config.name, '(CMake)') }}; then
+             cmake . -B COMPILATION/build_cmake
+             cmake --build COMPILATION/build_cmake -j 12
+          fi
           
       # Check $GITHUB_WORKSPACE
       - name: Check Github Workspace
         run: | 
           echo " "; echo "Running directory:"; echo "  $(pwd)"
-          echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
-
-      # Set-up cmake
-      - name: Set-up CMake
-        run: | 
-          git submodule update --init --recursive
-          cmake . -B COMPILATION/build_cmake  
-          echo " "; echo "--------- DIRECTORIES ----------"
-          cat COMPILATION/build_cmake/CMakeCache.txt
-
-      # Build stella executable with cmake
-      - name: Build stella (CMake)
-        run: | 
-          cmake --build COMPILATION/build_cmake -j 12 
+          echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')
           
       # Upload stella 
       - name: Upload stella 
+        if: ${{ contains(matrix.config.name, '(CMake)') }} && matrix.os == 'macos-13'
         uses: actions/upload-artifact@v4
         with:
           name: stella-executable-macos-cmake
@@ -210,6 +209,9 @@ jobs:
         if: ${{ contains(matrix.config.name, '5 -') }}
         run: export STELLA_SYSTEM=macosx-github; make numerical-tests-5
 
-
+# If the operating system is changed, we can check where modules are installed
+# by reading the CMake cache file:
+#    echo " "; echo "--------- DIRECTORIES ----------"
+#    cat COMPILATION/build_cmake/CMakeCache.txt
 
 
