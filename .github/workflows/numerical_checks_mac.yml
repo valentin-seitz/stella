@@ -50,10 +50,14 @@ jobs:
             echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
             echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
           elif [ ${{ matrix.os }} == 'macos-13-homebrew' ]; then 
+            echo "Install Homebrew:"
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; brew update
             echo "FFTW_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
             echo "FFTW_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
             echo "NETCDF_LIB_DIR=/opt/homebrew/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
             echo "NETCDF_INC_DIR=/opt/homebrew/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
+            brew install gcc fftw netcdf netcdf-fortran open-mpi python
+            ln -sn /opt/homebrew/bin/gfortran-12 /opt/homebrew/bin/gfortran
           fi
 
       # Install dependencies
@@ -121,7 +125,8 @@ jobs:
     runs-on: macos-13
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      MPIRUN: mpiexec -np 
+      MPIRUN: mpiexec -np
+      STELLA_SYSTEM: macos
     
     # Run the same set-up multiple times
     strategy:
@@ -166,36 +171,26 @@ jobs:
             chmod +x stella
             echo " "; echo "Running directory:"; echo "  $(pwd)"
             echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
-            gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini
+            gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
           
       # Install python environment
       - name: Install python virtual environment
         run: pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
 
-      # Perform python tests 1
-      - name: Numerical python tests 1 - Does stella run
-        if: ${{ contains(matrix.config.name, '1 -') }}
-        run: export STELLA_SYSTEM=macosx-github; make numerical-tests-1
-
-      # Perform python tests 2
-      - name: Numerical python tests 2 - Geometry
-        if: ${{ contains(matrix.config.name, '2 -') }}
-        run: export STELLA_SYSTEM=macosx-github; make numerical-tests-2
-
-      # Perform python tests 3
-      - name: Numerical python tests 3 - Gyrokinetic equation
-        if: ${{ contains(matrix.config.name, '3 -') }}
-        run: export STELLA_SYSTEM=macosx-github; make numerical-tests-3
-
-      # Perform python tests 4
-      - name: Numerical python tests 4 - Flux tube
-        if: ${{ contains(matrix.config.name, '4 -') }}
-        run: export STELLA_SYSTEM=macosx-github; make numerical-tests-4
-
-      # Perform python tests 5
-      - name: Numerical python tests 5 - Diagnostics
-        if: ${{ contains(matrix.config.name, '5 -') }}
-        run: export STELLA_SYSTEM=macosx-github; make numerical-tests-5
+      # Perform python tests  
+      - name: Numerical python tests
+        run: |
+        if [ ${{ contains(matrix.config.name, '1 -') ]; then 
+           make numerical-tests-1
+        elif [ ${{ contains(matrix.config.name, '2 -') ]; then 
+           make numerical-tests-2
+        elif [ ${{ contains(matrix.config.name, '3 -') ]; then 
+           make numerical-tests-3
+        elif [ ${{ contains(matrix.config.name, '4 -') ]; then 
+           make numerical-tests-4
+        elif [ ${{ contains(matrix.config.name, '5 -') ]; then 
+           make numerical-tests-5
+        fi 
 
 # If the operating system is changed, we can check where modules are installed
 # by reading the CMake cache file:
