@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-12, macos-13]
-        comiler: [Make, CMake]
+        compiler: [Make, CMake]
     
     # Operating system
     runs-on: ${{ matrix.os }}
@@ -65,8 +65,7 @@ jobs:
         run: |
           echo " "; echo "System information:"; echo "$(system_profiler SPHardwareDataType | sed 's/^/  /')"
           echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
-          echo " "; echo "Netcdf version:"; echo "$(nf-config --all | sed 's/^/  /')"
-          echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')" 
+          echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')"
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check-out repository
