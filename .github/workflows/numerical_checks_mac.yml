@@ -180,17 +180,17 @@ jobs:
       # Perform python tests  
       - name: Numerical python tests
         run: |
-        if [ ${{ contains(matrix.config.name, '1 -') ]; then 
-           make numerical-tests-1
-        elif [ ${{ contains(matrix.config.name, '2 -') ]; then 
-           make numerical-tests-2
-        elif [ ${{ contains(matrix.config.name, '3 -') ]; then 
-           make numerical-tests-3
-        elif [ ${{ contains(matrix.config.name, '4 -') ]; then 
-           make numerical-tests-4
-        elif [ ${{ contains(matrix.config.name, '5 -') ]; then 
-           make numerical-tests-5
-        fi 
+          if [ ${{ contains(matrix.config.name, '1 -') ]; then 
+             make numerical-tests-1
+          elif [ ${{ contains(matrix.config.name, '2 -') ]; then 
+             make numerical-tests-2
+          elif [ ${{ contains(matrix.config.name, '3 -') ]; then 
+             make numerical-tests-3
+          elif [ ${{ contains(matrix.config.name, '4 -') ]; then 
+             make numerical-tests-4
+          elif [ ${{ contains(matrix.config.name, '5 -') ]; then 
+             make numerical-tests-5
+          fi 
 
 # If the operating system is changed, we can check where modules are installed
 # by reading the CMake cache file:
