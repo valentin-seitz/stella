@@ -16,9 +16,6 @@ jobs:
 #-----------------------------------------------------------------------
   build-stella:
   
-    # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    #if: false
-  
     # Set environment variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -274,9 +271,6 @@ jobs:
       MPIRUN: mpiexec -np 
       STELLA_SYSTEM: gnu_ubuntu
 
-    # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if: false
-
     steps:
 
       # Check-out repository under $GITHUB_WORKSPACE
@@ -321,9 +315,6 @@ jobs:
       MPIRUN: mpiexec -np 
       STELLA_SYSTEM: gnu_ubuntu_debug
 
-    # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if: false
-
     steps:
 
       # Check-out repository under $GITHUB_WORKSPACE
@@ -358,3 +349,6 @@ jobs:
 #    ln -sn /opt/homebrew/bin/gfortran-12 /opt/homebrew/bin/gfortran
 
 # if:  github.event_name == 'push'
+
+    # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #if: false
