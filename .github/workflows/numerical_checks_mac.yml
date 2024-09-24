@@ -28,6 +28,10 @@ jobs:
       
     # Steps
     steps:
+    
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check-out repository
+        uses: actions/checkout@v4 
 
       # Build stella, pass the operating system as an input
       - name: Build stella (step)
