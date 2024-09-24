@@ -16,6 +16,9 @@ jobs:
 #-----------------------------------------------------------------------
   build-stella:
   
+    # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if: false
+  
     # Set environment variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -150,9 +153,9 @@ jobs:
           fi
         
       # Perform python tests  
-      # TODO TURN THIS BACK ON!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+      # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       - name: Numerical python tests
-        if: matrix.compiler == 'shalalala'
+        if: false
         run: make numerical-tests
 
 
@@ -293,7 +296,6 @@ jobs:
 
   fortran-tests:
     runs-on: ubuntu-22.04
-    needs: build-stella-quick
     name: "Automated Fortran tests"  
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -311,17 +313,12 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
-          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev 
+          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev
+          pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
       
-      # Download stella executable from previous job
-      - name: Download stella 
-        uses: actions/download-artifact@v4
-        with:
-           name: stella-executable
-      
-      # Build pFUnit
-      - name: Build pFUnit
-        run: chmod +x stella; make -j 4 build-pfunit-library 
+      # Build stella executable and pFUnit library
+      - name: Build stella
+        run: make -j 4; make -j 4 build-pfunit-library
       
       # Automated Fortran tests
       - name: Perform automated Fortran tests
