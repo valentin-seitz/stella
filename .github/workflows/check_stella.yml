@@ -172,11 +172,11 @@ jobs:
           name: stella-executable
           path: stella
           retention-days: 1
-          
+
   # Perform python tests one by one
-  build-stella-quick: 
-    runs-on: ubuntu-22.04
+  build-stella-quick:
     needs: build-stella-quick
+    runs-on: ubuntu-22.04
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
       MPIRUN: mpiexec -np
