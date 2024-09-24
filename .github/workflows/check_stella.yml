@@ -60,11 +60,15 @@ jobs:
           # Install dependencies
           if ${{ contains(matrix.os, 'macos') }}; then  
             brew install gcc@11 make openmpi fftw netcdf-fortran gnu-sed
-            sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
-            sudo mkdir /usr/local/gfortran
-            if [ ${{ matrix.os }} == 'macos-12' ]; then sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib; fi
-            if [ ${{ matrix.os }} == 'macos-13' ]; then sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib; fi
-            if [ ${{ matrix.os }} == 'macos-14' ]; then sudo ln -s /opt/homebrew/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib; fi
+            if [ ${{ matrix.os }} == 'macos-12' ] || [ ${{ matrix.os }} == 'macos-13' ]; then
+              sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
+              #sudo mkdir /usr/local/gfortran
+              sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib 
+            elif [ ${{ matrix.os }} == 'macos-14' ]; then 
+              sudo ln -sn /opt/homebrew/bin/gfortran-11 /opt/homebrew/bin/gfortran
+              #sudo mkdir /usr/local/gfortran
+              #sudo ln -s /opt/homebrew/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
+            fi
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
             sudo apt update
             sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
