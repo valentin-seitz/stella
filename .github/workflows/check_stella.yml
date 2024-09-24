@@ -62,7 +62,7 @@ jobs:
             brew install gcc@11 make openmpi fftw netcdf-fortran gnu-sed
             if [ ${{ matrix.os }} == 'macos-12' ] || [ ${{ matrix.os }} == 'macos-13' ]; then
               sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
-              sudo mkdir /usr/local/gfortran; ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib 
+              sudo mkdir /usr/local/gfortran; sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib 
             elif [ ${{ matrix.os }} == 'macos-14' ]; then 
               sudo ln -s /opt/homebrew/bin/gfortran-11 /opt/homebrew/bin/gfortran
             fi
@@ -127,7 +127,7 @@ jobs:
       # Install python environment
       - name: Install python virtual environment
         run: |
-          if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then 
+          if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then 
             python3 -m venv COMPILATION/venv
             source COMPILATION/venv/bin/activate
             pip3 install -r AUTOMATIC_TESTS/requirements.txt
@@ -182,7 +182,8 @@ jobs:
           name: stella-executable
           path: stella
           retention-days: 1
-          
+
+
   # Perform python tests one by one
   python-tests: 
     runs-on: ubuntu-22.04
