@@ -59,14 +59,15 @@ jobs:
         run: |
           # Install dependencies
           if ${{ contains(matrix.os, 'macos') }}; then  
-            brew install gcc@11 make openmpi fftw netcdf-fortran
+            brew install gcc@11 make openmpi fftw netcdf-fortran gnu-sed
             sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
             sudo mkdir /usr/local/gfortran
             sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
             sudo apt update
-          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
-          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev
+            sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
+            sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev 
+            if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then sudo apt install -y libblas-dev liblapack-dev; fi
           fi
 
       # Print system information
@@ -123,6 +124,7 @@ jobs:
       # Install python environment
       - name: Install python virtual environment
         run: |
+          if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then python3 -m venv COMPILATION/venv; fi
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
           if ${{ contains(matrix.os, 'macos') }}; then  
             gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
@@ -132,24 +134,51 @@ jobs:
       - name: Numerical python tests
         if: matrix.compiler == 'shalalala'
         run: make numerical-tests
-          
-      # Upload stella
-      - name: Upload stella 
-        if: matrix.compiler == 'Make' && matrix.os == 'ubuntu-22.04'
-        uses: actions/upload-artifact@v4
-        with:
-          name: stella-executable-ubuntu-make
-          path: stella
-          retention-days: 1
-
 
 #-----------------------------------------------------------------------
 #                             Python tests                              
 #-----------------------------------------------------------------------
 
-  # Run automatic python tests, after stella has been compiled
-  numerical-tests: 
+  # Build stella to perform python tests one by one
+  build-stella-quick: 
     runs-on: ubuntu-22.04
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: yes
+      MPIRUN: mpiexec -np
+      STELLA_SYSTEM: gnu_ubuntu
+
+    steps:
+
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Install dependencies
+      - name: Install dependencies and python virtual environment
+        run: |
+          sudo apt update
+          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
+          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev
+
+      # Build stella executable
+      - name: Build stella
+        run: |
+          git submodule update --init --recursive
+          cmake . -B COMPILATION/build_cmake
+          cmake --build COMPILATION/build_cmake -j 4
+
+      # Upload stella
+      - name: Upload stella  
+        uses: actions/upload-artifact@v4
+        with:
+          name: stella-executable
+          path: stella
+          retention-days: 1
+          
+  # Perform python tests one by one
+  build-stella-quick: 
+    runs-on: ubuntu-22.04
+    needs: build-stella-quick
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
       MPIRUN: mpiexec -np
@@ -165,7 +194,7 @@ jobs:
           - name: "3 - Gyrokinetic equation"
           - name: "4 - Flux tube"
           - name: "5 - Diagnostics"
-      
+
     steps:
 
       # Check-out repository under $GITHUB_WORKSPACE
@@ -180,29 +209,25 @@ jobs:
           sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
 
-      # Build stella executable
-      - name: Build stella
-        run: git submodule update --init --recursive; make -j 4 
-
+      # Download stella executable from previous job
+      - name: Download stella 
+        uses: actions/download-artifact@v4
+        with:
+           name: stella-executable
+    
       # Perform python tests  
       - name: Numerical python tests
         run: |
-          if ${{ contains(matrix.config.name, '1 -') }}; then 
-             echo " FIRST LOOP "
-             make numerical-tests-1
-          elif ${{ contains(matrix.config.name, '2 -') }}; then 
-             echo " SECOND LOOP "
-             make numerical-tests-2
-          elif ${{ contains(matrix.config.name, '3 -') }}; then 
-             echo " THIRD LOOP "
-             make numerical-tests-3
-          elif ${{ contains(matrix.config.name, '4 -') }}; then 
-             echo " FOURTH LOOP "
-             make numerical-tests-4
-          elif ${{ contains(matrix.config.name, '5 -') }}; then 
-             echo " FIFTH LOOP "
-             make numerical-tests-5
-          fi 
+          # Make stella executable
+          chmod +x stella
+          
+          # Run one of the python tests
+          if ${{ contains(matrix.config.name, '1 -') }}; then make numerical-tests-1; fi
+          if ${{ contains(matrix.config.name, '2 -') }}; then make numerical-tests-2; fi
+          if ${{ contains(matrix.config.name, '3 -') }}; then make numerical-tests-3; fi
+          if ${{ contains(matrix.config.name, '4 -') }}; then make numerical-tests-4; fi
+          if ${{ contains(matrix.config.name, '5 -') }}; then make numerical-tests-5; fi
+
 
 # If the operating system is changed, we can check where modules are installed
 # by reading the CMake cache file:
