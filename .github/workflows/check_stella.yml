@@ -150,6 +150,7 @@ jobs:
           fi
         
       # Perform python tests  
+      # TODO TURN THIS BACK ON!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
       - name: Numerical python tests
         if: matrix.compiler == 'shalalala'
         run: make numerical-tests
