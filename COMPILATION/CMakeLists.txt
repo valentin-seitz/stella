@@ -91,6 +91,7 @@ set(STELLA_SOURCES_f90
   ../STELLA_CODE/geometry/geometry_miller.f90
   ../STELLA_CODE/geometry/geometry_vmec.f90
   ../STELLA_CODE/geometry/geometry_vmec_read_netCDF_file.f90 
+  ../STELLA_CODE/geometry/geometry_zpinch.f90
   ../STELLA_CODE/geometry/geometry_inputprofiles_interface.f90
 )
 
