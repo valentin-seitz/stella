@@ -124,7 +124,9 @@ jobs:
       - name: Install python virtual environment
         run: |
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
-          gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
+          if ${{ contains(matrix.os, 'macos') }}; then  
+            gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
+          fi
         
       # Perform python tests  
       - name: Numerical python tests
@@ -166,34 +168,21 @@ jobs:
       
     steps:
 
-      # Install dependencies
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
-          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
         uses: actions/checkout@v4
 
-      # Download stella executable from previous job
-      - name: Download stella 
-        uses: actions/download-artifact@v4
-        with:
-           name: stella-executable-ubuntu-make
-           
-      # Make stella executable
-      - name: Make stella executable
+      # Install dependencies
+      - name: Install dependencies and python virtual environment
         run: |
-            echo " "; echo "Make stella executable:"
-            chmod +x stella
-            echo " "; echo "Running directory:"; echo "  $(pwd)"
-            echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')" 
-          
-      # Install python environment
-      - name: Install python virtual environment
-        run: pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
+          sudo apt update
+          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
+          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
+          pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
+
+      # Build stella executable
+      - name: Build stella
+        run: git submodule update --init --recursive; make -j 4 
 
       # Perform python tests  
       - name: Numerical python tests
