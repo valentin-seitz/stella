@@ -62,7 +62,9 @@ jobs:
             brew install gcc@11 make openmpi fftw netcdf-fortran gnu-sed
             sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
             sudo mkdir /usr/local/gfortran
-            sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
+            if [ ${{ matrix.os }} == 'macos-12' ]; then sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib; fi
+            if [ ${{ matrix.os }} == 'macos-13' ]; then sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib; fi
+            if [ ${{ matrix.os }} == 'macos-14' ]; then sudo ln -s /opt/homebrew/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib; fi
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
             sudo apt update
             sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
@@ -124,7 +126,10 @@ jobs:
       # Install python environment
       - name: Install python virtual environment
         run: |
-          if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then python3 -m venv COMPILATION/venv; fi
+          if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then 
+            python3 -m venv COMPILATION/venv
+            source COMPILATION/venv/bin/activate
+          fi
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
           if ${{ contains(matrix.os, 'macos') }}; then  
             gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
