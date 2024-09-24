@@ -1,6 +1,6 @@
 # Run these tests automatically on Github on every push and pull request.
 # Use the macOS operating system, which has 4 cores.
-name: Check stella on macOS
+name: Check stella
 on: [push, pull_request]
 
 # We always run in a bash shell
@@ -11,7 +11,6 @@ defaults:
 # First build stella, and then perform python tests
 jobs:
 
-
 #-----------------------------------------------------------------------
 #                             Build stella                             
 #-----------------------------------------------------------------------
@@ -20,14 +19,13 @@ jobs:
     # Set environment variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      MPIRUN: mpiexec -np  
-      STELLA_SYSTEM: macos
+      MPIRUN: mpiexec -np
     
     # Run the same set-up multiple times
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-12, macos-13]
+        os: [macos-12, macos-13, macos-14, ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
         compiler: [Make, CMake]
     
     # Operating system
@@ -39,33 +37,51 @@ jobs:
       # Set environment variables as echo "{name}={value}" >> $GITHUB_ENV
       - name: Set environment variables
         run: |
-          if [ ${{ matrix.os }} == 'macos-12' ]; then 
-            echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
-            echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
-            echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
-            echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
-          elif [ ${{ matrix.os }} == 'macos-13' ]; then 
-            echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
-            echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
-            echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
-            echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
+          # Set environment variables
+          if ${{ contains(matrix.os, 'macos') }}; then
+            echo "Set STELLA_SYSTEM = macos"
+            echo "STELLA_SYSTEM=macos" >> $GITHUB_ENV 
+            echo "Set FFTW_LIB_DIR = /usr/local/Cellar/fftw/3.3.10_1/lib/"
+            echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV
+            echo "Set FFTW_INC_DIR = /usr/local/include/" 
+            echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV
+            echo "Set NETCDF_LIB_DIR = /usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/"
+            echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV
+            echo "Set NETCDF_INC_DIR = /usr/local/Cellar/netcdf-fortran/4.6.1/include/"
+            echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV 
+          elif ${{ contains(matrix.os, 'ubuntu') }}; then  
+            echo "Set STELLA_SYSTEM = gnu_ubuntu"
+            echo "STELLA_SYSTEM=gnu_ubuntu" >> $GITHUB_ENV
           fi
 
       # Install dependencies
       - name: Install dependencies
-        run: | 
-          brew install gcc@11 make openmpi fftw netcdf-fortran
-          sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
-          sudo mkdir /usr/local/gfortran
-          sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
-          gfortran --version
+        run: |
+          # Install dependencies
+          if ${{ contains(matrix.os, 'macos') }}; then  
+            brew install gcc@11 make openmpi fftw netcdf-fortran
+            sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
+            sudo mkdir /usr/local/gfortran
+            sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
+          elif ${{ contains(matrix.os, 'ubuntu') }}; then  
+            sudo apt update
+            sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
+            sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
+          fi
 
       # Print system information
       - name: System information
         run: |
-          echo " "; echo "System information:"; echo "$(system_profiler SPHardwareDataType | sed 's/^/  /')"
-          echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
-          echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')"
+          if ${{ contains(matrix.os, 'macos') }}; then  
+            echo " "; echo "System information:"; echo "$(system_profiler SPHardwareDataType | sed 's/^/  /')"
+            echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
+            echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')"
+          elif ${{ contains(matrix.os, 'ubuntu') }}; then  
+            echo " "; echo "System information:"; echo "$(cat /etc/*release | sed 's/^/  /')"
+            echo " "; echo "Number of cores:"; echo "$(lscpu | egrep 'Model name|Socket|Thread|NUMA|CPU\(s\)' | sed 's/^/  /')"
+            echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
+            echo " "; echo "Netcdf version:"; echo "$(nf-config --all | sed 's/^/  /')"
+          fi
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check-out repository
@@ -74,13 +90,21 @@ jobs:
       # Build stella executable
       - name: Build stella
         run: |
-          echo " "; echo "System variables:" 
-          echo "   FFTW_LIB_DIR = $FFTW_LIB_DIR"
-          echo "   FFTW_INC_DIR = $FFTW_INC_DIR"
-          echo "   NETCDF_LIB_DIR = $NETCDF_LIB_DIR"
-          echo "   NETCDF_INC_DIR = $NETCDF_INC_DIR"
+          
+          # Check system variables needed for Make
+          if ${{ contains(matrix.os, 'macos') }}; then  
+            echo " "; echo "System variables:" 
+            echo "   FFTW_LIB_DIR = $FFTW_LIB_DIR"
+            echo "   FFTW_INC_DIR = $FFTW_INC_DIR"
+            echo "   NETCDF_LIB_DIR = $NETCDF_LIB_DIR"
+            echo "   NETCDF_INC_DIR = $NETCDF_INC_DIR"
+          fi
+          
+          # Download the submodules
           echo " "; echo "Download submodules:" 
           git submodule update --init --recursive
+          
+          # Build stella with Make or CMake
           echo " "; echo "Build stella with ${{ matrix.compiler }}:" 
           if [ ${{ matrix.compiler }} == 'Make' ]; then 
              make -j 4
@@ -96,12 +120,23 @@ jobs:
           echo " "; echo "Running directory:"; echo "  $(pwd)"
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
           
-      # Upload stella (macos-13 matches linux)
+      # Install python environment
+      - name: Install python virtual environment
+        run: |
+          pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
+          gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
+        
+      # Perform python tests  
+      - name: Numerical python tests
+        if: matrix.compiler == 'shalalala'
+        run: make numerical-tests
+          
+      # Upload stella
       - name: Upload stella 
-        if: matrix.compiler == 'CMake' && matrix.os == 'macos-12'
+        if: matrix.compiler == 'Make' && matrix.os == 'ubuntu-22.04'
         uses: actions/upload-artifact@v4
         with:
-          name: stella-executable-macos-cmake
+          name: stella-executable-ubuntu-make
           path: stella
           retention-days: 1
 
@@ -112,12 +147,11 @@ jobs:
 
   # Run automatic python tests, after stella has been compiled
   numerical-tests: 
-    needs: build-stella
-    runs-on: macos-13
+    runs-on: ubuntu-22.04
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
       MPIRUN: mpiexec -np
-      STELLA_SYSTEM: macos
+      STELLA_SYSTEM: gnu_ubuntu
     
     # Run the same set-up multiple times
     strategy:
@@ -134,16 +168,10 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        run: brew install gcc@11 make openmpi fftw netcdf-fortran gnu-sed
-      
-      # Make the gfortran command available
-      - name: Symlink gfortran (macOS)
-        if: runner.os == 'macOS'
-        run: | 
-          sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
-          sudo mkdir /usr/local/gfortran
-          sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
-          gfortran --version
+        run: |
+          sudo apt update
+          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
+          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check out repository
@@ -153,16 +181,15 @@ jobs:
       - name: Download stella 
         uses: actions/download-artifact@v4
         with:
-           name: stella-executable-macos-cmake
+           name: stella-executable-ubuntu-make
            
-      # Make stella executable and run on 4 processors
+      # Make stella executable
       - name: Make stella executable
         run: |
             echo " "; echo "Make stella executable:"
             chmod +x stella
             echo " "; echo "Running directory:"; echo "  $(pwd)"
-            echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
-            gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
+            echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')" 
           
       # Install python environment
       - name: Install python virtual environment
@@ -171,12 +198,6 @@ jobs:
       # Perform python tests  
       - name: Numerical python tests
         run: |
-          echo "matrix.config.name = ${{ matrix.config.name }}"
-          echo "contains(matrix.config.name, '1 -') = ${{ contains(matrix.config.name, '1 -') }}"
-          echo "contains(matrix.config.name, '2 -') = ${{ contains(matrix.config.name, '2 -') }}"
-          echo "contains(matrix.config.name, '3 -') = ${{ contains(matrix.config.name, '3 -') }}"
-          echo "contains(matrix.config.name, '4 -') = ${{ contains(matrix.config.name, '4 -') }}"
-          echo "contains(matrix.config.name, '5 -') = ${{ contains(matrix.config.name, '5 -') }}"
           if ${{ contains(matrix.config.name, '1 -') }}; then 
              echo " FIRST LOOP "
              make numerical-tests-1
@@ -209,4 +230,4 @@ jobs:
 #    brew install gcc fftw netcdf netcdf-fortran open-mpi python
 #    ln -sn /opt/homebrew/bin/gfortran-12 /opt/homebrew/bin/gfortran
 
-
+# if:  github.event_name == 'push'
