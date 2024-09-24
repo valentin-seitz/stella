@@ -1,6 +1,6 @@
 # Run these tests automatically on Github on every push and pull request.
 # Use the macOS operating system, which has 4 cores.
-name: Check stella
+name: Check stella on macOS
 on: [push, pull_request]
 
 # We always run in a bash shell
@@ -11,6 +11,7 @@ defaults:
 # First build stella, and then perform python tests
 jobs:
 
+
 #-----------------------------------------------------------------------
 #                             Build stella                             
 #-----------------------------------------------------------------------
@@ -19,13 +20,14 @@ jobs:
     # Set environment variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      MPIRUN: mpiexec -np
+      MPIRUN: mpiexec -np  
+      STELLA_SYSTEM: macos
     
     # Run the same set-up multiple times
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-12, macos-13, macos-14, ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
+        os: [macos-12, macos-13]
         compiler: [Make, CMake]
     
     # Operating system
@@ -37,42 +39,33 @@ jobs:
       # Set environment variables as echo "{name}={value}" >> $GITHUB_ENV
       - name: Set environment variables
         run: |
-          if ${{ contains(matrix.os, 'macos') }}; then  
-            echo "STELLA_SYSTEM=macos" >> $GITHUB_ENV; echo "Set STELLA_SYSTEM"
+          if [ ${{ matrix.os }} == 'macos-12' ]; then 
             echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
             echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
             echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
             echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
-          elif ${{ contains(matrix.os, 'ubuntu') }}; then  
-            echo "STELLA_SYSTEM=macos" >> $GITHUB_ENV; echo "Set STELLA_SYSTEM"
+          elif [ ${{ matrix.os }} == 'macos-13' ]; then 
+            echo "FFTW_LIB_DIR=/usr/local/Cellar/fftw/3.3.10_1/lib/" >> $GITHUB_ENV; echo "Set FFTW_LIB_DIR"
+            echo "FFTW_INC_DIR=/usr/local/include/" >> $GITHUB_ENV; echo "Set FFTW_INC_DIR"
+            echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
+            echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
           fi
 
       # Install dependencies
       - name: Install dependencies
         run: | 
-          if ${{ contains(matrix.os, 'macos') }}; then  
-            brew install gcc@11 make openmpi fftw netcdf-fortran
-            sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
-            sudo mkdir /usr/local/gfortran
-            sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
-          elif ${{ contains(matrix.os, 'ubuntu') }}; then  
-            sudo apt update
-            sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev
-            sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          fi
+          brew install gcc@11 make openmpi fftw netcdf-fortran
+          sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
+          sudo mkdir /usr/local/gfortran
+          sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
+          gfortran --version
 
       # Print system information
       - name: System information
         run: |
-          if ${{ contains(matrix.os, 'macos') }}; then  
-            echo " "; echo "System information:"; echo "$(system_profiler SPHardwareDataType | sed 's/^/  /')"
-            echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
-            echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')"
-          elif ${{ contains(matrix.os, 'ubuntu') }}; then  
-            echo " "; echo "System information:"; echo "$(cat /etc/*release | sed 's/^/  /')"
-            echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
-            echo " "; echo "Netcdf version:"; echo "$(nf-config --all | sed 's/^/  /')"
-          fi
+          echo " "; echo "System information:"; echo "$(system_profiler SPHardwareDataType | sed 's/^/  /')"
+          echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
+          echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')"
 
       # Check-out repository under $GITHUB_WORKSPACE
       - name: Check-out repository
@@ -81,21 +74,13 @@ jobs:
       # Build stella executable
       - name: Build stella
         run: |
-          
-          # Check system variables needed for Make
-          if ${{ contains(matrix.os, 'macos') }}; then  
-            echo " "; echo "System variables:" 
-            echo "   FFTW_LIB_DIR = $FFTW_LIB_DIR"
-            echo "   FFTW_INC_DIR = $FFTW_INC_DIR"
-            echo "   NETCDF_LIB_DIR = $NETCDF_LIB_DIR"
-            echo "   NETCDF_INC_DIR = $NETCDF_INC_DIR"
-          fi
-          
-          # Download the submodules
+          echo " "; echo "System variables:" 
+          echo "   FFTW_LIB_DIR = $FFTW_LIB_DIR"
+          echo "   FFTW_INC_DIR = $FFTW_INC_DIR"
+          echo "   NETCDF_LIB_DIR = $NETCDF_LIB_DIR"
+          echo "   NETCDF_INC_DIR = $NETCDF_INC_DIR"
           echo " "; echo "Download submodules:" 
           git submodule update --init --recursive
-          
-          # Build stella with Make or CMake
           echo " "; echo "Build stella with ${{ matrix.compiler }}:" 
           if [ ${{ matrix.compiler }} == 'Make' ]; then 
              make -j 4
@@ -111,17 +96,9 @@ jobs:
           echo " "; echo "Running directory:"; echo "  $(pwd)"
           echo " "; echo "Files in directory:"; echo "$(ls -la | sed 's/^/  /')"
           
-      # Install python environment
-      - name: Install python virtual environment
-        run: pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
-        
-      # Perform python tests  
-      - name: Numerical python tests
-        run: make numerical-tests
-          
-      # Upload stella
+      # Upload stella (macos-13 matches linux)
       - name: Upload stella 
-        if: matrix.compiler == 'CMake' && matrix.os == 'macos-13'
+        if: matrix.compiler == 'CMake' && matrix.os == 'macos-12'
         uses: actions/upload-artifact@v4
         with:
           name: stella-executable-macos-cmake
