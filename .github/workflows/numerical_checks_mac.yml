@@ -44,7 +44,7 @@ jobs:
             echo "NETCDF_LIB_DIR=/usr/local/lib -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib/" >> $GITHUB_ENV; echo "Set NETCDF_LIB_DIR"
             echo "NETCDF_INC_DIR=/usr/local/Cellar/netcdf-fortran/4.6.1/include/" >> $GITHUB_ENV; echo "Set NETCDF_INC_DIR"
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
-            echo "STELLA_SYSTEM=macos" >> $GITHUB_ENV; echo "Set STELLA_SYSTEM"
+            echo "STELLA_SYSTEM=gnu_ubuntu" >> $GITHUB_ENV; echo "Set STELLA_SYSTEM"
           fi
 
       # Install dependencies
@@ -70,6 +70,7 @@ jobs:
             echo " "; echo "Clang version:"; echo "$(clang --version | sed 's/^/  /')"
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
             echo " "; echo "System information:"; echo "$(cat /etc/*release | sed 's/^/  /')"
+            echo " "; echo "Number of cores:"; echo "$(lscpu | sed 's/^/  /')"
             echo " "; echo "Gfortran version:"; echo "$(gfortran --version | sed 's/^/  /')"
             echo " "; echo "Netcdf version:"; echo "$(nf-config --all | sed 's/^/  /')"
           fi
