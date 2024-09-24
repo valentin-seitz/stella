@@ -59,14 +59,15 @@ jobs:
         run: |
           # Install dependencies
           if ${{ contains(matrix.os, 'macos') }}; then  
-            brew install gcc@11 make openmpi fftw netcdf-fortran
+            brew install gcc@11 make openmpi fftw netcdf-fortran gnu-sed
             sudo ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
             sudo mkdir /usr/local/gfortran
             sudo ln -s /usr/local/Cellar/gcc@11/*/lib/gcc/11 /usr/local/gfortran/lib
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
             sudo apt update
-          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
-          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev
+            sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
+            sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev 
+            if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then sudo apt install -y libblas-dev liblapack-dev; fi
           fi
 
       # Print system information
@@ -123,6 +124,7 @@ jobs:
       # Install python environment
       - name: Install python virtual environment
         run: |
+          if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then python3 -m venv COMPILATION/venv; fi
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
           if ${{ contains(matrix.os, 'macos') }}; then  
             gsed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
@@ -172,11 +174,11 @@ jobs:
           name: stella-executable
           path: stella
           retention-days: 1
-
+          
   # Perform python tests one by one
-  build-stella-quick:
-    needs: build-stella-quick
+  python-tests: 
     runs-on: ubuntu-22.04
+    needs: build-stella-quick
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
       MPIRUN: mpiexec -np
