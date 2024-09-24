@@ -150,9 +150,8 @@ jobs:
           fi
         
       # Perform python tests  
-      # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      - name: Numerical python tests
-        if: false
+      # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! if: false
+      - name: Numerical python tests 
         run: make numerical-tests
 
 
