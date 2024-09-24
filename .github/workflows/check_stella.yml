@@ -12,7 +12,7 @@ defaults:
 jobs:
 
 #-----------------------------------------------------------------------
-#                             Build stella                             
+#              Build stella on different operating systems              
 #-----------------------------------------------------------------------
   build-stella:
   
@@ -155,11 +155,45 @@ jobs:
         if: matrix.compiler == 'shalalala'
         run: make numerical-tests
 
+
 #-----------------------------------------------------------------------
-#                             Python tests                              
+#                          Build in debug mode                          
 #-----------------------------------------------------------------------
 
-  # Build stella to perform python tests one by one
+  # Build stella with Make in debug mode, here the python tests do not work!
+  # Specifically, the flush statement in mini_libstell's 
+  # read_wout_mod.F module in the readw_and_open() routine breaks 
+  # when reading a VMEC equilibirium during the python tests.
+  debug-build:
+    runs-on: ubuntu-22.04
+    name: "Build stella in debug mode"  
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: yes
+      MPIRUN: mpiexec -np 
+      STELLA_SYSTEM: gnu_ubuntu_debug
+      
+    steps:
+
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
+          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev 
+           
+      # Build stella executable
+      - name: Build stella in debug mode
+        run: make -j 4
+        
+#-----------------------------------------------------------------------
+#                              Quick build                              
+#-----------------------------------------------------------------------
+
+  # Build stella to perform python and fortran tests
   build-stella-quick: 
     runs-on: ubuntu-22.04
     env:
@@ -174,11 +208,11 @@ jobs:
         uses: actions/checkout@v4
 
       # Install dependencies
-      - name: Install dependencies and python virtual environment
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
-          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev
+          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
+          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
 
       # Build stella executable
       - name: Build stella
@@ -195,6 +229,9 @@ jobs:
           path: stella
           retention-days: 1
 
+#-----------------------------------------------------------------------
+#                             Python tests                              
+#-----------------------------------------------------------------------
 
   # Perform python tests one by one
   python-tests: 
@@ -226,8 +263,8 @@ jobs:
       - name: Install dependencies and python virtual environment
         run: |
           sudo apt update
-          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
-          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev
+          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
+          sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
 
       # Download stella executable from previous job
@@ -248,6 +285,51 @@ jobs:
           if ${{ contains(matrix.config.name, '3 -') }}; then make numerical-tests-3; fi
           if ${{ contains(matrix.config.name, '4 -') }}; then make numerical-tests-4; fi
           if ${{ contains(matrix.config.name, '5 -') }}; then make numerical-tests-5; fi
+
+
+#-----------------------------------------------------------------------
+#                             Fortran tests                              
+#-----------------------------------------------------------------------
+
+  fortran-tests:
+    runs-on: ubuntu-22.04
+    needs: build-stella-quick
+    name: "Automated Fortran tests"  
+    env:
+      OMPI_MCA_rmaps_base_oversubscribe: yes
+      MPIRUN: mpiexec -np 
+      STELLA_SYSTEM: gnu_ubuntu
+      
+    steps:
+
+      # Check-out repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
+          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev 
+      
+      # Download stella executable from previous job
+      - name: Download stella 
+        uses: actions/download-artifact@v4
+        with:
+           name: stella-executable
+      
+      # Build pFUnit
+      - name: Build pFUnit
+        run: chmod +x stella; make -j 4 build-pfunit-library 
+      
+      # Automated Fortran tests
+      - name: Perform automated Fortran tests
+        run: make -j 4 run-automated-fortran-tests
+
+
+
+
 
 
 # If the operating system is changed, we can check where modules are installed
