@@ -223,6 +223,8 @@ jobs:
           - name: "3 - Gyrokinetic equation"
           - name: "4 - Flux tube"
           - name: "5 - Diagnostics"
+          - name: "6 - Full Flux Surface"
+          - name: "7 - Electromagnetic effects"
 
     steps:
 
@@ -256,6 +258,8 @@ jobs:
           if ${{ contains(matrix.config.name, '3 -') }}; then make numerical-tests-3; fi
           if ${{ contains(matrix.config.name, '4 -') }}; then make numerical-tests-4; fi
           if ${{ contains(matrix.config.name, '5 -') }}; then make numerical-tests-5; fi
+          if ${{ contains(matrix.config.name, '6 -') }}; then make numerical-tests-6; fi
+          if ${{ contains(matrix.config.name, '7 -') }}; then make numerical-tests-7; fi
 
 
 #-----------------------------------------------------------------------

@@ -40,6 +40,12 @@ numerical-tests-4: check-tests-dependencies $(PROJECT_DIR)/stella
 numerical-tests-5: check-tests-dependencies $(PROJECT_DIR)/stella
 	@echo "Running: automated stella tests 5"
 	@python3 -m pytest -v -rA -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_5_diagnostics
+numerical-tests-6: check-tests-dependencies $(PROJECT_DIR)/stella
+	@echo "Running: automated stella tests 6"
+	@python3 -m pytest -v -rA -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_6_full_flux_surface
+numerical-tests-7: check-tests-dependencies $(PROJECT_DIR)/stella
+	@echo "Running: automated stella tests 7"
+	@python3 -m pytest -v -rA -W ignore::DeprecationWarning $(TEST_DIR)/numerical_tests/test_7_electromagnetic
 	
 # Run the automated stella tests (the -r flag shows the full stella output)
 # -rA shows all outputs, -rf shows only failed outputs 
