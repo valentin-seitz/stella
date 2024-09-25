@@ -153,7 +153,9 @@ jobs:
       # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! if: false
       - name: Numerical python tests 
         run: |
-          source AUTOMATIC_TESTS/venv/bin/activate
+          if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then 
+            source AUTOMATIC_TESTS/venv/bin/activate
+          fi
           make numerical-tests
 
 
