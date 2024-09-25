@@ -425,100 +425,6 @@ $(OBJ_DIR)/fields.o: \
 	 $(OBJ_DIR)/volume_averages.o \
 	 $(OBJ_DIR)/vpamu_grids.o \
 	 $(OBJ_DIR)/zgrid.o 
-$(OBJ_DIR)/fields_arrays.o: \
-	 $(OBJ_DIR)/common_types.o 
-$(OBJ_DIR)/fields_collisions.o: \
-	 $(OBJ_DIR)/arrays_dist_fn.o \
-	 $(OBJ_DIR)/arrays_fields.o \
-	 $(OBJ_DIR)/geometry.o \
-	 $(OBJ_DIR)/grids_kxky.o \
-	 $(OBJ_DIR)/gyro_averages.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/parameters_kxky_grids.o \
-	 $(OBJ_DIR)/parameters_numerical.o \
-	 $(OBJ_DIR)/parameters_physics.o \
-	 $(OBJ_DIR)/species.o \
-	 $(OBJ_DIR)/spfunc.o \
-	 $(OBJ_DIR)/stella_layouts.o \
-	 $(OBJ_DIR)/vpamu_grids.o \
-	 $(OBJ_DIR)/zgrid.o 
-$(OBJ_DIR)/fields_electromagnetic.o: \
-	 $(OBJ_DIR)/arrays_dist_fn.o \
-	 $(OBJ_DIR)/arrays_fields.o \
-	 $(OBJ_DIR)/debug_flags.o \
-	 $(OBJ_DIR)/fields_radialvariation.o \
-	 $(OBJ_DIR)/gyro_averages.o \
-	 $(OBJ_DIR)/job_manage.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/parameters_kxky_grids.o \
-	 $(OBJ_DIR)/parameters_numerical.o \
-	 $(OBJ_DIR)/parameters_physics.o \
-	 $(OBJ_DIR)/species.o \
-	 $(OBJ_DIR)/stella_layouts.o \
-	 $(OBJ_DIR)/vpamu_grids.o \
-	 $(OBJ_DIR)/zgrid.o 
-$(OBJ_DIR)/fields_fluxtube.o: \
-	 $(OBJ_DIR)/arrays_dist_fn.o \
-	 $(OBJ_DIR)/arrays_fields.o \
-	 $(OBJ_DIR)/debug_flags.o \
-	 $(OBJ_DIR)/dist_redistribute.o \
-	 $(OBJ_DIR)/fields_electromagnetic.o \
-	 $(OBJ_DIR)/fields_radialvariation.o \
-	 $(OBJ_DIR)/geometry.o \
-	 $(OBJ_DIR)/grids_kxky.o \
-	 $(OBJ_DIR)/gyro_averages.o \
-	 $(OBJ_DIR)/job_manage.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/multibox.o \
-	 $(OBJ_DIR)/parameters_kxky_grids.o \
-	 $(OBJ_DIR)/parameters_numerical.o \
-	 $(OBJ_DIR)/parameters_physics.o \
-	 $(OBJ_DIR)/redistribute.o \
-	 $(OBJ_DIR)/species.o \
-	 $(OBJ_DIR)/stella_layouts.o \
-	 $(OBJ_DIR)/vpamu_grids.o \
-	 $(OBJ_DIR)/zgrid.o 
-$(OBJ_DIR)/fields_fullfluxsurface.o: \
-	 $(OBJ_DIR)/arrays_dist_fn.o \
-	 $(OBJ_DIR)/arrays_fields.o \
-	 $(OBJ_DIR)/calculations_kxky.o \
-	 $(OBJ_DIR)/common_types.o \
-	 $(OBJ_DIR)/debug_flags.o \
-	 $(OBJ_DIR)/geometry.o \
-	 $(OBJ_DIR)/grids_kxky.o \
-	 $(OBJ_DIR)/gyro_averages.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/parameters_kxky_grids.o \
-	 $(OBJ_DIR)/parameters_numerical.o \
-	 $(OBJ_DIR)/parameters_physics.o \
-	 $(OBJ_DIR)/species.o \
-	 $(OBJ_DIR)/spfunc.o \
-	 $(OBJ_DIR)/stella_layouts.o \
-	 $(OBJ_DIR)/stella_transforms.o \
-	 $(OBJ_DIR)/volume_averages.o \
-	 $(OBJ_DIR)/vpamu_grids.o \
-	 $(OBJ_DIR)/zgrid.o 
-$(OBJ_DIR)/fields_radialvariation.o: \
-	 $(OBJ_DIR)/arrays_dist_fn.o \
-	 $(OBJ_DIR)/arrays_fields.o \
-	 $(OBJ_DIR)/calculations_kxky.o \
-	 $(OBJ_DIR)/file_utils.o \
-	 $(OBJ_DIR)/geometry.o \
-	 $(OBJ_DIR)/grids_kxky.o \
-	 $(OBJ_DIR)/gyro_averages.o \
-	 $(OBJ_DIR)/job_manage.o \
-	 $(OBJ_DIR)/linear_solve.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/mp_lu_decomposition.o \
-	 $(OBJ_DIR)/multibox.o \
-	 $(OBJ_DIR)/parameters_kxky_grids.o \
-	 $(OBJ_DIR)/parameters_numerical.o \
-	 $(OBJ_DIR)/parameters_physics.o \
-	 $(OBJ_DIR)/species.o \
-	 $(OBJ_DIR)/stella_layouts.o \
-	 $(OBJ_DIR)/stella_transforms.o \
-	 $(OBJ_DIR)/vpamu_grids.o \
-	 $(OBJ_DIR)/zgrid.o 
 $(OBJ_DIR)/file_utils.o: \
 	 $(OBJ_DIR)/command_line.o 
 $(OBJ_DIR)/finite_differences.o: 
@@ -688,19 +594,6 @@ $(OBJ_DIR)/init_g.o: \
 $(OBJ_DIR)/job_manage.o: \
 	 $(OBJ_DIR)/file_utils.o \
 	 $(OBJ_DIR)/mp.o 
-$(OBJ_DIR)/kt_grids.o: \
-	 $(OBJ_DIR)/common_types.o \
-	 $(OBJ_DIR)/constants.o \
-	 $(OBJ_DIR)/file_utils.o \
-	 $(OBJ_DIR)/geometry.o \
-	 $(OBJ_DIR)/job_manage.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/physics_flags.o \
-	 $(OBJ_DIR)/physics_parameters.o \
-	 $(OBJ_DIR)/ran.o \
-	 $(OBJ_DIR)/stella_transforms.o \
-	 $(OBJ_DIR)/text_options.o \
-	 $(OBJ_DIR)/zgrid.o 
 $(OBJ_DIR)/linear_solve.o: 
 $(OBJ_DIR)/mirror_terms.o: \
 	 $(OBJ_DIR)/arrays_dist_fn.o \
@@ -817,14 +710,6 @@ $(OBJ_DIR)/parameters_physics.o: \
 	 $(OBJ_DIR)/file_utils.o \
 	 $(OBJ_DIR)/mp.o \
 	 $(OBJ_DIR)/text_options.o 
-$(OBJ_DIR)/physics_flags.o: \
-	 $(OBJ_DIR)/file_utils.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/text_options.o 
-$(OBJ_DIR)/physics_parameters.o: \
-	 $(OBJ_DIR)/file_utils.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/physics_flags.o 
 $(OBJ_DIR)/ran.o: 
 $(OBJ_DIR)/redistribute.o: \
 	 $(OBJ_DIR)/job_manage.o \
@@ -852,13 +737,6 @@ $(OBJ_DIR)/response_matrix.o: \
 	 $(OBJ_DIR)/system_fortran.o \
 	 $(OBJ_DIR)/vpamu_grids.o \
 	 $(OBJ_DIR)/zgrid.o 
-$(OBJ_DIR)/run_parameters.o: \
-	 $(OBJ_DIR)/file_utils.o \
-	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/physics_flags.o \
-	 $(OBJ_DIR)/physics_parameters.o \
-	 $(OBJ_DIR)/species.o \
-	 $(OBJ_DIR)/text_options.o 
 $(OBJ_DIR)/sfincs_interface.o: \
 	 $(OBJ_DIR)/mp.o \
 	 $(OBJ_DIR)/zgrid.o 

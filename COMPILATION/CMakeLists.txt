@@ -49,13 +49,11 @@ set(STELLA_SOURCES_f90
   ../STELLA_CODE/common_types.f90
   ../STELLA_CODE/debug_flags.f90
   ../STELLA_CODE/dist_fn.f90
-  ../STELLA_CODE/dist_fn_arrays.f90
   ../STELLA_CODE/dist_redistribute.f90
   ../STELLA_CODE/euterpe_interface.f90
   ../STELLA_CODE/extended_zgrid.f90
   ../STELLA_CODE/ffs_solve.f90
   ../STELLA_CODE/finite_differences.f90
-  ../STELLA_CODE/fields_arrays.f90
   ../STELLA_CODE/flow_shear.f90
   ../STELLA_CODE/git_version_impl.f90
   ../STELLA_CODE/g_tofrom_h.f90
@@ -63,7 +61,6 @@ set(STELLA_SOURCES_f90
   ../STELLA_CODE/gyro_averages.f90
   ../STELLA_CODE/implicit_solve.f90
   ../STELLA_CODE/init_g.f90
-  ../STELLA_CODE/kt_grids.f90
   ../STELLA_CODE/mirror_terms.f90
   ../STELLA_CODE/multibox.f90
   ../STELLA_CODE/neoclassical_terms.f90
@@ -73,9 +70,6 @@ set(STELLA_SOURCES_f90
   ../STELLA_CODE/parameters_kxky_grids_range.f90
   ../STELLA_CODE/parameters_numerical.f90
   ../STELLA_CODE/parameters_physics.f90
-  ../STELLA_CODE/physics_flags.f90
-  ../STELLA_CODE/physics_parameters.f90
-  ../STELLA_CODE/run_parameters.f90
   ../STELLA_CODE/species.f90
   ../STELLA_CODE/stella_layouts.f90
   ../STELLA_CODE/stella_time.f90
@@ -110,11 +104,6 @@ set(STELLA_SOURCES_f90
 # Sources that _do_ need preprocessing (because they have MPI flags, ...)
 set(STELLA_SOURCES_fpp
   ../STELLA_CODE/fields.fpp
-  ../STELLA_CODE/fields_fluxtube.fpp
-  ../STELLA_CODE/fields_electromagnetic.fpp
-  ../STELLA_CODE/fields_fullfluxsurface.fpp
-  ../STELLA_CODE/fields_collisions.fpp
-  ../STELLA_CODE/fields_radialvariation.fpp
   ../STELLA_CODE/response_matrix.fpp
   ../STELLA_CODE/sfincs_interface.fpp
   ../STELLA_CODE/sources.fpp
