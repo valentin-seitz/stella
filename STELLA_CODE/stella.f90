@@ -161,14 +161,11 @@ contains
       if (debug) write (*, *) 'stella::init_stella::check_time'
       call checktime(avail_cpu_time, exit)
 
-      if (proc0) then
-         !> write message to screen with useful info regarding start of simulation
-         if (debug) write (*, *) 'stella::init_stella::write_start_message'
-         call write_start_message(git_commit, git_date)
+      if (proc0) then 
          !> initialize file i/o
          if (debug) write (*, *) 'stella::init_stella::init_file_utils'
          call init_file_utils(list)
-      end if
+      end if  
 
       call read_debug_flags
 !      if(stella_debug) debug = .true. 
@@ -192,6 +189,9 @@ contains
       call read_parameters_physics
       if (debug) write (6, *) "stella::init_stella::read_parameters_numerical"
       call read_parameters_numerical 
+      !> write message to screen with useful info regarding start of simulation
+      if (debug) write (*, *) 'stella::init_stella::write_start_message'
+      call write_start_message(git_commit, git_date) 
       !> read the zgrid_parameters namelist from the input file and setup the z grid
       if (debug) write (6, *) "stella::init_stella::init_zgrid"
       call init_zgrid
