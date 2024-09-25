@@ -304,7 +304,7 @@ jobs:
 
   # Perform python on 1 processor.
   python-tests-nproc1: 
-    name: Python tests on 1 processor.
+    name: Python tests on 1 processor
     runs-on: ubuntu-22.04
     needs: build-stella-quick
     env:
@@ -333,7 +333,7 @@ jobs:
         with:
            name: stella-executable
     
-      # Perform python tests  
+      # Make stella executable  
       - name: Make stella executable
         run: chmod +x stella
         
