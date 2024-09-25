@@ -756,7 +756,6 @@ contains
          gradthet2(i) = round(gradthet2(i), n)
          dgt2(i) = round(dgt2(i), n)
          gradrho_gradthet(i) = round(gradrho_gradthet(i), n)
-         dgrgt(i) = round(dgrgt(i), n)
          gradalph_gradthet(i) = round(gradalph_gradthet(i), n)
          dgagt(i) = round(dgagt(i), n) 
          gradrho_gradalph(i) = round(gradrho_gradalph(i), n) 
@@ -788,9 +787,11 @@ contains
          Zr(2, i) = round(Zr(2,i), n)
       end do
       
-      ! The <dgbdrift0drho> variable differs on macos-14 (CMake) with respect to the other operating systems
+      ! The <dgbdrift0drho> and <dgrgt> variables differ on macos-14 (CMake) 
+      ! with respect to the other operating systems
       do i = -nz, nz
-         dgbdrift0drho(i) = round(dgbdrift0drho(i), 8) 
+         dgbdrift0drho(i) = round(dgbdrift0drho(i), 9) 
+         dgrgt(i) = round(dgrgt(i), 9)
       end do
 
       
