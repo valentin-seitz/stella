@@ -725,6 +725,8 @@ contains
       dpsipdrho_out = dpsipdrho
       dpsipdrho_psi0_out = dpsipdrho_psi0
 
+      ! We test stella on macos-12, macos-13, macos-14, ubuntu-20.04, ubuntu-22.04 and ubuntu-24.04
+      ! and the different operating systems give differences in the last digits, so round the values.
       n = 12
       do i = -nz, nz
          theta(i) = round(theta(i), n)
@@ -764,7 +766,6 @@ contains
          cross(i) = round(cross(i), n) 
          dcrossdr(i) = round(dcrossdr(i), n) 
          gbdrift0(i) = round(gbdrift0(i), n) 
-         dgbdrift0drho(i) = round(dgbdrift0drho(i), n) 
          cvdrift0(i) = round(cvdrift0(i), n) 
          dcvdrift0drho(i) = round(dcvdrift0drho(i), n)
          gbdrift(i) = round(gbdrift(i), n)
@@ -785,6 +786,11 @@ contains
          gds23(i) = round(gds23(i), n)
          gds24(i) = round(gds24(i), n) 
          Zr(2, i) = round(Zr(2,i), n)
+      end do
+      
+      ! For <dgbdrift0drho> macos-14 differs from macos-12, macos-13, ubuntu-20.04, ubuntu-22.04 and ubuntu-24.04
+      do i = -nz, nz
+         dgbdrift0drho(i) = round(dgbdrift0drho(i), 11) 
       end do
 
       
