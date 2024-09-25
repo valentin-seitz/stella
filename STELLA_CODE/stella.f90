@@ -456,8 +456,11 @@ contains
       ! Strings to format data
       character(len=23) :: str
       
+      ! Only print the header on the first processor
+      if (.not. proc0) return 
+      
       ! Print the stella header
-      if (proc0 .and. print_extra_info_to_terminal) then
+      if (print_extra_info_to_terminal) then
          write (*, *) ' '
          write (*, *) ' '
          write (*, *) "              I8            ,dPYb, ,dPYb,            "
@@ -481,15 +484,15 @@ contains
          write (*, '(A)') "############################################################"
          write (*, '(A)') "                     PARALLEL COMPUTING"
          write (*, '(A)') "############################################################"
-         if (nproc == 1) then
-            write (str, '(I10, A)') nproc, " processor."
-            write (*,*) ' '; write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
-         else
-            write (str, '(I10, A)') nproc, " processors."
-            write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
-         end if
-         write (*, *)
       end if
+      if (nproc == 1) then
+         write (str, '(I10, A)') nproc, " processor."
+         write (*,*) ' '; write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
+      else
+         write (str, '(I10, A)') nproc, " processors."
+         write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
+      end if
+      write (*, *)
 
    end subroutine write_start_message
 
