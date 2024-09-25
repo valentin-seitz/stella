@@ -177,7 +177,7 @@ def compare_local_netcdf_quantity_to_expected_netcdf_quantity(local_netcdf_file,
         
             # On macos-14, the fluxes differ slightly more 
             elif key in ['qflux_vs_kxkyzs'] and (system=='Darwin') and ('23' in release):
-                if not (np.allclose(sum1, sum2, rtol=1e-7, atol=1e-100)):
+                if not (np.allclose(local_quantity, expected_quantity, rtol=1e-7, atol=1e-100)):
                     print(f'\nERROR: The {key} arrays do not match in the netCDF files.'); error = True
                     print(f'Compare the {key} arrays in the local and expected netCDF files:')
                     compare_local_array_with_expected_array(local_quantity, expected_quantity, name=key1)    
