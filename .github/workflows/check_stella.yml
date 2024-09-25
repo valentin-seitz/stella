@@ -152,13 +152,10 @@ jobs:
           fi
         
       # Perform python tests  
-      # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! if: false
-      - name: Numerical python tests 
+      - name: Numerical python tests 1
         run: |
-          if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then 
-            source AUTOMATIC_TESTS/venv/bin/activate
-          fi
-          make numerical-tests
+          if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then source AUTOMATIC_TESTS/venv/bin/activate; fi
+          make numerical-tests-1
 
 
 #-----------------------------------------------------------------------
