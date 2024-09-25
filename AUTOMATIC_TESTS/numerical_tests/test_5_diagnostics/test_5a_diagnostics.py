@@ -106,6 +106,10 @@ def test_whether_fluxes_diagnostics_are_correct(error=False):
 #        if not np.array_equal(local_flux_data[:,i], expected_flux_data[:,i], equal_nan=True): 
  #           if not np.array_equal(local_flux_data[:,i], -expected_flux_data[:,i], equal_nan=True):
                 print(f'\nERROR: The fluxes arrays do not match in the txt files.'); error = True
+                import platform
+                print('os.name', os.name)
+                print('platform.system()', platform.system())
+                print('platform.release()', platform.release())
                 print(f'Compare the fluxes arrays in the local and expected txt files:')
                 for j in range(len(local_flux_data[:,i])):
                  print(f'    column {i}: {local_flux_data[j,i]:14.6e}, {expected_flux_data[j,i]:14.6e}')
