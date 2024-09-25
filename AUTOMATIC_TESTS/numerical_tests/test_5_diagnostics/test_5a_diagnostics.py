@@ -8,7 +8,8 @@
 
 # Python modules
 import os, sys
-import pathlib 
+import pathlib
+import platform
 import numpy as np
 import xarray as xr  
 
@@ -98,18 +99,16 @@ def test_whether_fluxes_diagnostics_are_correct(error=False):
     local_flux_data[0,:] = 0.0
     expected_flux_data[0,:] = 0.0
     
+    # On macos-14, the fluxes differ slightly more 
+    atol = 1e-15; system = platform.system(); release = platform.release()
+    if (system=='Darwin') and ('23' in release): atol = 1e-14
+    
     # Compare the columns (time; pflux_i, pflux_e, vflux_i, vflux_e, qflux_i, qflux_e)
     # Note that the sign of the fluxes has been fixed in newer stellas
-    for i in range(len(local_flux_data[0,:])):
+    for i in range(len(local_flux_data[0,:])):        
         if not np.allclose(local_flux_data[:,i], expected_flux_data[:,i], rtol = 0.0, atol = 1e-15, equal_nan=True):
-             if not np.allclose(local_flux_data[:,i], -expected_flux_data[:,i], rtol = 0.0, atol = 1e-15, equal_nan=True):
-#        if not np.array_equal(local_flux_data[:,i], expected_flux_data[:,i], equal_nan=True): 
- #           if not np.array_equal(local_flux_data[:,i], -expected_flux_data[:,i], equal_nan=True):
+             if not np.allclose(local_flux_data[:,i], -expected_flux_data[:,i], rtol = 0.0, atol = 1e-15, equal_nan=True): 
                 print(f'\nERROR: The fluxes arrays do not match in the txt files.'); error = True
-                import platform
-                print('os.name', os.name)
-                print('platform.system()', platform.system())
-                print('platform.release()', platform.release())
                 print(f'Compare the fluxes arrays in the local and expected txt files:')
                 for j in range(len(local_flux_data[:,i])):
                  print(f'    column {i}: {local_flux_data[j,i]:14.6e}, {expected_flux_data[j,i]:14.6e}')
