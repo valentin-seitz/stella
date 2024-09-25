@@ -515,6 +515,7 @@ jobs:
       # Build stella executable and pFUnit library
       - name: Build stella and perform automated Fortran tests
         run: |
+          git submodule update --init --recursive
           cmake . -B build -DSTELLA_ENABLE_TESTS=on
           cmake --build build -j1 --target check
 
