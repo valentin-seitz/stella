@@ -139,8 +139,8 @@ jobs:
       - name: Install python virtual environment
         run: |
           if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then 
-            python3 -m venv COMPILATION/venv
-            source COMPILATION/venv/bin/activate
+            python3 -m venv AUTOMATIC_TESTS/venv
+            source AUTOMATIC_TESTS/venv/bin/activate
             pip3 install -r AUTOMATIC_TESTS/requirements.txt
           else
             pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
