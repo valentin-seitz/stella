@@ -513,18 +513,10 @@ jobs:
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
       
       # Build stella executable and pFUnit library
-      - name: Build stella
+      - name: Build stella and perform automated Fortran tests
         run: |
-          git submodule update --init --recursive
-          make -j 4
-          make -j 4 build-pfunit-library
-      
-      # Automated Fortran tests
-      - name: Perform automated Fortran tests
-        run: make -j 4 run-automated-fortran-tests
-
-
-
+          cmake . -B build -DSTELLA_ENABLE_TESTS=on
+          cmake --build build -j1 --target check
 
 #-----------------------------------------------------------------------
 #                          Build in debug mode                          
