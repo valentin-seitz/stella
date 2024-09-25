@@ -43,7 +43,7 @@ def get_stella_path():
 def run_stella(stella_path, input_file):
     '''Run stella with a given input file.''' 
     nproc = read_nproc()
-    subprocess.run(['mpirun', '-np', f'{nproc}', stella_path, input_file], check=True)
+    subprocess.run(['mpirun','--oversubscribe', '-np', f'{nproc}', stella_path, input_file], check=True)
 
 #-------------------------------------------------------------------------------
 def copy_input_file(input_file: str, destination):
