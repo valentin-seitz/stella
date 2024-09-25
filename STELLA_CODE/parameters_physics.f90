@@ -276,7 +276,7 @@ contains
       in_file = input_unit_exist("time_advance_knobs", old_nml_exist)
       if (old_nml_exist) then
          read(unit=in_file, nml=time_advance_knobs) 
-         if (print_extra_info_to_terminal) then 
+         if (debug) then 
             write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
             write(*,*) 'Please replace the namelist <time_advance_knobs> in the input file.'
            write(*,*) 'Refer to the input paramters text file as to which namelist to use.'
