@@ -790,7 +790,7 @@ contains
       
       ! The <dgbdrift0drho> variable differs on macos-14 (CMake) with respect to the other operating systems
       do i = -nz, nz
-         dgbdrift0drho(i) = round(dgbdrift0drho(i), 9) 
+         dgbdrift0drho(i) = round(dgbdrift0drho(i), 8) 
       end do
 
       
