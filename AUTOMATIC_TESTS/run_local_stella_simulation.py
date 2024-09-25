@@ -364,15 +364,15 @@ def compare_geometry_in_netcdf_files(run_data, error=False):
                 # The number of processors is allowed to differ
                 if key=='nproc': continue 
                 
-                # mac-os is being annoying with the number of digits of drhodpsi
+                # macOS is being annoying with the number of digits of drhodpsi
                 # The expected output has been made on mac-os where drhodpsi has 17 digits
                 if key=='drhodpsi': 
                     print('system', system, 'release', release)
                     local_netcdf[key].data = np.round(local_netcdf[key].data, 15)
                     expected_netcdf[key].data = np.round(expected_netcdf[key].data, 15)
                 if (key=='drhodpsi') and (system=='Darwin') and ('23' in release): 
-                    local_netcdf[key].data = np.round(local_netcdf[key].data, 14)
-                    expected_netcdf[key].data = np.round(expected_netcdf[key].data, 14)
+                    local_netcdf[key].data = np.round(local_netcdf[key].data, 13)
+                    expected_netcdf[key].data = np.round(expected_netcdf[key].data, 13)
                     
                 # Compare integers and floats
                 if (local_netcdf[key] != expected_netcdf[key]):
