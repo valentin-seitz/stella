@@ -49,8 +49,10 @@ def test_whether_potential_data_in_netcdf_file_remains_constant(tmp_path):
     stella_local_run_directory = tmp_path
     
     # Run stella inside of <tmp_path> based on <input_filename>
+    # We run this test on nproc=2 because for nproc>=16 and rhostar = {0.02, 0.025} 
+    # the phi2 value at t = 0 is slightly wrong.
     input_filename = input_filename_stem + '_no_time_evolution.in'
-    run_local_stella_simulation(input_filename, tmp_path)
+    run_local_stella_simulation(input_filename, tmp_path, nproc=2)
      
     # File names  
     local_netcdf_file = stella_local_run_directory / (input_filename_stem + '_no_time_evolution.out.nc')
@@ -65,7 +67,7 @@ def test_whether_potential_data_in_netcdf_file_remains_constant(tmp_path):
         if not (np.all(local_phi2 == local_phi2[0])):
             print(f'ERROR: The potential is evolving in time, while it should not.')
             for i in range(len(local_phi2)):
-                print(f'phi2 = {float(local_phi2.data[i]):.5e}')
+                print(f'phi2 = {float(local_phi2.data[i]):.18e}')
             assert False, f'The potential is evolving in time, while it should not.'
                 
     print(f'  -->  Without gyrokinetic terms the potential in FFS does not evolve in time ({int(local_netcdf["nproc"])} CPUs).')

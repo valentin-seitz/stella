@@ -40,9 +40,9 @@ def get_stella_path():
     return stella_path.absolute()
 
 #-------------------------------------------------------------------------------
-def run_stella(stella_path, input_file):
+def run_stella(stella_path, input_file, nproc=None):
     '''Run stella with a given input file.''' 
-    nproc = read_nproc()
+    if not nproc: nproc = read_nproc()
     subprocess.run(['mpirun','--oversubscribe', '-np', f'{nproc}', stella_path, input_file], check=True)
 
 #-------------------------------------------------------------------------------
@@ -56,11 +56,11 @@ def copy_vmec_file(vmec_file: str, destination):
     shutil.copyfile(get_stella_expected_run_directory() / vmec_file, destination / vmec_file)
     
 #-------------------------------------------------------------------------------
-def run_local_stella_simulation(input_file, tmp_path, vmec_file=None):
+def run_local_stella_simulation(input_file, tmp_path, vmec_file=None, nproc=None):
     ''' Run a local stella simulation in <tmp_path>. '''
     copy_input_file(input_file, tmp_path)
     if vmec_file: copy_vmec_file(vmec_file, tmp_path)
-    os.chdir(tmp_path); run_stella(get_stella_path(), input_file)
+    os.chdir(tmp_path); run_stella(get_stella_path(), input_file, nproc=nproc)
     run_data = {'input_file' : input_file, 'tmp_path' : tmp_path, 'vmec_file' : vmec_file}
     return run_data
     
