@@ -152,7 +152,9 @@ jobs:
       # Perform python tests  
       # Turn this job off for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! if: false
       - name: Numerical python tests 
-        run: make numerical-tests
+        run: |
+          source COMPILATION/venv/bin/activate
+          make numerical-tests
 
 
 #-----------------------------------------------------------------------
