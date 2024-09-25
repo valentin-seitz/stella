@@ -158,31 +158,37 @@ jobs:
           make numerical-tests-1
           
       - name: Python tests 2 - Geometry
+        if: success() || failure() 
         run: |
           if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then source AUTOMATIC_TESTS/venv/bin/activate; fi
           make numerical-tests-2
           
       - name: Python tests 3 - Gyrokinetic equation
+        if: success() || failure() 
         run: |
           if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then source AUTOMATIC_TESTS/venv/bin/activate; fi
           make numerical-tests-3
           
       - name: Python tests 4 - Flux tube
+        if: success() || failure() 
         run: |
           if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then source AUTOMATIC_TESTS/venv/bin/activate; fi
           make numerical-tests-4
           
       - name: Python tests 5 - Diagnostics
+        if: success() || failure() 
         run: |
           if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then source AUTOMATIC_TESTS/venv/bin/activate; fi
           make numerical-tests-5
           
       - name: Python tests 6 - Full Flux Surface
+        if: success() || failure() 
         run: |
           if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then source AUTOMATIC_TESTS/venv/bin/activate; fi
           make numerical-tests-6
           
       - name: Python tests 7 - Electromagnetic effects"
+        if: success() || failure() 
         run: |
           if [ ${{ matrix.os }} == 'ubuntu-24.04' ] || [ ${{ matrix.os }} == 'macos-14' ]; then source AUTOMATIC_TESTS/venv/bin/activate; fi
           make numerical-tests-7
