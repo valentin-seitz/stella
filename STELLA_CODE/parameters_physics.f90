@@ -272,6 +272,26 @@ contains
          !      The namelist <physics_parameters> does not exist. &
          !      Please replace this with the title <parameters_physics>")
       end if
+      
+      in_file = input_unit_exist("time_advance_knobs", old_nml_exist)
+      if (old_nml_exist) then
+         read(unit=in_file, nml=time_advance_knobs) 
+         if (print_extra_info_to_terminal) then 
+            write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            write(*,*) 'Please replace the namelist <time_advance_knobs> in the input file.'
+           write(*,*) 'Refer to the input paramters text file as to which namelist to use.'
+            write(*,*) 'Some of these parameters have been moved to <run_parameters>'
+            write(*,*) 'and others have been moves to <physics_parameters>.'
+            write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+         end if
+
+           ! write(*,*) "Aborting in run_parameters.f90.&
+         !      The namelist <time_advance_knobs> does not exist.&
+         !      Please replace this with the title <numerical>"
+         ! call mp_abort("Aborting in run_parameters.f90.&
+         !      The namelist <time_advance_knobs> does not exist.&
+         !      Please replace this with the title <run_parameters>")
+      end if
 
    end subroutine check_backwards_compatability
     

@@ -472,7 +472,6 @@ contains
       subroutine broadcast_parameters
 
          use mp, only: broadcast
-         !use parameters_physics, only: xdriftknob, ydriftknob, wstarknob
          
          implicit none    
          !> Exit stella if we ran into an error
