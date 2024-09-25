@@ -788,7 +788,7 @@ contains
          Zr(2, i) = round(Zr(2,i), n)
       end do
       
-      ! For <dgbdrift0drho> macos-14 differs from macos-12, macos-13, ubuntu-20.04, ubuntu-22.04 and ubuntu-24.04
+      ! The <dgbdrift0drho> variable differs on macos-14 (CMake) with respect to the other operating systems
       do i = -nz, nz
          dgbdrift0drho(i) = round(dgbdrift0drho(i), 11) 
       end do
