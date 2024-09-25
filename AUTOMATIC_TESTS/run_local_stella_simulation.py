@@ -345,6 +345,10 @@ def compare_geometry_in_netcdf_files(run_data, error=False):
     input_file = run_data['input_file']; tmp_path = run_data['tmp_path']
     local_netcdf_file = tmp_path / input_file.replace('.in', '.out.nc') 
     expected_netcdf_file = get_stella_expected_run_directory() / f'EXPECTED_OUTPUT.{input_file.replace(".in","")}.out.nc'    
+        
+    # Check the operating system
+    system = platform.system()
+    release = platform.release()
 
     # Check whether the geometry data matches in the netcdf file
     with xr.open_dataset(local_netcdf_file) as local_netcdf, xr.open_dataset(expected_netcdf_file) as expected_netcdf: 
@@ -356,10 +360,17 @@ def compare_geometry_in_netcdf_files(run_data, error=False):
         
             # Compare integers and floats
             if expected_netcdf[key].shape == ():
-                if key=='nproc': continue # The number of processors is allowed to differ
-                if(key=='drhodpsi'):
-                    local_netcdf[key].data = np.round(local_netcdf[key].data, 15)
-                    expected_netcdf[key].data = np.round(expected_netcdf[key].data, 15)
+            
+                # The number of processors is allowed to differ
+                if key=='nproc': continue 
+                
+                # Mac-os is being annoying with the number of digits of drhodpsi
+                if key=='drhodpsi': print('system', system, 'release', release)
+                if (key=='drhodpsi') and (system=='Darwin') and ('23' in release): 
+                    local_netcdf[key].data = np.round(local_netcdf[key].data, 14)
+                    expected_netcdf[key].data = np.round(expected_netcdf[key].data, 14)
+                    
+                # Compare integers and floats
                 if (local_netcdf[key] != expected_netcdf[key]):
                     print(f'\nERROR: The quantity <{key}> does not match in the netcdf files.'); error = True
                     print(f'    LOCAL:    {local_netcdf[key].data}')
