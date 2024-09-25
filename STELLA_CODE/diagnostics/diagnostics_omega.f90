@@ -14,8 +14,6 @@
 
 module diagnostics_omega
 
-   use debug_flags, only: debug => diagnostics_omega_debug
-  
    implicit none 
 
    ! These routines are called from diagnostics.f90
@@ -51,14 +49,14 @@ contains
       use mp, only: proc0
       
       ! Physics flags
-      use parameters_physics, only: include_apar
+      use physics_flags, only: include_apar
       
       ! Fields
-      use arrays_fields, only: phi, phi_old
-      use arrays_fields, only: apar, apar_old
+      use fields_arrays, only: phi, phi_old
+      use fields_arrays, only: apar, apar_old
       
       ! Grids
-      use parameters_kxky_grids, only: nakx, naky 
+      use kt_grids, only: nakx, naky 
       use stella_time, only: code_dt
       use constants, only: zi
       
@@ -82,8 +80,6 @@ contains
 
       !----------------------------------------------------------------------
 
-      debug = debug .and. proc0
-      
       ! We only calculate omega on the first processor and if <write_omega> = True
       if (.not. write_omega) return  
 
@@ -144,6 +140,9 @@ contains
       
       ! Write to netCDF file
       use stella_io, only: write_omega_nc
+      
+      ! Grids
+      use kt_grids, only: nakx, naky
       
       ! Parallelisation
       use job_manage, only: time_message
@@ -250,7 +249,7 @@ contains
       use parameters_diagnostics, only: navg
       
       ! Grids
-      use parameters_kxky_grids, only: nakx, naky
+      use kt_grids, only: nakx, naky
       
       ! Multiprocessing
       use mp, only: proc0
@@ -285,6 +284,7 @@ contains
 
       use parameters_diagnostics, only: write_omega_vs_kxky
       use file_utils, only: close_output_file
+      use mp, only: proc0 
 
       implicit none  
 
@@ -350,8 +350,8 @@ contains
       use parameters_diagnostics, only: write_omega_avg_vs_kxky
       use parameters_diagnostics, only: write_omega_vs_kxky
       use stella_time, only: code_time 
-      use parameters_kxky_grids, only: naky, nakx
-      use grids_kxky, only: aky, akx 
+      use kt_grids, only: naky, nakx
+      use kt_grids, only: aky, akx 
 
       implicit none
 

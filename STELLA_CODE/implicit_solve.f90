@@ -1,7 +1,5 @@
 module implicit_solve
 
-  use debug_flags, only: debug => implicit_solve_debug
-  
    implicit none
 
    public :: time_implicit_advance
@@ -18,29 +16,31 @@ contains
 
    subroutine advance_implicit_terms(g, phi, apar, bpar)
 
-     use mp, only: proc0
-     
+      use mp, only: proc0
       use job_manage, only: time_message
       use stella_layouts, only: vmu_lo
-      use parameters_physics, only: include_apar, include_bpar
+      use physics_flags, only: include_apar, include_bpar
       use zgrid, only: nzgrid, ntubes
-      use parameters_kxky_grids, only: naky, nakx
-      use arrays_dist_fn, only: g1, g2
-      use parameters_numerical, only: stream_matrix_inversion
-      use parameters_numerical, only: use_deltaphi_for_response_matrix
-      use parameters_numerical, only: tupwnd_p => time_upwind_plus
-      use parameters_numerical, only: tupwnd_m => time_upwind_minus
-      use parameters_numerical, only: fphi
+      use kt_grids, only: naky, nakx
+      use dist_fn_arrays, only: g1, g2
+      use run_parameters, only: stream_matrix_inversion
+      use run_parameters, only: use_deltaphi_for_response_matrix
+      use run_parameters, only: tupwnd_p => time_upwind_plus
+      use run_parameters, only: tupwnd_m => time_upwind_minus
+      use run_parameters, only: fphi
       use fields, only: advance_fields, fields_updated
       use extended_zgrid, only: map_to_extended_zgrid, map_from_extended_zgrid
       use extended_zgrid, only: nsegments, nzed_segment
 
-      use parameters_numerical, only: driftkinetic_implicit
-      use gyro_averages, only: gyro_average
+      use run_parameters, only: driftkinetic_implicit
+      use gyro_averages, only: gyro_average, j0_ffs, j0_const
+      use parallel_streaming, only: stream
       use stella_layouts, only: iv_idx, imu_idx, is_idx
+      use species, only: spec
 
-      use fields_ffs, only: get_fields_source
-      use parameters_numerical, only: nitt
+      use dist_fn_arrays, only: g0 
+      use fields, only: get_fields_source
+      use run_parameters, only: nitt
 
       use ffs_solve, only: get_source_ffs_itteration, get_drifts_ffs_itteration
       use species, only: has_electron_species
@@ -54,16 +54,16 @@ contains
       complex, dimension(:, :, :, :), allocatable :: phi_source, apar_source, bpar_source
       character(5) :: dist_choice
 
+      logical :: implicit_solve = .false.
       complex, dimension(:, :, :, :, :), allocatable :: phi_source_ffs
       complex, dimension(:, :, :, :), allocatable :: fields_source_ffs
       complex, dimension(:, :, :, :, :), allocatable :: drifts_source_ffs
 
+      integer :: ikx, iky, iz
       integer :: itt
       logical :: modify
+      real :: error, tol
 
-      debug = debug .and. proc0
-      if(debug) write (*,*) 'No debug messages for implicit_solve.f90 yet'
-      
       if(driftkinetic_implicit) then 
          if (.not. allocated(phi_source_ffs)) allocate (phi_source_ffs(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
          phi_source_ffs = 0.0
@@ -289,7 +289,7 @@ contains
                      ! to the standard zed domain; the mapped pdf is called 'g'
                      call map_from_extended_zgrid(it, ie, iky, pdf2, g(iky, :, :, :, ivmu))
                      deallocate (pdf1, pdf2, phiext, aparext, aparext_new, aparext_old, bparext)
-                     if (present(mod)) deallocate(phiffsext)
+		               if (present(mod)) deallocate(phiffsext)
                   end do
                end do
             end do
@@ -308,6 +308,8 @@ contains
    !> and the full GKE, which RHS is obtained depends on the input values
    !> for 'pdf', 'phi', 'apar', 'aparnew' and 'aparold'
    subroutine get_gke_rhs(ivmu, iky, ie, pdf, phi, apar, aparnew, aparold, bpar, rhs, phi_ffs)
+
+      use kt_grids, only: naky, nakx
 
       implicit none
 
@@ -351,7 +353,7 @@ contains
    !> involving phi and apar that appear on the RHS of the GK equation when g is the pdf
    subroutine get_contributions_from_fields(phi, apar, aparnew, bpar, ivmu, iky, ie, scratch, rhs)
 
-      use parameters_physics, only: include_apar, include_bpar
+      use physics_flags, only: include_apar, include_bpar
       use extended_zgrid, only: map_to_iz_ikx_from_izext
 
       implicit none
@@ -397,9 +399,10 @@ contains
       use zgrid, only: nzgrid, ntubes
       use vpamu_grids, only: maxwell_vpa, maxwell_mu, maxwell_fac, maxwell_mu_avg
       use vpamu_grids, only: vpa
-      use parameters_numerical, only: driftkinetic_implicit, maxwellian_normalization
-      use parameters_numerical, only: maxwellian_inside_zed_derivative
-      use parameters_numerical, only: drifts_implicit
+      use kt_grids, only: naky, nakx
+      use run_parameters, only: driftkinetic_implicit, maxwellian_normalization
+      use run_parameters, only: maxwellian_inside_zed_derivative
+      use run_parameters, only: drifts_implicit
       use stella_layouts, only: vmu_lo, iv_idx, imu_idx, is_idx
       use neoclassical_terms, only: include_neoclassical_terms
       use neoclassical_terms, only: dfneo_dvpa
@@ -449,7 +452,7 @@ contains
          use parallel_streaming, only: center_zed
          use parallel_streaming, only: gradpar_c, stream_sign
 
-         use parameters_numerical, only: driftkinetic_implicit
+         use run_parameters, only: driftkinetic_implicit
 
          integer :: izext
          complex :: scratch_left, scratch_right
@@ -472,8 +475,8 @@ contains
                ! and store in dummy variable z_scratch
                z_scratch = maxwell_mu(ia, :, imu, is)
                call center_zed(iv, z_scratch, -nzgrid)
-            else
-               z_scratch = 1.0
+	         else
+	            z_scratch = 1.0
             end if
          end if
          ! multiply by Maxwellian factor
@@ -510,8 +513,9 @@ contains
       subroutine add_drifts_contribution_phi
 
          use constants, only: zi
-         use grids_kxky, only: aky, akx
-         use arrays_dist_fn, only: wstar, wdriftx_phi, wdrifty_phi
+         use kt_grids, only: nakx, naky
+         use kt_grids, only: aky, akx
+         use dist_fn_arrays, only: wstar, wdriftx_phi, wdrifty_phi
          use parallel_streaming, only: center_zed
          use extended_zgrid, only: periodic
 
@@ -542,9 +546,10 @@ contains
       use zgrid, only: nzgrid, ntubes
       use vpamu_grids, only: maxwell_vpa, maxwell_mu, maxwell_fac
       use vpamu_grids, only: vpa, mu
-      use parameters_numerical, only: driftkinetic_implicit, maxwellian_normalization
-      use parameters_numerical, only: maxwellian_inside_zed_derivative
-      use parameters_numerical, only: drifts_implicit
+      use kt_grids, only: naky, nakx
+      use run_parameters, only: driftkinetic_implicit, maxwellian_normalization
+      use run_parameters, only: maxwellian_inside_zed_derivative
+      use run_parameters, only: drifts_implicit
       use stella_layouts, only: vmu_lo, iv_idx, imu_idx, is_idx
       use neoclassical_terms, only: include_neoclassical_terms
       use neoclassical_terms, only: dfneo_dvpa
@@ -648,8 +653,9 @@ contains
       subroutine add_drifts_contribution_bpar
 
          use constants, only: zi
-         use grids_kxky, only: aky, akx
-         use arrays_dist_fn, only: wstar, wdriftx_bpar, wdrifty_bpar
+         use kt_grids, only: nakx, naky
+         use kt_grids, only: aky, akx
+         use dist_fn_arrays, only: wstar, wdriftx_bpar, wdrifty_bpar
          use parallel_streaming, only: center_zed
          use extended_zgrid, only: periodic
 
@@ -678,7 +684,7 @@ contains
    !> involving apar that appear on the RHS of the GK equation when g is the pdf
    subroutine get_contributions_from_apar(apar, aparnew, ivmu, iky, iz_from_izext, ikx_from_izext, scratch, rhs)
 
-      use parameters_numerical, only: driftkinetic_implicit, drifts_implicit
+      use run_parameters, only: driftkinetic_implicit, drifts_implicit
       use stella_layouts, only: vmu_lo, iv_idx, imu_idx, is_idx
 
       implicit none
@@ -728,7 +734,7 @@ contains
    ! aparnew=0 so that scratch2 will be zero below
    subroutine add_gbar_to_g_contribution_apar(scratch2, iky, ia, iv, imu, is, nz_ext, iz_from_izext, rhs)
 
-      use parameters_numerical, only: maxwellian_normalization
+      use run_parameters, only: maxwellian_normalization
       use vpamu_grids, only: vpa, maxwell_vpa, maxwell_mu, maxwell_fac
       use parallel_streaming, only: center_zed
       use species, only: spec
@@ -769,8 +775,8 @@ contains
 
       use constants, only: zi
       use species, only: spec
-      use grids_kxky, only: aky
-      use arrays_dist_fn, only: wstar
+      use kt_grids, only: aky
+      use dist_fn_arrays, only: wstar
       use parallel_streaming, only: center_zed
       use extended_zgrid, only: periodic
       use vpamu_grids, only: vpa
@@ -799,7 +805,7 @@ contains
 
       use species, only: spec
       use stella_layouts, only: vmu_lo, iv_idx, imu_idx, is_idx
-      use parameters_numerical, only: maxwellian_normalization
+      use run_parameters, only: maxwellian_normalization
       use vpamu_grids, only: vpa, maxwell_vpa, maxwell_mu, maxwell_fac
 
       implicit none
@@ -890,17 +896,18 @@ contains
 
       use constants, only: zi
       use stella_time, only: code_dt
-      use parameters_physics, only: include_apar
+      use physics_flags, only: include_apar
       use species, only: spec
       use zgrid, only: nzgrid, ntubes
-      use grids_kxky, only: aky, akx
+      use kt_grids, only: naky, nakx
+      use kt_grids, only: aky, akx
       use vpamu_grids, only: vpa
       use stella_layouts, only: vmu_lo, iv_idx, is_idx
-      use parameters_numerical, only: time_upwind_minus
-      use parameters_numerical, only: drifts_implicit
+      use run_parameters, only: time_upwind_minus
+      use run_parameters, only: drifts_implicit
       use parallel_streaming, only: get_zed_derivative_extended_domain, center_zed
       use parallel_streaming, only: gradpar_c, stream_sign
-      use arrays_dist_fn, only: wdriftx_g, wdrifty_g
+      use dist_fn_arrays, only: wdriftx_g, wdrifty_g
       use extended_zgrid, only: fill_zext_ghost_zones
       use extended_zgrid, only: map_to_iz_ikx_from_izext
       use extended_zgrid, only: periodic
@@ -997,12 +1004,11 @@ contains
 
       use constants, only: zi
       use zgrid, only: nzgrid, ntubes, delzed
-      use parameters_numerical, only: drifts_implicit
-      use parameters_numerical, only: zed_upwind_plus, zed_upwind_minus
-      use parameters_numerical, only: time_upwind_plus
-      use parameters_kxky_grids, only: nakx
-      use grids_kxky, only: akx, aky
-      use arrays_dist_fn, only: wdriftx_g, wdrifty_g
+      use run_parameters, only: drifts_implicit
+      use run_parameters, only: zed_upwind_plus, zed_upwind_minus
+      use run_parameters, only: time_upwind_plus
+      use kt_grids, only: nakx, akx, aky
+      use dist_fn_arrays, only: wdriftx_g, wdrifty_g
       use extended_zgrid, only: map_to_extended_zgrid
       use extended_zgrid, only: periodic, phase_shift
       use parallel_streaming, only: stream_sign, stream_c
@@ -1097,9 +1103,9 @@ contains
    subroutine get_updated_pdf(iz, iv, is, sgn, iz1, iz2, wdrift_ext, pdf)
 
       use zgrid, only: nzgrid, delzed
-      use parameters_numerical, only: drifts_implicit
-      use parameters_numerical, only: zed_upwind_plus, zed_upwind_minus
-      use parameters_numerical, only: time_upwind_plus
+      use run_parameters, only: drifts_implicit
+      use run_parameters, only: zed_upwind_plus, zed_upwind_minus
+      use run_parameters, only: time_upwind_plus
       use parallel_streaming, only: stream_c
 
       implicit none
@@ -1141,7 +1147,7 @@ contains
 
       use zgrid, only: nzgrid, delzed
       use extended_zgrid, only: phase_shift
-      use parameters_numerical, only: zed_upwind, time_upwind
+      use run_parameters, only: zed_upwind, time_upwind
       use parallel_streaming, only: stream_c
 
       implicit none
@@ -1193,7 +1199,7 @@ contains
    subroutine invert_parstream_response(phi, apar, bpar)
 
       use linear_solve, only: lu_back_substitution
-      use parameters_physics, only: include_apar, include_bpar
+      use physics_flags, only: include_apar, include_bpar
       use zgrid, only: nzgrid, ntubes
       use extended_zgrid, only: neigen
       use extended_zgrid, only: nsegments
@@ -1202,9 +1208,9 @@ contains
       use extended_zgrid, only: map_from_extended_zgrid
       use extended_zgrid, only: ikxmod
       use extended_zgrid, only: periodic, phase_shift
-      use parameters_kxky_grids, only: naky
+      use kt_grids, only: naky
       use fields, only: nfields
-      use arrays_fields, only: response_matrix
+      use fields_arrays, only: response_matrix
 
       implicit none
 

@@ -15,7 +15,6 @@
 
 module geometry
 
-   use debug_flags, only: debug => geometry_debug
    use common_types, only: flux_surface_type
 
    implicit none
@@ -59,6 +58,9 @@ module geometry
 
    private
    
+   ! Debugging
+   logical :: debug = .false.
+
    type(flux_surface_type) :: geo_surf
 
    real :: grad_x_grad_y_end, clebsch_factor
@@ -125,7 +127,7 @@ contains
       use vmec_geometry, only: read_vmec_parameters, get_vmec_geometry 
 
       ! Flags
-      use parameters_physics, only: include_geometric_variation
+      use physics_flags, only: include_geometric_variation
 
       ! Routines
       use file_utils, only: get_unused_unit
@@ -340,7 +342,7 @@ contains
       use vmec_geometry, only: read_vmec_parameters, get_vmec_geometry 
       use vmec_geometry, only: radial_coordinate_option, radial_coordinate_sgnpsitpsit
       use vmec_geometry, only: radial_coordinate_minuspsit, radial_coordinate_r 
-      use debug_flags, only: const_alpha_geo
+      use physics_flags, only: const_alpha_geo
       use zgrid, only: nzgrid 
 
       implicit none
@@ -985,7 +987,7 @@ contains
    subroutine read_parameters
 
       ! Flags
-      use parameters_physics, only: radial_variation
+      use physics_flags, only: radial_variation
 
       ! Multibox runs
       use file_utils, only: runtype_option_Switch, runtype_multibox
@@ -1285,7 +1287,7 @@ contains
    !============================================================================
    subroutine get_x_to_rho(llim, x_in, rho_out)
 
-      use parameters_physics, only: rhostar
+      use physics_parameters, only: rhostar
 
       implicit none
 

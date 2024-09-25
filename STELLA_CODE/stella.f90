@@ -3,24 +3,25 @@ program stella
    use redistribute, only: scatter
    use job_manage, only: time_message, checkstop, job_fork
    use job_manage, only: checktime
-   use parameters_numerical, only: nstep, tend
-   use parameters_numerical, only: avail_cpu_time
+   use run_parameters, only: nstep, tend
+   use run_parameters, only: avail_cpu_time
    use stella_time, only: update_time, code_time, code_dt, checkcodedt
    use dist_redistribute, only: kxkyz2vmu
    use time_advance, only: advance_stella
    use diagnostics, only: diagnostics_stella
    use stella_save, only: stella_save_for_restart
-   use arrays_dist_fn, only: gnew, gvmu
+   use dist_fn_arrays, only: gnew, gvmu
    use file_utils, only: error_unit, flush_output_file
    use git_version, only: get_git_version, get_git_date
    use diagnostics_omega, only: checksaturation
-
-   use debug_flags, only: debug => stella_debug
+   
    ! Input file
    use parameters_diagnostics, only: nsave
 
    implicit none
 
+   logical :: debug = .false.
+   
    logical :: stop_stella = .false.
    logical :: mpi_initialized = .false.
 
@@ -88,20 +89,18 @@ contains
 
       use mp, only: init_mp, broadcast, sum_allreduce
       use mp, only: proc0, job
-      use debug_flags, only: read_debug_flags
       use file_utils, only: init_file_utils
       use file_utils, only: runtype_option_switch, runtype_multibox
       use file_utils, only: run_name, init_job_name
       use file_utils, only: flush_output_file, error_unit
       use job_manage, only: checktime, time_message
-      use parameters_physics, only: read_parameters_physics
-      use parameters_physics, only: radial_variation
-      use parameters_numerical, only: read_parameters_numerical
-      use parameters_numerical, only: avail_cpu_time, nstep, rng_seed, delt, delt_max, delt_min
-      use parameters_numerical, only: stream_implicit, driftkinetic_implicit
-      use parameters_numerical, only: delt_option_switch, delt_option_auto
-      use parameters_numerical, only: mat_gen, mat_read
-      use parameters_kxky_grids, only: read_kxky_grid_parameters
+      use physics_parameters, only: init_physics_parameters
+      use physics_flags, only: init_physics_flags, radial_variation
+      use run_parameters, only: init_run_parameters
+      use run_parameters, only: avail_cpu_time, nstep, rng_seed, delt, delt_max, delt_min
+      use run_parameters, only: stream_implicit, driftkinetic_implicit
+      use run_parameters, only: delt_option_switch, delt_option_auto
+      use run_parameters, only: mat_gen, mat_read
       use species, only: init_species, read_species_knobs
       use species, only: nspec
       use zgrid, only: init_zgrid
@@ -112,20 +111,19 @@ contains
       use response_matrix, only: init_response_matrix, read_response_matrix
       use init_g, only: ginit, init_init_g, phiinit, scale_to_phiinit
       use init_g, only: tstart
-      use fields, only: init_fields, advance_fields, fields_updated
-      use fields_radial_variation, only: get_radial_correction
+      use fields, only: init_fields, advance_fields, get_radial_correction, fields_updated
       use fields, only: rescale_fields
       use stella_time, only: init_tstart, init_delt
       use diagnostics, only: init_diagnostics
       use parameters_diagnostics, only: read_diagnostics_knobs
-      use arrays_fields, only: phi, apar, bpar
-      use arrays_dist_fn, only: gnew
+      use fields_arrays, only: phi, apar, bpar
+      use dist_fn_arrays, only: gnew
       use dist_fn, only: init_gxyz, init_dist_fn
       use dist_redistribute, only: init_redistribute
       use time_advance, only: init_time_advance
       use extended_zgrid, only: init_extended_zgrid
-      use grids_kxky, only: init_grids_kxky
-      use parameters_kxky_grids, only: naky, nakx, ny, nx, nalpha
+      use kt_grids, only: init_kt_grids, read_kt_grids_parameters
+      use kt_grids, only: naky, nakx, ny, nx, nalpha
       use vpamu_grids, only: init_vpamu_grids, read_vpamu_grids_parameters
       use vpamu_grids, only: nvgrid, nmu
       use stella_transforms, only: init_transforms
@@ -156,24 +154,27 @@ contains
       !> initialize mpi message passing
       if (.not. mpi_initialized) call init_mp
       mpi_initialized = .true.
+      debug = debug .and. proc0
 
       !> initialize timer
       if (debug) write (*, *) 'stella::init_stella::check_time'
       call checktime(avail_cpu_time, exit)
 
-      if (proc0) then 
+      if (proc0) then
+         !> write message to screen with useful info regarding start of simulation
+         if (debug) write (*, *) 'stella::init_stella::write_start_message'
+         call write_start_message(git_commit, git_date)
          !> initialize file i/o
          if (debug) write (*, *) 'stella::init_stella::init_file_utils'
          call init_file_utils(list)
-      end if  
-
-      call read_debug_flags
-!      if(stella_debug) debug = .true. 
-      debug = debug .and. proc0
+      end if
 
       call broadcast(list)
       call broadcast(runtype_option_switch)
       if (list) call job_fork
+
+      !proc0 may have changed
+      debug = debug .and. proc0
 
       if (proc0) then
          call time_message(.false., time_total, ' Total')
@@ -183,15 +184,13 @@ contains
       if (proc0) cbuff = trim(run_name)
       call broadcast(cbuff)
       if (.not. proc0) call init_job_name(cbuff)
-      
-      !> read the parameters_physics namelist from the input file
-      if (debug) write (6, *) "stella::init_stella::read_parameters_physics"
-      call read_parameters_physics
-      if (debug) write (6, *) "stella::init_stella::read_parameters_numerical"
-      call read_parameters_numerical 
-      !> write message to screen with useful info regarding start of simulation
-      if (debug) write (*, *) 'stella::init_stella::write_start_message'
-      call write_start_message(git_commit, git_date) 
+
+      !> read the physics_flags namelist from the input file
+      if (debug) write (6, *) "stella::init_stella::init_physics_flags"
+      call init_physics_flags
+      !> read the physics_parameters namelist from the input file
+      if (debug) write (6, *) "stella::init_stella::init_physics_parameters"
+      call init_physics_parameters
       !> read the zgrid_parameters namelist from the input file and setup the z grid
       if (debug) write (6, *) "stella::init_stella::init_zgrid"
       call init_zgrid
@@ -201,8 +200,8 @@ contains
       !> read the grid option from the kt_grids_knobs namelist in the input file;
       !> depending on the grid option chosen, read the corresponding kt_grids_XXXX_parameters
       !> namelist from the input file and allocate some kx and ky arrays
-      if (debug) write (6, *) "stella::init_stella::read_kxky_grid_parameters"
-      call read_kxky_grid_parameters
+      if (debug) write (6, *) "stella::init_stella::read_kt_grids_parameters"
+      call read_kt_grids_parameters
       !> read the vpamu_grids_parameters namelist from the input file
       if (debug) write (6, *) "stella::init_stella::read_vpamu_grids_parameters"
       call read_vpamu_grids_parameters
@@ -227,8 +226,6 @@ contains
       !> and use it to calculate all of the required geometric coefficients
       if (debug) write (6, *) "stella::init_stella::init_geometry"
       call init_geometry(nalpha, naky)
-      if (debug) write (6, *) 'stella::init_stella::init_grids_kxky'
-      call init_grids_kxky
       !> read species_parameters from input file and use the info to, e.g.,
       !> determine if a modified Boltzmann response is to be used
       if (debug) write (6, *) 'stella::init_stella::init_species'
@@ -240,7 +237,7 @@ contains
       !> read knobs namelist from the input file
       !> and the info to determine the mixture of implicit and explicit time advance
       if (debug) write (6, *) "stella::init_stella::init_run_parameters"
-      call read_parameters_physics
+      call init_run_parameters
 
       if (debug) write (6, *) "stella::init_stella::init_ranf"
       n = get_rnd_seed_length()
@@ -258,6 +255,8 @@ contains
       if (debug) write (6, *) 'stella::init_stella::init_stella_layouts'
       call init_stella_layouts
       !> setup the (kx,ky) grids and (x,y) grids, if applicable
+      if (debug) write (6, *) 'stella::init_stella::init_kt_grids'
+      call init_kt_grids
       if (debug) write (6, *) 'stella::init_stella::init_multibox_subcalls'
       call init_multibox_subcalls
       !> finish_init_geometry deallocates various geometric arrays that
@@ -381,9 +380,9 @@ contains
       use mp, only: proc0, job
       use species, only: communicate_species_multibox
       use geometry, only: communicate_geo_multibox
-      use calculations_kxky, only: communicate_ktgrids_multibox
+      use kt_grids, only: communicate_ktgrids_multibox
       use file_utils, only: runtype_option_switch, runtype_multibox
-      use parameters_physics, only: radial_variation
+      use physics_flags, only: radial_variation
       use multibox, only: init_multibox, rhoL, rhoR
       use multibox, only: communicate_multibox_parameters, multibox_communicate
 
@@ -414,10 +413,10 @@ contains
    subroutine check_transforms(needs_transforms)
 
       use file_utils, only: runtype_option_switch, runtype_multibox
-      use parameters_physics, only: nonlinear, include_parallel_nonlinearity
-      use parameters_physics, only: radial_variation, full_flux_surface
-      use parameters_physics, only: hammett_flow_shear
-      use parameters_physics, only: g_exb, g_exbfac 
+      use physics_flags, only: nonlinear, include_parallel_nonlinearity
+      use physics_flags, only: radial_variation, full_flux_surface
+      use physics_flags, only: hammett_flow_shear
+      use physics_parameters, only: g_exb, g_exbfac 
       
       ! Input file
       use parameters_diagnostics, only: write_radial_moments, write_radial_fluxes
@@ -445,7 +444,7 @@ contains
    subroutine write_start_message(git_commit, git_date)
    
       use mp, only: proc0, nproc
-      use parameters_numerical, only: print_extra_info_to_terminal
+      use run_parameters, only: print_extra_info_to_terminal
 
       implicit none
 
@@ -456,11 +455,8 @@ contains
       ! Strings to format data
       character(len=23) :: str
       
-      ! Only print the header on the first processor
-      if (.not. proc0) return 
-      
       ! Print the stella header
-      if (print_extra_info_to_terminal) then
+      if (proc0 .and. print_extra_info_to_terminal) then
          write (*, *) ' '
          write (*, *) ' '
          write (*, *) "              I8            ,dPYb, ,dPYb,            "
@@ -484,23 +480,24 @@ contains
          write (*, '(A)') "############################################################"
          write (*, '(A)') "                     PARALLEL COMPUTING"
          write (*, '(A)') "############################################################"
+         if (nproc == 1) then
+            write (str, '(I10, A)') nproc, " processor."
+            write (*,*) ' '; write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
+         else
+            write (str, '(I10, A)') nproc, " processors."
+            write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
+         end if
+         write (*, *)
       end if
-      if (nproc == 1) then
-         write (str, '(I10, A)') nproc, " processor."
-         write (*,*) ' '; write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
-      else
-         write (str, '(I10, A)') nproc, " processors."
-         write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
-      end if
-      write (*, *)
 
    end subroutine write_start_message
 
    subroutine print_header
 
       use mp, only: proc0
-      use parameters_numerical, only: print_extra_info_to_terminal
-      use parameters_physics, only: include_apar
+      use run_parameters, only: print_extra_info_to_terminal
+      use physics_flags, only: include_apar
+
       implicit none
       
       ! Only print the header on the first processor
@@ -566,9 +563,9 @@ contains
       use mp, only: proc0
       use file_utils, only: finish_file_utils, runtype_option_switch, runtype_multibox
       use job_manage, only: time_message
-      use parameters_physics, only: finish_read_parameters_physics
-      use parameters_physics, only: include_parallel_nonlinearity, radial_variation
-      use parameters_numerical, only: finish_read_parameters_numerical
+      use physics_parameters, only: finish_physics_parameters
+      use physics_flags, only: finish_physics_flags, include_parallel_nonlinearity, radial_variation
+      use run_parameters, only: finish_run_parameters
       use zgrid, only: finish_zgrid
       use species, only: finish_species
       use time_advance, only: time_gke, time_parallel_nl
@@ -581,19 +578,19 @@ contains
       use dist_fn, only: finish_dist_fn
       use dist_redistribute, only: finish_redistribute
       use fields, only: finish_fields
-      use arrays_fields, only: time_field_solve
+      use fields, only: time_field_solve
       use diagnostics, only: finish_diagnostics, time_diagnostics
       use response_matrix, only: finish_response_matrix
       use geometry, only: finish_geometry
       use extended_zgrid, only: finish_extended_zgrid
       use vpamu_grids, only: finish_vpamu_grids
-      use grids_kxky, only: finish_grids_kxky
+      use kt_grids, only: finish_kt_grids
       use volume_averages, only: finish_volume_averages
       use multibox, only: finish_multibox, time_multibox
-      use parameters_numerical, only: stream_implicit, drifts_implicit, fields_kxkyz
+      use run_parameters, only: stream_implicit, drifts_implicit, fields_kxkyz
       use implicit_solve, only: time_implicit_advance
-      use parameters_numerical, only: print_extra_info_to_terminal
-      use parameters_numerical, only: fields_kxkyz
+      use run_parameters, only: print_extra_info_to_terminal
+      use run_parameters, only: fields_kxkyz
 
       implicit none
 
@@ -624,14 +621,16 @@ contains
       call finish_init_g
       if (debug) write (*, *) 'stella::finish_stella::finish_vpamu_grids'
       call finish_vpamu_grids
-      if (debug) write (*, *) 'stella::finish_stella::finish_grids_kxky'
-      call finish_grids_kxky
-      if (debug) write (*, *) 'stella::finish_stella::finish_read_parameters_numerical'
-      call finish_read_parameters_numerical
+      if (debug) write (*, *) 'stella::finish_stella::finish_kt_grids'
+      call finish_kt_grids
+      if (debug) write (*, *) 'stella::finish_stella::finish_run_parameters'
+      call finish_run_parameters
       if (debug) write (*, *) 'stella::finish_stella::finish_species'
       call finish_species
-      if (debug) write (*, *) 'stella::finish_stella::finish_parameters_physics'
-      call finish_read_parameters_physics
+      if (debug) write (*, *) 'stella::finish_stella::finish_physics_flags'
+      call finish_physics_flags
+      if (debug) write (*, *) 'stella::finish_stella::finish_physics_parameters'
+      call finish_physics_parameters
       if (debug) write (*, *) 'stella::finish_stella::finish_geometry'
       call finish_geometry
       if (debug) write (*, *) 'stella::finish_stella::finish_zgrid'

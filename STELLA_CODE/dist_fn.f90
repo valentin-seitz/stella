@@ -1,7 +1,5 @@
 module dist_fn
 
-  use debug_flags, only: debug => dist_fn_debug
-  
    implicit none
 
    public :: init_gxyz
@@ -21,18 +19,19 @@ module dist_fn
    logical :: dkp2drinit = .false.
    logical :: vp2init = .false.
 
+   logical :: debug = .false.
+
 contains
 
    subroutine init_gxyz(restarted)
 
-      use arrays_dist_fn, only: gvmu, gold, gnew
+      use dist_fn_arrays, only: gvmu, gold, gnew
       use redistribute, only: gather, scatter
       use dist_redistribute, only: kxkyz2vmu
-      use parameters_physics, only: radial_variation
+      use physics_flags, only: radial_variation
       use stella_layouts, only: vmu_lo, iv_idx, imu_idx, is_idx
       use stella_transforms, only: transform_kx2x_xfirst, transform_x2kx_xfirst
-      use parameters_kxky_grids, only: nalpha, nakx, naky
-      use calculations_kxky, only: multiply_by_rho
+      use kt_grids, only: nalpha, nakx, naky, multiply_by_rho
       use vpamu_grids, only: mu, vpa, vperp2
       use zgrid, only: nzgrid, ntubes
       use species, only: spec, pfac
@@ -92,7 +91,7 @@ contains
    subroutine init_dist_fn
 
       use mp, only: proc0
-      use parameters_physics, only: radial_variation
+      use physics_flags, only: radial_variation
       use stella_layouts, only: init_dist_fn_layouts
       use gyro_averages, only: init_bessel
 
@@ -127,13 +126,14 @@ contains
    !> init_kperp2 allocates and initialises the kperp2 array
    subroutine init_kperp2
 
-      use arrays_dist_fn, only: kperp2
+      use dist_fn_arrays, only: kperp2
       use geometry, only: gds2, gds21, gds22
       use geometry, only: geo_surf, q_as_x
       use zgrid, only: nzgrid
-      use parameters_kxky_grids, only: naky, nakx, nalpha
-      use grids_kxky, only: akx, aky, theta0
-      use grids_kxky, only: zonal_mode
+      use kt_grids, only: naky, nakx, theta0
+      use kt_grids, only: akx, aky
+      use kt_grids, only: zonal_mode
+      use kt_grids, only: nalpha
 
       implicit none
 
@@ -177,13 +177,14 @@ contains
    !> init_dkperp2dr allocates and initialises the dkperp2dr array, needed for radial variation
    subroutine init_dkperp2dr
 
-      use arrays_dist_fn, only: kperp2, dkperp2dr
+      use dist_fn_arrays, only: kperp2, dkperp2dr
       use geometry, only: dgds2dr, dgds21dr, dgds22dr
       use geometry, only: geo_surf, q_as_x
       use zgrid, only: nzgrid
-      use parameters_kxky_grids, only: naky, nakx, nalpha
-      use grids_kxky, only: akx, aky, theta0
-      use grids_kxky, only: zonal_mode
+      use kt_grids, only: naky, nakx, theta0
+      use kt_grids, only: akx, aky
+      use kt_grids, only: zonal_mode
+      use kt_grids, only: nalpha
 
       implicit none
 
@@ -225,8 +226,8 @@ contains
 
    subroutine enforce_single_valued_kperp2
 
-      use arrays_dist_fn, only: kperp2
-      use parameters_kxky_grids, only: naky, nalpha
+      use dist_fn_arrays, only: kperp2
+      use kt_grids, only: naky, nalpha
       use zgrid, only: nzgrid
       use extended_zgrid, only: neigen, nsegments, ikxmod
 
@@ -257,10 +258,10 @@ contains
 
       use stella_layouts, only: kxkyz_lo, vmu_lo
       use zgrid, only: nzgrid, ntubes
-      use parameters_kxky_grids, only: naky, nakx
+      use kt_grids, only: naky, nakx
       use vpamu_grids, only: nvpa, nmu
-      use arrays_dist_fn, only: gnew, gold, g_scratch
-      use arrays_dist_fn, only: gvmu
+      use dist_fn_arrays, only: gnew, gold, g_scratch
+      use dist_fn_arrays, only: gvmu
 
       implicit none
 
@@ -285,7 +286,7 @@ contains
       use zgrid, only: nzgrid
       use vpamu_grids, only: vperp2
       use vpamu_grids, only: nmu, mu
-      use parameters_kxky_grids, only: nalpha
+      use kt_grids, only: nalpha
 
       implicit none
 
@@ -320,7 +321,7 @@ contains
 
    subroutine deallocate_arrays
 
-      use arrays_dist_fn, only: gnew, gold, g_scratch, gvmu
+      use dist_fn_arrays, only: gnew, gold, g_scratch, gvmu
 
       implicit none
 
@@ -333,7 +334,7 @@ contains
 
    subroutine finish_kperp2
 
-      use arrays_dist_fn, only: kperp2, dkperp2dr
+      use dist_fn_arrays, only: kperp2, dkperp2dr
 
       implicit none
 
@@ -360,7 +361,7 @@ contains
    subroutine checksum_field(field, total)
 
       use zgrid, only: nzgrid, ntubes
-      use parameters_kxky_grids, only: naky
+      use kt_grids, only: naky
       use extended_zgrid, only: neigen, nsegments, ikxmod
       use extended_zgrid, only: iz_low, iz_up
 
@@ -397,7 +398,7 @@ contains
       use mp, only: sum_allreduce
       use zgrid, only: nzgrid, ntubes
       use stella_layouts, only: vmu_lo, iv_idx, imu_idx, is_idx
-      use parameters_kxky_grids, only: naky, nakx
+      use kt_grids, only: naky, nakx
       use vpamu_grids, only: maxwell_vpa, maxwell_mu
 
       implicit none

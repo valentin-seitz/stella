@@ -90,8 +90,7 @@ contains
       use file_utils, only: runtype_option_switch, runtype_multibox
       use text_options, only: text_option, get_option_value
       use mp, only: broadcast, proc0
-      use parameters_kxky_grids, only: nx, nakx
-      use grids_kxky, only: boundary_size, copy_size, krook_size
+      use kt_grids, only: nx, nakx, boundary_size, copy_size, krook_size
       use job_manage, only: njobs
       use mp, only: scope, crossdomprocs, subprocs, &
                     send, receive, job
@@ -226,16 +225,13 @@ contains
       use geometry, only: geo_surf, q_as_x, get_x_to_rho
       use geometry, only: drhodpsi, dxdpsi
       use zgrid, only: nzgrid, ntubes
-      use parameters_kxky_grids, only: nakx, naky, nx, x0
-      use grids_kxky, only: akx, aky
-      use grids_kxky, only: x, x_d
-      use grids_kxky, only: rho_clamped, rho_d, rho_d_clamped
-      use parameters_kxky_grids, only: centered_in_rho
-      use parameters_kxky_grids, only: periodic_variation
-      use grids_kxky, only: boundary_size, krook_size
+      use kt_grids, only: nakx, naky, akx, aky, nx, x, x_d, x0
+      use kt_grids, only: centered_in_rho, rho_clamped, rho_d, rho_d_clamped
+      use kt_grids, only: periodic_variation
+      use kt_grids, only: boundary_size, krook_size
       use file_utils, only: runtype_option_switch, runtype_multibox
       use job_manage, only: njobs
-      use parameters_physics, only: rhostar
+      use physics_parameters, only: rhostar
       use mp, only: scope, crossdomprocs, subprocs, &
                     send, receive, job
 
@@ -483,15 +479,14 @@ contains
    subroutine multibox_communicate(gin)
 
       use constants, only: zi
-      use parameters_kxky_grids, only: nakx, naky, naky_all, nx, ny
-      use grids_kxky, only: akx, aky, dx, dy, zonal_mode, boundary_size
-      use parameters_kxky_grids, only: periodic_variation
+      use kt_grids, only: nakx, naky, naky_all, akx, aky, nx, ny, dx, dy, zonal_mode
+      use kt_grids, only: periodic_variation, boundary_size
       use file_utils, only: runtype_option_switch, runtype_multibox
       use file_utils, only: get_unused_unit
-      use arrays_fields, only: phi, phi_corr_QN, shift_state
+      use fields_arrays, only: phi, phi_corr_QN, shift_state
       use job_manage, only: njobs, time_message
-      use parameters_physics, only: radial_variation, prp_shear_enabled, hammett_flow_shear
-      use parameters_physics, only: g_exb, g_exbfac
+      use physics_flags, only: radial_variation, prp_shear_enabled, hammett_flow_shear
+      use physics_parameters, only: g_exb, g_exbfac
       use stella_layouts, only: vmu_lo
       use geometry, only: dl_over_b
       use zgrid, only: nzgrid
@@ -667,9 +662,9 @@ contains
    end subroutine multibox_communicate
 
    subroutine apply_radial_boundary_conditions(gin)
- 
-      use grids_kxky, only: zonal_mode, boundary_size
-      use parameters_kxky_grids, only: periodic_variation, naky
+
+      use kt_grids, only: naky, zonal_mode
+      use kt_grids, only: periodic_variation, boundary_size
       use stella_layouts, only: vmu_lo
       use zgrid, only: nzgrid
 
@@ -734,8 +729,7 @@ contains
 
       use stella_time, only: code_dt
       use stella_layouts, only: vmu_lo
-      use parameters_kxky_grids, only: nakx, naky, periodic_variation
-      use grids_kxky, only: boundary_size
+      use kt_grids, only: nakx, naky, periodic_variation, boundary_size
       use zgrid, only: nzgrid, ntubes
       use mp, only: job, proc0
       use job_manage, only: time_message
@@ -802,13 +796,12 @@ contains
 !!       It is done here because the radial grid may include an extra point
 
    subroutine init_mb_get_phi(has_elec, adiabatic_elec, efac, efacp)
-      use parameters_kxky_grids, only: nakx, naky
-      use grids_kxky, only: boundary_size
+      use kt_grids, only: nakx, naky, boundary_size
       use zgrid, only: nzgrid
-      use parameters_physics, only: radial_variation
+      use physics_flags, only: radial_variation
       use geometry, only: dl_over_b, d_dl_over_b_drho
-      use parameters_numerical, only: ky_solve_radial
-      use arrays_fields, only: phi_solve, phizf_solve, gamtot, dgamtotdr
+      use run_parameters, only: ky_solve_radial
+      use fields_arrays, only: phi_solve, phizf_solve, gamtot, dgamtotdr
       use linear_solve, only: lu_decomposition, lu_inverse
 
       implicit none
@@ -918,12 +911,11 @@ contains
 
    subroutine mb_get_phi(phi, has_elec, adiabatic_elec)
       use constants, only: zi
-      use parameters_kxky_grids, only: nakx, naky
-      use grids_kxky, only: zonal_mode, boundary_size, akx
+      use kt_grids, only: akx, nakx, naky, zonal_mode, boundary_size
       use zgrid, only: nzgrid, ntubes
       use geometry, only: dl_over_b, d_dl_over_b_drho
-      use parameters_numerical, only: ky_solve_radial
-      use arrays_fields, only: gamtot, dgamtotdr, phi_solve, phizf_solve
+      use run_parameters, only: ky_solve_radial
+      use fields_arrays, only: gamtot, dgamtotdr, phi_solve, phizf_solve
       use linear_solve, only: lu_back_substitution
 
       implicit none
@@ -1089,7 +1081,7 @@ contains
    subroutine init_mb_transforms
 
       use stella_layouts, only: init_stella_layouts
-      use parameters_kxky_grids, only: nakx, naky, naky_all
+      use kt_grids, only: nakx, naky, naky_all
 
       implicit none
 
@@ -1121,7 +1113,7 @@ contains
 
    subroutine init_y_fft
 
-      use parameters_kxky_grids, only: naky, naky_all
+      use kt_grids, only: naky, naky_all
       use fft_work, only: init_crfftw, init_rcfftw, FFT_BACKWARD, FFT_FORWARD
 
       implicit none
@@ -1140,7 +1132,7 @@ contains
 
    subroutine transform_kx2x(gkx, gx)
 
-      use parameters_kxky_grids, only: ikx_max
+      use kt_grids, only: ikx_max
 
       implicit none
 
@@ -1161,7 +1153,7 @@ contains
 
    subroutine transform_x2kx(gx, gkx)
 
-      use parameters_kxky_grids, only: ikx_max
+      use kt_grids, only: ikx_max
 
       implicit none
 

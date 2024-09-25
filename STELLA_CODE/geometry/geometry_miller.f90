@@ -980,6 +980,7 @@ contains
 
       real, dimension(:, -nz:), intent(in) :: f
       real, dimension(-nz:), intent(out) :: df
+      real :: zero
       
       df = 0.5 * (f(3, :) - f(1, :)) / local%dr
       
@@ -994,6 +995,7 @@ contains
 
       real, dimension(-nz:), intent(in) :: f
       real, dimension(-nz:), intent(out) :: d2f
+      real :: zero
       
       ! assuming equal grid spacing in theta here
       d2f(-nz + 1:nz - 1) = (f(:nz - 2) - 2.*f(-nz + 1:nz - 1) + f(-nz + 2:)) / delthet(-nz + 1:nz - 1)**2
@@ -1013,6 +1015,7 @@ contains
 
       real, dimension(-nz:), intent(in) :: f
       real, dimension(-nz:), intent(out) :: df
+      real :: zero
       
       ! assuming equal grid spacing in theta here
       df(-nz + 1:nz - 1) = (f(-nz + 2:) - f(:nz - 2)) / (delthet(:nz - 2) + delthet(-nz + 1:))
@@ -1410,6 +1413,7 @@ contains
       real, dimension(-nz:), intent(out) :: integral
 
       integer :: i
+      real :: zero
       
       ! use trapezoidal rule to integrate in theta
       integral(0) = 0.0

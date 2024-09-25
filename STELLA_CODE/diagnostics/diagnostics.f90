@@ -1,9 +1,6 @@
 ! Routines for calculating and writing various physical diagnostics.
 module diagnostics
 
-   ! Debug Flags
-   use debug_flags, only: debug => diagnostics_debug
-
    implicit none
 
    public :: diagnostics_stella, init_diagnostics, finish_diagnostics 
@@ -30,15 +27,15 @@ contains
    subroutine diagnostics_stella(istep)
 
       ! Data 
-      use arrays_fields, only: phi, apar, bpar
-      use arrays_dist_fn, only: gnew 
+      use fields_arrays, only: phi, apar, bpar
+      use dist_fn_arrays, only: gnew 
       use fields, only: advance_fields 
       use constants, only: zi 
 
       ! Flags  
-      use parameters_physics, only: radial_variation
+      use physics_flags, only: radial_variation
       use fields, only: fields_updated    
-      use parameters_diagnostics, only: nc_mult, nwrite
+      use parameters_diagnostics, only: nc_mult, nwrite, debug
 
       ! Write data 
       use diagnostics_omega, only: write_omega_to_netcdf_file, calculate_omega
@@ -127,9 +124,9 @@ contains
    subroutine init_diagnostics(restart, tstart, git_commit, git_date)
 
       use zgrid, only: init_zgrid
-      use grids_kxky, only: init_grids_kxky
-      use parameters_physics, only: read_parameters_physics
-      use parameters_numerical, only: read_parameters_numerical
+      use kt_grids, only: init_kt_grids
+      use physics_parameters, only: init_physics_parameters
+      use run_parameters, only: init_run_parameters
       use species, only: init_species
       use dist_fn, only: init_dist_fn
       use init_g, only: init_init_g
@@ -158,9 +155,9 @@ contains
       ! Should have been taken care off in the <init_stella> subroutine in the <stella> module. 
       ! Nonetheless, make sure that the other routines are intialized.
       call init_zgrid
-      call read_parameters_physics
-      call init_grids_kxky
-      call read_parameters_numerical
+      call init_physics_parameters
+      call init_kt_grids
+      call init_run_parameters
       call init_species
       call init_init_g
       call init_dist_fn
@@ -189,7 +186,7 @@ contains
       use stella_time, only: code_dt, code_time
       use stella_save, only: stella_save_for_restart
       use dist_redistribute, only: kxkyz2vmu
-      use arrays_dist_fn, only: gnew, gvmu
+      use dist_fn_arrays, only: gnew, gvmu
       use diagnostics_omega, only: finish_diagnostics_omega
       use diagnostics_fluxes, only: finish_diagnostics_fluxes 
       use diagnostics_potential, only: finish_diagnostics_potential

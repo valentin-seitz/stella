@@ -152,13 +152,12 @@ contains
    ! Ensure the netCDF file contains all the dimensions and grids, creating them if necessary
    subroutine write_grids(file_id)
 #ifdef NETCDF
-      use parameters_kxky_grids, only: nakx, naky, nalpha, phase_shift_angle
-      use grids_kxky, only: x_d, rho_d, akx, aky, theta0
+      use kt_grids, only: nakx, naky, akx, aky, nalpha, theta0, phase_shift_angle, x_d, rho_d
       use zgrid, only: nzgrid, ntubes, zed
       use vpamu_grids, only: nvpa, vpa, nmu, mu
       use species, only: nspec
-      use parameters_physics, only: radial_variation
-      use parameters_physics, only: rhostar
+      use physics_flags, only: radial_variation
+      use physics_parameters, only: rhostar
       use geometry, only: geo_surf, dxdpsi, q_as_x
       use mp, only: nproc
       use neasyf, only: neasyf_dim, neasyf_write
@@ -283,11 +282,11 @@ contains
       character(line_length), dimension(:), allocatable ::  input_file_array
       integer :: n, unit, status, dim_id, previous_nlines
 
-      ! Dont attempt to write zero-sized arrays
+      ! Don't attempt to write zero-sized arrays
       if (num_input_lines <= 0) return
 
       ! If the existing input file in the output file was longer than
-      ! the current one, blank out the whole thing so that we are not
+      ! the current one, blank out the whole thing so that we're not
       ! left with "extra" bits at the end
       status = nf90_inq_dimid(file_id, "nlines", dim_id)
       if (status == NF90_NOERR) then
@@ -1391,9 +1390,9 @@ contains
       use geometry, only: bmag, gradpar, gbdrift, gbdrift0
       use geometry, only: cvdrift, cvdrift0, gds2, gds21, gds22, grho, jacob
       use geometry, only: drhodpsi, djacdrho, b_dot_grad_z, geo_surf 
-      use parameters_physics, only: beta
-      use arrays_dist_fn, only: kperp2
-      use parameters_kxky_grids, only: jtwist
+      use physics_parameters, only: beta
+      use dist_fn_arrays, only: kperp2
+      use kt_grids, only: jtwist
 #endif
 
       implicit none

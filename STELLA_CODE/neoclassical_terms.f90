@@ -1,6 +1,5 @@
 module neoclassical_terms
 
-  use debug_flags, only: debug => neoclassical_terms_debug
    implicit none
 
    public :: init_neoclassical_terms
@@ -22,14 +21,14 @@ module neoclassical_terms
    real, dimension(:, :), allocatable :: dphineo_dzed, dphineo_drho, dphineo_dalpha
 
    logical :: neoinit = .false.
+   logical :: debug = .false.
 
 contains
 
    subroutine init_neoclassical_terms
 
-      use mp, only: proc0 
       use zgrid, only: nzgrid
-      use parameters_kxky_grids, only: nalpha
+      use kt_grids, only: nalpha
       use vpamu_grids, only: nvpa, nmu
       use species, only: nspec
       use stella_layouts, only: vmu_lo
@@ -46,8 +45,6 @@ contains
       if (neoinit) return
       neoinit = .true.
 
-      debug = debug .and. proc0
-      
       call read_parameters
       if (include_neoclassical_terms) then
          allocate (f_neoclassical(nalpha, -nzgrid:nzgrid, nvpa, nmu, nspec, -nradii / 2:nradii / 2))
@@ -174,7 +171,7 @@ contains
       use vpamu_grids, only: nvpa, nmu
       use vpamu_grids, only: dvpa
       use species, only: nspec
-      use parameters_kxky_grids, only: nalpha
+      use kt_grids, only: nalpha
 
       implicit none
 
@@ -219,7 +216,7 @@ contains
       use vpamu_grids, only: nvpa, nmu
       use species, only: nspec
       use stella_layouts, only: vmu_lo
-      use parameters_kxky_grids, only: nalpha
+      use kt_grids, only: nalpha
 
       implicit none
 
@@ -264,7 +261,7 @@ contains
       use vpamu_grids, only: nvpa, nmu
       use species, only: nspec
       use stella_layouts, only: vmu_lo
-      use parameters_kxky_grids, only: nalpha
+      use kt_grids, only: nalpha
 
       implicit none
 
@@ -312,7 +309,7 @@ contains
 
       use finite_differences, only: fd5pt
       use zgrid, only: nztot, nzgrid, delzed
-      use parameters_kxky_grids, only: nalpha
+      use kt_grids, only: nalpha
 
       implicit none
 
@@ -339,7 +336,7 @@ contains
 
       use finite_differences, only: fd3pt, fd5pt
       use zgrid, only: nzgrid
-      use parameters_kxky_grids, only: nalpha
+      use kt_grids, only: nalpha
 
       implicit none
 
@@ -378,7 +375,7 @@ contains
       use stella_layouts, only: vmu_lo
       use stella_layouts, only: iv_idx, imu_idx, is_idx
       use stella_layouts, only: idx_local, proc_id
-      use parameters_kxky_grids, only: nalpha
+      use kt_grids, only: nalpha
 
       implicit none
 

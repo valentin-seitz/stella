@@ -26,11 +26,10 @@ contains
    subroutine init_volume_averages
 
       use zgrid, only: nzgrid, nztot, delzed
-      use parameters_kxky_grids, only: nalpha, nakx, naky
-      use grids_kxky, only: rho_d_clamped, aky
+      use kt_grids, only: nalpha, aky, nakx, naky, rho_d_clamped
       use geometry, only: geo_surf, drhodpsip
       use geometry, only: geo_surf, jacob, djacdrho, q_as_x, dVolume
-      use parameters_physics, only: full_flux_surface, radial_variation
+      use physics_flags, only: full_flux_surface, radial_variation
 
       implicit none
 
@@ -78,7 +77,7 @@ contains
    subroutine finish_volume_averages
 
       use geometry, only: dVolume
-      use parameters_physics, only: full_flux_surface
+      use physics_flags, only: full_flux_surface
 
       implicit none
 
@@ -96,7 +95,7 @@ contains
    subroutine fieldline_average_real(unavg, avg)
 
       use zgrid, only: nzgrid, ntubes
-      use parameters_kxky_grids, only: nakx, naky
+      use kt_grids, only: nakx, naky
       use geometry, only: dl_over_b
 
       implicit none
@@ -119,7 +118,7 @@ contains
    subroutine fieldline_average_complex(unavg, avg)
 
       use zgrid, only: nzgrid, ntubes
-      use parameters_kxky_grids, only: nakx, naky
+      use kt_grids, only: nakx, naky
       use geometry, only: dl_over_b
 
       implicit none
@@ -145,7 +144,7 @@ contains
    subroutine volume_average(unavg, avg)
 
       use zgrid, only: nzgrid, ntubes
-      use parameters_kxky_grids, only: naky, nakx
+      use kt_grids, only: naky, nakx
       use geometry, only: dl_over_b
 
       implicit none
@@ -175,7 +174,7 @@ contains
    subroutine init_flux_surface_average_ffs
 
       use zgrid, only: nzgrid
-      use parameters_kxky_grids, only: naky
+      use kt_grids, only: naky
       use extended_zgrid, only: periodic
       use geometry, only: jacob
       use stella_transforms, only: transform_alpha2kalpha
@@ -200,7 +199,7 @@ contains
    subroutine flux_surface_average_ffs(no_fsa, fsa)
 
       use zgrid, only: nzgrid, delzed 
-      use parameters_kxky_grids, only: naky, naky_all 
+      use kt_grids, only: naky, naky_all 
 
       implicit none
 
@@ -208,7 +207,7 @@ contains
       complex, intent(out) :: fsa
 
       integer :: iky, ikymod
-      complex :: area
+      real :: area
 
       ! the normalising factor int dy dz Jacobian
       area = 0.0

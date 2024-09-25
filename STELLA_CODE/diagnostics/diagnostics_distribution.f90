@@ -16,9 +16,6 @@ module diagnostics_distribution
 
    private   
 
-   ! Debugging
-   logical :: debug = .false.
-
 contains
 
 !###############################################################################
@@ -31,16 +28,16 @@ contains
    subroutine write_distribution_to_netcdf_file(nout, timer) 
 
       ! Data
-      use arrays_dist_fn, only: gnew, gvmu
-      use arrays_fields, only: phi, bpar
-      use parameters_numerical, only: fphi
+      use dist_fn_arrays, only: gnew, gvmu
+      use fields_arrays, only: phi, bpar
+      use run_parameters, only: fphi
 
       ! Redistribute data from  i[vpa,mu,s] to i[kx,ky,z,s] 
       use redistribute, only: scatter
       use dist_redistribute, only: kxkyz2vmu
 
       ! Dimensions
-      use parameters_kxky_grids, only: nakx, naky
+      use kt_grids, only: nakx, naky
       use vpamu_grids, only: nvpa, nmu 
       use zgrid, only: nztot, ntubes
       use species, only: nspec
@@ -83,6 +80,7 @@ contains
       use parameters_diagnostics, only: write_g2_vs_zmus
       use parameters_diagnostics, only: write_g2_vs_kxkyzs 
       use parameters_diagnostics, only: write_g2_vs_zvpamus 
+      use parameters_diagnostics, only: debug 
       
       ! Routines
       use g_tofrom_h, only: g_to_f, g_to_h
@@ -230,11 +228,11 @@ contains
       use geometry, only: dl_over_b
 
       ! Dimensions
-      use grids_kxky, only: zonal_mode
+      use kt_grids, only: zonal_mode
       use volume_averages, only: mode_fac
       use zgrid, only: nzgrid, ntubes
       use vpamu_grids, only: nvpa, nmu
-      use parameters_kxky_grids, only: nakx, naky
+      use kt_grids, only: nakx, naky
 
       ! Calculations
       use vpamu_grids, only: integrate_vpa, integrate_mu, integrate_vmu
@@ -250,6 +248,7 @@ contains
       use parameters_diagnostics, only: write_g2_vs_zmus
       use parameters_diagnostics, only: write_g2_vs_kxkyzs 
       use parameters_diagnostics, only: write_g2_vs_zvpamus 
+      use parameters_diagnostics, only: debug 
 
       implicit none
 

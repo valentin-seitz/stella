@@ -48,8 +48,6 @@
  
 module diagnostics_fluxes_fluxtube
 
-   use debug_flags, only: debug => diagnostics_fluxes_fluxtube_debug
-  
    implicit none
  
    public :: calculate_fluxes_fluxtube  
@@ -97,15 +95,16 @@ contains
       pflux_vs_kxkyzts, vflux_vs_kxkyzts, qflux_vs_kxkyzts, pflux_vs_kxkys, vflux_vs_kxkys, qflux_vs_kxkys)
 
       ! Flags
-      use parameters_physics, only: include_apar, include_bpar
+      use physics_flags, only: include_apar, include_bpar
       
       ! Input file
       use parameters_diagnostics, only: write_fluxes_kxkyz 
       use parameters_diagnostics, only: write_fluxes_kxky
+      use parameters_diagnostics, only: debug 
 
       ! Data 
-      use arrays_fields, only: phi, apar, bpar
-      use parameters_numerical, only: fphi
+      use fields_arrays, only: phi, apar, bpar
+      use run_parameters, only: fphi, fapar
       
       ! Geometry 
       use geometry, only: bmag, btor, gds2, gds21, gds22, geo_surf 
@@ -117,7 +116,7 @@ contains
       use vpamu_grids, only: vperp2, vpa, mu
       use vpamu_grids, only: nvpa, nmu
       use zgrid, only: nzgrid, ntubes
-      use grids_kxky, only: aky, theta0
+      use kt_grids, only: aky, theta0
       use species, only: spec, nspec
 
       ! Calculations
@@ -375,7 +374,7 @@ contains
       use vpamu_grids, only: integrate_vmu
       use volume_averages, only: mode_fac
       use geometry, only: flux_fac
-      use grids_kxky, only: aky
+      use kt_grids, only: aky
 
       implicit none
       
