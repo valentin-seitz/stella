@@ -54,10 +54,10 @@ contains
    subroutine job_fork(n_ensembles)
 
       use file_utils, only: get_unused_unit, list_name, run_name, init_job_name
-! MAB> -- moved init_error_unit and init_input_unit calls here from file_utils
+! MAB> -- moved open_error_file and write_clean_input_file calls here from file_utils
 ! because they were being called there on all procs when they should be called
 ! only on proc0
-      use file_utils, only: init_error_unit, init_input_unit, list_name
+      use file_utils, only: open_error_file, write_clean_input_file, list_name
 ! <MAB
       use mp, only: job, scope, min_proc
       use mp, only: proc0, nproc
@@ -144,8 +144,8 @@ contains
       ! MAB> moved from file_utils because had to be within proc0,
       ! which is undefined there
       if (proc0) then
-         call init_error_unit(err)
-         call init_input_unit(inp)
+         call open_error_file(err)
+         call write_clean_input_file(inp)
       end if
       ! <MAB
 

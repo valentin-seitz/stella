@@ -16,6 +16,7 @@ module parameters_physics
    !> Public subroutines that are read by the main stella routine.
    public :: read_parameters_physics
    public :: finish_read_parameters_physics
+   public :: set_default_parameters
 
    !> Available physics options: These are standard gyrokinetic terms that
    !> can be turned on/off with the following toggles.
@@ -48,6 +49,9 @@ module parameters_physics
    public :: beta, zeff, tite, nine, rhostar, vnew_ref
    public :: g_exb, g_exbfac, omprimfac 
    
+   ! Only for the input file program
+   public :: irhostar, adiabatic_option
+   
    private
 
    logical :: include_parallel_streaming
@@ -76,35 +80,14 @@ module parameters_physics
    real :: beta, zeff, tite, nine, rhostar, irhostar, vnew_ref
    real :: g_exb, g_exbfac, omprimfac
    logical :: initialised = .false.
+   
+   character(30) :: adiabatic_option
 
    !!> Need to fix for the warning messages
    logical :: debug = .false.
 
 contains
 
-  !======================================================================
-  !====================== READ PHYSICS PARAMETERS =======================
-  !======================================================================
-  subroutine read_parameters_physics
-
-   use mp, only: proc0
-   use text_options, only: text_option, get_option_value
-   use file_utils, only: input_unit, error_unit, input_unit_exist
-
-   implicit none
-   
-   character(30) :: adiabatic_option
-
-   if (initialised) return
-
-   if (proc0) call set_default_parameters
-   if (proc0) call read_input_file
-   call broadcast_parameters
-
-   initialised = .true.
-
- contains 
-   
    !**********************************************************************
    !                        SET DEFAULT PARAMETERS                       !
    !**********************************************************************
@@ -154,6 +137,27 @@ contains
       irhostar = -1.0 
       
    end subroutine set_default_parameters
+
+  !======================================================================
+  !====================== READ PHYSICS PARAMETERS =======================
+  !======================================================================
+  subroutine read_parameters_physics
+
+   use mp, only: proc0
+   use text_options, only: text_option, get_option_value
+   use file_utils, only: input_unit, error_unit, input_unit_exist
+
+   implicit none
+
+   if (initialised) return
+
+   if (proc0) call set_default_parameters
+   if (proc0) call read_input_file
+   call broadcast_parameters
+
+   initialised = .true.
+
+ contains 
 
    !**********************************************************************
    !                         READ INPUT OPTIONS                          !

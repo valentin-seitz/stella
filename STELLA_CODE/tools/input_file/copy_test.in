@@ -1,6 +1,11 @@
 
+! Simple linear example based on JET shot 92174
+
+&physics_flags
+  nonlinear = .true.
+/
 &species_knobs
-  nspec = 2
+  nspec = 2 
 /
 &species_parameters_1
   dens = 1.0
@@ -20,38 +25,6 @@
   type = 'electron'
   z = -1.0
 /
-
-
-&time_advance_knobs
-  explicit_option = 'rk2'
-/
-
-&millergeo_parameters
-  betadbprim = 0.0
-  betaprim = 0.058
-  d2psidr2 = 0.0
-  d2qdr2 = 0.0
-  kappa = 1.5504
-  kapprim = 0.94963
-  nzed_local = 128
-  qinp = 5.0848
-  rgeo = 3.1191
-  rhoc = 0.97427
-  rmaj = 3.134
-  shat = 3.3594
-  shift = -0.34508
-  tri = 0.26253
-  triprim = 0.7368
-/
-
-
-
-&physics_flags
-  nonlinear = .true.
-/
-&parameters_physics
-  beta = 4.0
-/
 &kt_grids_box_parameters
   nx = 6
   ny = 9
@@ -63,21 +36,21 @@
   nzed = 24
 /
 &vpamu_grids_parameters
-  nmu = 2
-  nvgrid = 3
+  nmu = 2 
+  nvgrid = 3  
 /
 &knobs
-  delt = 0.01
+  delt = 0.01  
   nstep = 10
-  print_extra_info_to_terminal = .false.
+  print_extra_info_to_terminal = .false.  
 /
 &stella_diagnostics_knobs
   nsave = 10
-  nwrite = 1
+  nwrite = 1  
 /
-&init_g_knobs
+&init_g_knobs 
   ginit_option = 'default'
-  phiinit = 0.01
+  phiinit = 0.01  
   width0 = 1.0
 /
 &dissipation
@@ -89,4 +62,23 @@
 &kt_grids_knobs
   grid_option = 'box'
 /
-
+&time_advance_knobs
+  explicit_option = 'rk2'
+/
+&millergeo_parameters
+  betadbprim = 0.0
+  betaprim = 0.058
+  d2psidr2 = 0.0
+  d2qdr2 = 0.0
+  kappa = 1.5504
+  kapprim = 0.94963
+  nzed_local = 128
+  qinp = 5.0848
+  rgeo = 3.1191
+  rhoc = 0.97427 
+  rmaj = 3.134
+  shat = 3.3594
+  shift = -0.34508
+  tri = 0.26253
+  triprim = 0.7368
+/ 

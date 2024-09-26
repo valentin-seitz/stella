@@ -17,6 +17,7 @@ OBJ := $(BUILD_DIR)/objects
 MOD := $(BUILD_DIR)/modules
 SRC := $(PROJECT_DIR)/STELLA_CODE/tools/input_file
 UTILS := $(PROJECT_DIR)/EXTERNALS/utils
+PARAMETERS := $(PROJECT_DIR)/STELLA_CODE/parameters
 GIT_VERSION_DIR := $(PROJECT_DIR)/EXTERNALS/git_version/src
 
 export VPATH := $(VPATH):$(UTILS):$(GIT_VERSION_DIR):$(MOD):$(OBJ):$(FPP):
@@ -41,13 +42,43 @@ include $(COMPILATION_DIR)/Makefile.compilerflags
 
 # Objects needed to compile the program 
 objects = $(OBJ)/update_input_file.o
-externals = $(OBJ)/file_utils.o $(OBJ)/command_line.o $(OBJ)/git_version.o $(OBJ)/git_version_impl.o
+externals = \
+    $(OBJ)/parameters_physics.o \
+    $(OBJ)/debug_flags.o \
+    $(OBJ)/file_utils.o \
+    $(OBJ)/command_line.o \
+    $(OBJ)/constants.o \
+    $(OBJ)/text_options.o \
+    $(OBJ)/mp.o \
+    $(OBJ)/git_version.o \
+    $(OBJ)/git_version_impl.o
 
 # Dependencies
-$(OBJ)/update_input_file.o: $(OBJ)/file_utils.o $(OBJ)/git_version.o $(OBJ)/git_version_impl.o
-$(OBJ)/file_utils.o: $(OBJ)/command_line.o $(FPP)/file_utils.f90
+$(OBJ)/update_input_file.o: \
+    $(OBJ)/file_utils.o \
+    $(OBJ)/git_version.o \
+    $(OBJ)/git_version_impl.o \
+    $(OBJ)/parameters_physics.o
+$(OBJ)/parameters_physics.o:  \
+    $(OBJ)/debug_flags.o \
+	 $(OBJ)/file_utils.o \
+	 $(OBJ)/mp.o \
+	 $(OBJ)/text_options.o 
+$(OBJ)/debug_flags.o:\
+	 $(OBJ)/file_utils.o \
+	 $(OBJ)/mp.o 
+$(OBJ)/file_utils.o: \
+    $(OBJ)/command_line.o \
+    $(FPP)/file_utils.f90
+$(OBJ)/mp.o: \
+	 $(OBJ)/constants.o \
+	 $(OBJ)/file_utils.o 
+$(OBJ_DIR)/text_options.o: \
+	 $(OBJ_DIR)/mp.o 
 $(OBJ)/command_line.o: 
+$(OBJ_DIR)/constants.o: 
 $(OBJ)/git_version.o:
+
 
 # Libraries
 # Here $LIBSTELL_LIB points to utils/mini_libstell which contains a stellarator resource library
@@ -78,6 +109,9 @@ $(OBJ)/%.o: $(UTILS)/%.f90 | $(OBJ)
 	@echo "   (update-input-file) *.f90 to *.o: $(notdir $<)" 
 	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_INPUTFILE) -o $@ -c $< 
 $(OBJ)/%.o: $(UTILS)/%.f90 | $(OBJ)
+	@echo "   (update-input-file) *.f90 to *.o: $(notdir $<)" 
+	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_INPUTFILE) -o $@ -c $< 
+$(OBJ)/%.o: $(PARAMETERS)/%.f90 | $(OBJ)
 	@echo "   (update-input-file) *.f90 to *.o: $(notdir $<)" 
 	@$(FC) $(F90FLAGS) $(INC_FLAGS) $(MOD_FLAGS_INPUTFILE) -o $@ -c $< 
 $(OBJ)/%.o: $(FPP)/%.f90 | $(OBJ)
