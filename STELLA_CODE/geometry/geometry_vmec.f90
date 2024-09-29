@@ -119,22 +119,9 @@ contains
       ! the geometry arrays in VMEC, by using a smaller step dzeta.
       if ((zed_equal_arc) .and. (zgrid_refinement_factor==-1)) then
          zgrid_refinement_factor = 4
-      else
+      else if (zgrid_refinement_factor==-1) then
          zgrid_refinement_factor = 1
       end if
-
-      write(*,*) 'alpha0', alpha0
-      write(*,*) 'zeta_center', zeta_center
-      write(*,*) 'rectangular_cross_section', rectangular_cross_section
-      write(*,*) 'nfield_periods', nfield_periods
-      write(*,*) 'torflux', torflux
-      write(*,*) 'zgrid_refinement_factor', zgrid_refinement_factor
-      write(*,*) 'surface_option', surface_option
-      write(*,*) 'radial_coordinate', radial_coordinate
-      write(*,*) 'verbose', verbose
-      write(*,*) 'vmec_filename', vmec_filename
-      write(*,*) 'n_tolerated_test_arrays_inconsistencies', n_tolerated_test_arrays_inconsistencies
-      write(*,*) 'zgrid_scalefac', zgrid_scalefac 
 
       ! Read the text option for <radial_coordinate> 
       ierr = error_unit()
