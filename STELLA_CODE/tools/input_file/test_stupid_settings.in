@@ -1,4 +1,0 @@
-
-&time_advance_knobs
-  explicit_option = 'rk2'
-/

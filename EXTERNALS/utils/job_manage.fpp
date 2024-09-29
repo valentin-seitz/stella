@@ -51,6 +51,7 @@ contains
 
    end subroutine time_message
 
+   ! If we give a list of input files, fork the jobs
    subroutine job_fork(n_ensembles)
 
       use file_utils, only: get_unused_unit, list_name, run_name, init_job_name
@@ -71,7 +72,6 @@ contains
       character(len=500), dimension(:), allocatable :: job_list
 
       integer :: list_unit, ierr
-      logical :: err = .true., inp = .true.
 
       ! open file containing list of input files to run and read total
       ! number of input files from first line
@@ -135,19 +135,14 @@ contains
       allocate (group0(0:njobs - 1))
 
       call init_job_topology(njobs, group0, ierr)
-      ! TT> brought up one line [call scope(subprocs)] from file_utils.fpp
-      !     to init_jobs
-      !    call init_job_name (njobs, group0, job_list)
-      call init_job_name(job_list(job))
-      ! <TT
 
-      ! MAB> moved from file_utils because had to be within proc0,
-      ! which is undefined there
+      call init_job_name(job_list(job))
+
+      ! Moved from file_utils because had to be within proc0, which is undefined there
       if (proc0) then
-         call open_error_file(err)
-         call write_clean_input_file(inp)
-      end if
-      ! <MAB
+         call open_error_file()
+         call write_clean_input_file()
+      end if 
 
       if (nproc > 1 .and. proc0) &
            & write (*, *) 'Job ', job, ' is called ', trim(run_name),&

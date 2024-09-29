@@ -141,15 +141,15 @@ contains
       ! If the input file name ends in ".in"
       else
       
-         ! Save the name of the input file without it's extension ".in" as <run_name>.
+         ! Save the name of the input file without it's extension ".in" as <run_name>. 
          call get_run_name()
          
-         ! Open the error file <run_name>.error and set its unit number to <error_unit_no>.
+         ! Open the error file <run_name>.error and set its unit number to <error_unit_no>. 
          call open_error_file()
          
          ! Read the user specified input file, and clean it up by removing
          ! comments from the file and by reading in nested input files.
-         ! stella will only use the cleaned up file, not the file from the user.
+         ! stella will only use the cleaned up file, not the file from the user. 
          call write_clean_input_file()
          
       end if
@@ -162,33 +162,43 @@ contains
 !###############################################################################
 
    !============================================================================
-   !==================== Name of the input file (run_name) =====================
+   !==================== Name of the input file (arun_name) ====================
    !============================================================================ 
    subroutine get_name_input_file(list)
       ! This determines the type of run, by reading the name of the input file
       ! on the command line into [[arun_name]], and then looking at the extension. If
       ! the extension is .list, then [[list]] is set to .true.).
 
-      use command_line, only: cl_getarg, cl_iargc
+      use command_line, only: cl_getarg, cl_iargc 
 
       implicit none
       logical, intent(out) :: list
       integer :: l, ierr
 
+      ! Initialize
       list = .false.
-      ! get argument from command line and put in arun_name
+      
+      ! Get the first argument from the command line and put it in <arun_name>
       if (cl_iargc() /= 0) then
          call cl_getarg(1, arun_name, l, ierr)
          if (ierr /= 0) then
             print *, "Error getting run name."
          end if
       end if
+      
+      ! Exit the program if no input file has been specified.
+      if (l < 2 .or. l > 500) then 
+         write(*,*) ' '; write(*,*) 'ERROR: Please specify an input file. For example:'; 
+         write(*,*) '       >> mpirun -np 2 stella input.in '; write(*,*) ' '; stop
+      end if
 
+      ! Check if <arun_name> end in ".list"
       if (l > 5 .and. arun_name(l - 4:l) == ".list") then
          list = .true.
          runtype_option_switch = runtype_list
       end if
 
+      ! Check if <arun_name> end in ".multi"
       if (l > 6 .and. arun_name(l - 5:l) == ".multi") then
          list = .true.
          runtype_option_switch = runtype_multibox
@@ -196,12 +206,11 @@ contains
 
    end subroutine get_name_input_file
 
+   ! Remove the extension from <arun_name> and put it in <run_name>
    subroutine get_run_name
-      ! This is called for a non [[Trinity]] or [[list]] run -
-      ! it checks that the input file name ends in ".in", chops
-      ! the extension off and stores it in [[arun_name]]. It
-      ! also assigns the pointer [[run_name]] to [[arun_name]].
+   
       implicit none
+      
       integer :: l
 
       l = len_trim(arun_name)
@@ -212,11 +221,18 @@ contains
 
    end subroutine get_run_name
 
+   ! Define the <run_name> or <job_name> on all processors.
+   ! If a list of input files is used, the jobs are spread out over the
+   ! processors, and they can have different values of <job_name>.
    subroutine init_job_name(jobname)
+   
       implicit none
+      
       character(len=500), intent(in) :: jobname
+      
       job_name = trim(jobname)
       run_name => job_name
+      
    end subroutine init_job_name
    
 !###############################################################################
@@ -523,10 +539,12 @@ contains
    function input_unit(nml)
       implicit none
       character(*), intent(in) :: nml
+      character(len(nml)) :: nml_upper
       integer :: input_unit, iostat
       character(500) :: line
       intrinsic adjustl, trim
       input_unit = input_unit_no
+      nml_upper = str_to_upper_case(nml)
       if (input_unit_no > 0) then
          rewind (unit=input_unit_no)
          do
@@ -536,6 +554,10 @@ contains
                exit
             end if
             if (trim(adjustl(line)) == "&"//nml) then
+               backspace (unit=input_unit_no)
+               return
+            end if
+            if (trim(adjustl(line)) == "&"//nml_upper) then
                backspace (unit=input_unit_no)
                return
             end if
@@ -550,10 +572,12 @@ contains
       character(*), intent(in) :: nml
       logical, intent(out) :: exist
       integer :: input_unit_exist, iostat
+      character(len(nml)) :: nml_upper
       character(500) :: line
       intrinsic adjustl, trim
       
       input_unit_exist = input_unit_no
+      nml_upper = str_to_upper_case(nml)
       exist = .true.
       if (input_unit_no > 0) then
          rewind (unit=input_unit_no)
@@ -567,10 +591,32 @@ contains
                backspace (unit=input_unit_no)
                return
             end if
+            if (trim(adjustl(line)) == "&"//nml_upper) then
+               backspace (unit=input_unit_no)
+               return
+            end if
          end do
       end if
       exist = .false.
    end function input_unit_exist
+   
+   function str_to_upper_case(str) result(str_upper)
+
+      implicit none
+
+      character(*), intent(in) :: str
+      character(len(str)) :: str_upper
+      integer :: ic, i
+      character(26), parameter :: cap = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_'
+      character(26), parameter :: low = 'abcdefghijklmnopqrstuvwxyz_'
+
+      str_upper = str
+      do i = 1, len_trim(str)
+        ic = index(low, str(i:i))
+        if (ic > 0) str_upper(i:i) = cap(ic:ic)
+      end do
+
+   end function str_to_upper_case
 
    function error_unit()
       implicit none
