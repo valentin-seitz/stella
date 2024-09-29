@@ -89,6 +89,9 @@ contains
       ! Mandatory argument to use <init_file_utils> even though we do not use it
       logical :: list 
       
+      ! For <species_parameters_index> we need <nspec>
+      integer :: nspec_local, is
+      
       !----------------------------------------------------------------------------
       
       if (debug) write(*, *) 'update_input_file::start'
@@ -117,8 +120,10 @@ contains
       call write_parameters_physics(input_with_defaults_unit_number, .true.)
       call write_vpamu_grids_parameters(input_with_defaults_unit_number, .true.)
       call write_zgrid_parameters(input_with_defaults_unit_number, .true.)
-      call write_species_knobs(input_with_defaults_unit_number, .true.)
-      call write_species_parameters(input_with_defaults_unit_number, .true.)
+      call write_species_knobs(input_with_defaults_unit_number, .true., nspec_local)
+      do is = 1, nspec_local
+         call write_species_parameters(input_with_defaults_unit_number, .true., is)
+      end do
       call write_kxky_grids(input_with_defaults_unit_number, .true.)
       call write_kxky_grids_range(input_with_defaults_unit_number, .true.)
       call write_kxky_grids_box(input_with_defaults_unit_number, .true.)
@@ -855,6 +860,7 @@ contains
       use vmec_geometry, only: alpha0, zeta_center, rectangular_cross_section, nfield_periods
       use vmec_geometry, only: torflux, zgrid_refinement_factor, surface_option, radial_coordinate
       use vmec_geometry, only: verbose, vmec_filename, n_tolerated_test_arrays_inconsistencies
+      use vmec_geometry, only: zgrid_scalefac ! Backwards compatibility for old stella code
    
       implicit none
       
@@ -870,7 +876,11 @@ contains
       ! Namelist
       namelist /vmec_parameters/ alpha0, zeta_center, rectangular_cross_section, nfield_periods, &
          torflux, zgrid_refinement_factor, surface_option, radial_coordinate, &
-         verbose, vmec_filename, n_tolerated_test_arrays_inconsistencies
+         verbose, vmec_filename, n_tolerated_test_arrays_inconsistencies, &
+         ! Backwards compatibility for old stella code, when we change the name of
+         ! <vmec_parameters> we can get rid of this parameter, now old input files
+         ! will break if we remove this
+         zgrid_scalefac
       
       !------------------------------------------------------------------------- 
       
@@ -1479,7 +1489,7 @@ contains
       
       ! Namelist
       namelist /zgrid_parameters/ nzed, nperiod, ntubes, shat_zero, &
-         boundary_option, zed_equal_arc, grad_x_grad_y_zero, dkx_over_dky
+         boundary_option, zed_equal_arc, grad_x_grad_y_zero, dkx_over_dky 
       
       !------------------------------------------------------------------------- 
       
@@ -1550,7 +1560,7 @@ contains
    !                          <species_knobs> namelist                          
    !----------------------------------------------------------------------------
 
-   subroutine write_species_knobs(unit_number, write_input_file)
+   subroutine write_species_knobs(unit_number, write_input_file, nspec_local)
 
       use file_utils, only: input_unit_exist
       use species, only: set_defaults_for_species_knobs => set_default_parameters
@@ -1563,6 +1573,9 @@ contains
       ! <unit_number> will point to <run_name>_with_defaults.in or default_stella_input.in
       integer, intent(in) :: unit_number
       logical, intent(in) :: write_input_file 
+      
+      ! For <species_parameters_index> we need <nspec>
+      integer, intent(out) :: nspec_local
       
       ! Local parameters for this subroutine
       integer :: unit_number_temp
@@ -1588,6 +1601,9 @@ contains
       ! Write the namelist to <run_name>_with_defaults.in or default_stella_input.in
       write(unit=unit_number, nml=species_knobs)
       
+      ! Save <nspec>
+      nspec_local = nspec
+      
    end subroutine write_species_knobs
    
 
@@ -1595,7 +1611,7 @@ contains
    !                       <species_parameters> namelist                        
    !----------------------------------------------------------------------------
 
-   subroutine write_species_parameters(unit_number, write_input_file)
+   subroutine write_species_parameters(unit_number, write_input_file, index)
 
       use file_utils, only: input_unit_exist
       use species, only: set_defaults_for_species_parameters => set_default_parameters_per_specie
@@ -1607,6 +1623,7 @@ contains
       ! <unit_number> will point to <run_name>_with_defaults.in or default_stella_input.in
       integer, intent(in) :: unit_number
       logical, intent(in) :: write_input_file 
+      integer, intent(in) :: index
       
       ! Local parameters for this subroutine
       integer :: unit_number_temp
@@ -1617,6 +1634,12 @@ contains
          tprim, fprim, d2ndr2, d2Tdr2, bess_fac, type
       namelist /species_parameters_2/ z, mass, dens, temp, &
          tprim, fprim, d2ndr2, d2Tdr2, bess_fac, type
+      namelist /species_parameters_3/ z, mass, dens, temp, &
+         tprim, fprim, d2ndr2, d2Tdr2, bess_fac, type
+      namelist /species_parameters_4/ z, mass, dens, temp, &
+         tprim, fprim, d2ndr2, d2Tdr2, bess_fac, type
+      namelist /species_parameters_5/ z, mass, dens, temp, &
+         tprim, fprim, d2ndr2, d2Tdr2, bess_fac, type
       
       !------------------------------------------------------------------------- 
       
@@ -1624,18 +1647,45 @@ contains
    
       ! Read in the default parameters set in stella 
       call set_defaults_for_species_parameters()
-      
+   
       ! Read the user-specified input parameters in <run_name>.in
       if (write_input_file) then
-         unit_number_temp = input_unit_exist("species_parameters_1", new_nml_exist) 
-         if (new_nml_exist) read (unit=unit_number_temp, nml=species_parameters_1) 
-         unit_number_temp = input_unit_exist("species_parameters_2", new_nml_exist) 
-         if (new_nml_exist) read (unit=unit_number_temp, nml=species_parameters_2) 
-      end if  
-
+         if (index==1) then 
+            unit_number_temp = input_unit_exist("species_parameters_1", new_nml_exist)  
+            if (new_nml_exist) read (unit=unit_number_temp, nml=species_parameters_1)
+         end if
+         if (index==2) then
+            unit_number_temp = input_unit_exist("species_parameters_2", new_nml_exist)  
+            if (new_nml_exist) read (unit=unit_number_temp, nml=species_parameters_2)
+         end if
+         if (index==3) then
+            unit_number_temp = input_unit_exist("species_parameters_3", new_nml_exist)  
+            if (new_nml_exist) read (unit=unit_number_temp, nml=species_parameters_3)
+         end if
+         if (index==4) then
+            unit_number_temp = input_unit_exist("species_parameters_4", new_nml_exist)  
+            if (new_nml_exist) read (unit=unit_number_temp, nml=species_parameters_4)
+         end if
+         if (index==5) then
+            unit_number_temp = input_unit_exist("species_parameters_5", new_nml_exist)  
+            if (new_nml_exist) read (unit=unit_number_temp, nml=species_parameters_5)
+         end if
+         if (index>5) then 
+            write(*,*) ' '
+            write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ABORT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!' 
+            write(*,*) 'More than 5 species has not been implemented in update_input_file.f90.' 
+            write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ABORT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!' 
+            write(*,*) ' '; 
+          stop 
+         end if  
+      end if 
+      
       ! Write the namelist to <run_name>_with_defaults.in or default_stella_input.in
-      write(unit=unit_number, nml=species_parameters_1)
-      write(unit=unit_number, nml=species_parameters_2)
+      if (index==1) write(unit=unit_number, nml=species_parameters_1)
+      if (index==2) write(unit=unit_number, nml=species_parameters_2)
+      if (index==3) write(unit=unit_number, nml=species_parameters_3)
+      if (index==4) write(unit=unit_number, nml=species_parameters_4)
+      if (index==5) write(unit=unit_number, nml=species_parameters_5)
       
    end subroutine write_species_parameters
    
@@ -2177,7 +2227,7 @@ contains
       
       ! Local parameters
       character(23) :: input_file_name = 'default_stella_input.in'
-      integer :: unit_number
+      integer :: unit_number, dummy
       
       !-------------------------------------------------------------------------
       
@@ -2226,8 +2276,9 @@ contains
       write(unit_number, "(A)") "   "
       call write_vpamu_grids_parameters(unit_number, .false.)
       call write_zgrid_parameters(unit_number, .false.)
-      call write_species_knobs(unit_number, .false.)
-      call write_species_parameters(unit_number, .false.)
+      call write_species_knobs(unit_number, .false., dummy)
+      call write_species_parameters(unit_number, .false.,1)
+      call write_species_parameters(unit_number, .false.,2)
       call write_kxky_grids(unit_number, .false.)
       call write_kxky_grids_range(unit_number, .false.)
       call write_kxky_grids_box(unit_number, .false.)

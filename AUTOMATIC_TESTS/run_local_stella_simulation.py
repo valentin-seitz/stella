@@ -411,6 +411,6 @@ def compare_geometry_in_netcdf_files(run_data, error=False):
                     compare_local_array_with_expected_array(local_netcdf[key], expected_netcdf[key], name=key)  
                     
         # Print "AssertionError: <error message>" if an error was encountered
-        assert (not error), f'Some Miller geometry arrays in the netcdf file did not match the previous run.'  
+        assert (not error), f'Some geometry arrays in the netcdf file did not match the previous run.'  
         
     return error

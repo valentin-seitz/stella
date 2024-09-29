@@ -50,6 +50,7 @@ module vmec_geometry
    public :: alpha0, zeta_center, rectangular_cross_section, nfield_periods
    public :: torflux, zgrid_refinement_factor, surface_option, radial_coordinate
    public :: verbose, vmec_filename, n_tolerated_test_arrays_inconsistencies
+   public :: zgrid_scalefac ! Remove this
 
    private
    
@@ -112,6 +113,28 @@ contains
       ! Read the <vmec_parameters> namelist in the input file 
       in_file = input_unit_exist("vmec_parameters", exist)
       if (exist) read (unit=in_file, nml=vmec_parameters)
+      
+      ! If we use the normalized arc-length as the parallel coordinate, 
+      ! then use <zgrid_refinement_factor> more z-points to calculate
+      ! the geometry arrays in VMEC, by using a smaller step dzeta.
+      if ((zed_equal_arc) .and. (zgrid_refinement_factor==-1)) then
+         zgrid_refinement_factor = 4
+      else
+         zgrid_refinement_factor = 1
+      end if
+
+      write(*,*) 'alpha0', alpha0
+      write(*,*) 'zeta_center', zeta_center
+      write(*,*) 'rectangular_cross_section', rectangular_cross_section
+      write(*,*) 'nfield_periods', nfield_periods
+      write(*,*) 'torflux', torflux
+      write(*,*) 'zgrid_refinement_factor', zgrid_refinement_factor
+      write(*,*) 'surface_option', surface_option
+      write(*,*) 'radial_coordinate', radial_coordinate
+      write(*,*) 'verbose', verbose
+      write(*,*) 'vmec_filename', vmec_filename
+      write(*,*) 'n_tolerated_test_arrays_inconsistencies', n_tolerated_test_arrays_inconsistencies
+      write(*,*) 'zgrid_scalefac', zgrid_scalefac 
 
       ! Read the text option for <radial_coordinate> 
       ierr = error_unit()
@@ -143,8 +166,6 @@ contains
     !=========================================================================  
     subroutine init_vmec_defaults
 
-       use zgrid, only: zed_equal_arc
-
        implicit none
 
        !----------------------------------------------------------------------- 
@@ -158,17 +179,8 @@ contains
        surface_option = 0
        verbose = .true.
        n_tolerated_test_arrays_inconsistencies = 0
-       zgrid_refinement_factor = 1
+       zgrid_refinement_factor = -1
        radial_coordinate = 'sgn(psi_t) psi_t'
-
-       ! If we use the normalized arc-length as the parallel coordinate, 
-       ! then use <zgrid_refinement_factor> more z-points to calculate
-       ! the geometry arrays in VMEC, by using a smaller step dzeta.
-       if (zed_equal_arc) then
-          zgrid_refinement_factor = 4
-       else
-          zgrid_refinement_factor = 1
-       end if
 
        ! For alpha=0 the perpendicular cross-section is rectangular at zeta_center=0
        ! For alpha!=0 it is not in the original stella, since alpha = theta_p - iota*zeta

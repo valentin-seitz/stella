@@ -117,11 +117,6 @@ contains
       logical, intent(out) :: restarted
       integer, intent(out) :: istep0
       integer :: istatus
-      
-      write(*,*) 'and now '
-      write(*,*) 'ginit_option ', ginit_option
-      write(*,*) 'width0 ', width0
-      write(*,*) 'phiinit ', phiinit
 
       restarted = .false.
       istep0 = 0
@@ -193,10 +188,6 @@ contains
       
       in_file = input_unit_exist("init_g_knobs", exist)
       if (exist) read (unit=in_file, nml=init_g_knobs)
-      
-      write(*,*) 'ginit_option ', ginit_option
-      write(*,*) 'width0 ', width0
-      write(*,*) 'phiinit ', phiinit
 
       ierr = error_unit()
       call get_option_value &
