@@ -1,4 +1,4 @@
-
+!In exb_nonlinear advance, we calculate contributions to the Poisson bracket from different fields separately.
 
 module time_advance
 
@@ -6,7 +6,12 @@ module time_advance
    public :: advance_stella
    public :: time_gke, time_parallel_nl
    public :: checksum
-
+   public :: advance_ExB_nonlinearity
+   public :: advance_wdrifty_explicit
+   public :: advance_wdriftx_explicit
+   public :: advance_wstar_explicit
+   public :: solve_gke
+   
    private
 
    interface get_dgdy
@@ -822,6 +827,7 @@ contains
       use fields_arrays, only: phi, apar, bpar
       use fields_arrays, only: phi_old, apar_old
       use fields, only: advance_fields, fields_updated
+      use physics_flags, only: zf_freeze
       use run_parameters, only: fully_explicit, fully_implicit
       use multibox, only: RK_step
       use sources, only: include_qn_source, update_quasineutrality_source
@@ -829,6 +835,10 @@ contains
       use sources, only: source_option_krook
       use sources, only: update_tcorr_krook, project_out_zero
       use mp, only: proc0, broadcast
+      use stella_layouts, only: vmu_lo
+      use zgrid, only: nzgrid, ntubes
+      use kt_grids, only: nakx, naky
+      
 
       implicit none
 
@@ -838,7 +848,9 @@ contains
 
       logical :: restart_time_step, time_advance_successful
       integer :: count_restarts
-
+      complex, dimension(:,:,:), allocatable :: phi_static
+      complex, dimension(:,:,:,:,:), allocatable :: g_static
+      
       !> unless running in multibox mode, no need to worry about
       !> mb_communicate calls as the subroutine is immediately exited
       !> if not in multibox mode.
@@ -846,26 +858,10 @@ contains
          if (debug) write (*, *) 'time_advance::multibox'
          call mb_communicate(gnew)
       end if
-
-         kxnum = size(phi(1,:,1,1))
-         phi(1, :, :, :) = 0.
-         idx = 2
-         do idxd = 1, kxnum / 2
-             if (idx > kxnum/2 + 1) exit
-             phi(1, idx, :, :) = 100 * cmplx(0., 1.)/(idx-1)**3
-             idx = idx + 2
-         end do
-         !Apply reality condition (i.e. -kx mode is conjugate of +kx mode)       
-                                                                                                                                              
-         do idx = kxnum / 2 + 2, kxnum
-             phi(1, idx, :, :) = conjg(phi(1, kxnum - idx + 2, :, :))
-         end do
-          
       !> save value of phi & apar
       !> for use in diagnostics (to obtain frequency)
       phi_old = phi
       apar_old = apar
-
 
       ! Flag which is set to true once we've taken a step without needing to
       ! reset dt (which can be done by the nonlinear term(s))
@@ -884,7 +880,7 @@ contains
 
          ! Ensure fields are consistent with gnew.
          call advance_fields(gnew, phi, apar, bpar, dist='g')
-
+        
          ! Keep track whether any routine wants to modify the time step
          restart_time_step = .false.
 
@@ -939,14 +935,11 @@ contains
          call project_out_zero(gold, gnew)
          fields_updated = .false.
       end if
-
+      
       gold = gnew
 
-      !> Ensure fields are updated so that omega calculation is correct.
+      !> Ensure fields are updated so that omega calculation is correct
       call advance_fields(gnew, phi, apar, bpar, dist='g')
-
-      phi(1,:,:,:) = phi_old(1,:,:,:)
-
       !update the delay parameters for the Krook operator
       if (source_option_switch == source_option_krook) call update_tcorr_krook(gnew)
       if (include_qn_source) call update_quasineutrality_source
@@ -1233,7 +1226,7 @@ contains
       use physics_flags, only: full_flux_surface, radial_variation
       use physics_parameters, only: g_exb
       use zgrid, only: nzgrid, ntubes
-      use kt_grids, only: ikx_max, ny, naky_all
+      use kt_grids, only: ikx_max, ny, naky_all, naky, nakx
       use kt_grids, only: swap_kxky_back
       use run_parameters, only: stream_implicit, mirror_implicit, drifts_implicit
       use dissipation, only: include_collisions, advance_collisions_explicit, collisions_implicit
@@ -1261,6 +1254,12 @@ contains
 
       integer :: iz, it, ivmu
 
+      complex, dimension(:,:,:,:,:), allocatable :: Axhk, phixhk, bparxhk
+
+      allocate(Axhk(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
+      allocate(phixhk(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
+      allocate(bparxhk(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
+      
       rhs_ky = 0.
 
       !> if full_flux_surface = .true., then initially obtain the RHS of the GKE in alpha-space;
@@ -1303,7 +1302,7 @@ contains
       !> do this first, as the CFL condition may require a change in time step
       !> and thus recomputation of mirror, wdrift, wstar, and parstream
       if (debug) write (*, *) 'time_advance::advance_stella::advance_explicit::solve_gke::advance_ExB_nonlinearity'
-      if (nonlinear) call advance_ExB_nonlinearity(pdf, rhs, restart_time_step, istep)
+      if (nonlinear) call advance_ExB_nonlinearity(pdf, rhs, restart_time_step, istep, Axhk, phixhk, bparxhk)
 
       !> include contribution from the parallel nonlinearity (aka turbulent acceleration)
       if (include_parallel_nonlinearity .and. .not. restart_time_step) &
@@ -1643,14 +1642,14 @@ contains
 
    end subroutine advance_wdriftx_explicit
 
-   subroutine advance_ExB_nonlinearity(g, gout, restart_time_step, istep)
+   subroutine advance_ExB_nonlinearity(g, gout, restart_time_step, istep, Axhk, phixhk, bparxhk)
 
       use mp, only: proc0, min_allreduce
       use mp, only: scope, allprocs, subprocs
       use stella_layouts, only: vmu_lo, imu_idx, is_idx
       use job_manage, only: time_message
       use gyro_averages, only: gyro_average
-      use fields, only: get_dchidx, get_dchidy,get_dphidx,get_dphidy,get_dAdx,get_dAdy
+      use fields, only: get_dchidx, get_dchidy,get_dfdx,get_dfdy
       use fields_arrays, only: phi, apar, bpar, shift_state
       use fields_arrays, only: phi_corr_QN, phi_corr_GA
 !   use fields_arrays, only: apar_corr_QN, apar_corr_GA
@@ -1675,15 +1674,16 @@ contains
 
       complex, dimension(:, :, -nzgrid:, :, vmu_lo%llim_proc:), intent(in out) :: g
       complex, dimension(:, :, -nzgrid:, :, vmu_lo%llim_proc:), intent(in out) :: gout
+      complex, dimension(:, :, -nzgrid:, :, vmu_lo%llim_proc:), intent(in out) :: Axhk, phixhk,bparxhk
       logical, intent(out) :: restart_time_step
       integer, intent(in) :: istep
-      
+              
       complex, dimension(:, :), allocatable :: g0k, g0a, g0k_swap
-      complex, dimension(:, :), allocatable :: g0kxy, g0xky, prefac, g0kxy_temp, gout_temp
-      real, dimension(:, :), allocatable :: g0xy, g1xy,g2xy,bracket1,bracket2
+      complex, dimension(:, :), allocatable :: g0kxy, g0xky, prefac, g0kxy_temp
+      real, dimension(:, :), allocatable :: g0xy, g1xy,g2xy,g3xy,bracket1,bracket2,bracket3
 
       real :: zero, cfl_dt
-      integer :: ivmu, iz, it, imu, is, s1, s2, s3, s4, s5
+      integer :: ivmu, iz, it, imu, is
       logical :: yfirst
 
       ! alpha-component of magnetic drift (requires ky -> y)
@@ -1707,11 +1707,11 @@ contains
       allocate (g0xy(ny, nx))
       allocate (g1xy(ny, nx))
       allocate (g2xy(ny, nx))
+      allocate (g3xy(ny, nx))
       allocate (bracket1(ny, nx))
       allocate (bracket2(ny, nx))
+      allocate (bracket3(ny, nx))
       allocate (prefac(naky, nx))
-      allocate (gout_temp(size(gout(:,1,1,1,1)), size(gout(1,:,1,1,1))))
-
 
 
       if (yfirst) then
@@ -1743,7 +1743,7 @@ contains
                !> FFT to get dg/dy in (y,x) space
                call forward_transform(g0k, g0xy)
                !> compute i*kx*<phi>
-               call get_dphidx(iz, ivmu, phi(:, :, iz, it), bpar(:, :, iz, it), g0k)
+               call get_dfdx(iz, ivmu, phi(:, :, iz, it), g0k, 'phi')
                !> if running with equilibrium flow shear, make adjustment to
                !> the term multiplying dg/dy
                if (prp_shear_enabled .and. hammett_flow_shear) then
@@ -1753,20 +1753,26 @@ contains
                !> FFT to get d<phi>/dx in (y,x) space
                call forward_transform(g0k, g1xy)
                !> compute i*kx*<apar>
-               call get_dAdx(iz, ivmu, apar(:, :, iz, it), g0k)
-                !> FFT to get d<A>/dx in (y,x) space
+               call get_dfdx(iz, ivmu, apar(:, :, iz, it), g0k, 'apar')
+               !> FFT to get d<A>/dx in (y,x) space
                call forward_transform(g0k, g2xy)
+               !> compute i*kx*<bpar>
+               call get_dfdx(iz, ivmu, bpar(:, :, iz, it), g0k, 'bpar')
+	        !> FFT to get d<bpar>/dx in (y,x) space
+               call forward_transform(g0k, g3xy)
                !> multiply by the geometric factor appearing in the Poisson bracket;
                !> i.e., (dx/dpsi*dy/dalpha)*0.5
                g1xy = g1xy * exb_nonlin_fac
                g2xy = g2xy * exb_nonlin_fac
-               !> compute the contribution to the Poisson bracket from dg/dy*d<phi>/dx
+               g3xy = g3xy * exb_nonlin_fac
+               !> compute the contribution to the Poisson bracket from dg/dy*d<field>/dx
                bracket1 = g0xy * g1xy
                bracket2 = g0xy * g2xy
+               bracket3 = g0xy * g3xy
 
                !> estimate the CFL dt due to the above contribution
-               !> need to combine the phi bpar bit with the apar bit first:
-               g1xy = g1xy + g2xy
+               !> need to combine the phi bit with the apar and bpar bits first:
+               g1xy = g1xy + g2xy + g3xy
                cfl_dt_ExB = min(cfl_dt_ExB, 2.*pi / max(maxval(abs(g1xy)) * aky(naky), zero))
 
                !if (radial_variation) then
@@ -1791,24 +1797,30 @@ contains
                !> FFT to get dg/dx in (y,x) space
                call forward_transform(g0k, g0xy)
                !> compute d<phi>/dy in k-space
-               call get_dphidy(iz, ivmu, phi(:, :, iz, it), bpar(:, :, iz, it), g0k)
+               call get_dfdy(iz, ivmu, phi(:, :, iz, it), g0k, 'phi')
                !> FFT to get d<phi>/dy in (y,x) space
                call forward_transform(g0k, g1xy)
                !> compute d<A>/dy in k-space
-               call get_dAdy(iz, ivmu, apar(:, :, iz, it), g0k)
+               call get_dfdy(iz, ivmu, apar(:, :, iz, it), g0k, 'apar')
                !> FFT to get d<A>/dy in (y,x) space
                call forward_transform(g0k, g2xy)
+               !> compute d<bpar>/dy in k-space
+               call get_dfdy(iz, ivmu, bpar(:, :, iz, it), g0k, 'bpar')
+               !> FFT to get d<bpar>/dy in (y,x) space
+               call forward_transform(g0k, g3xy)               
                !> multiply by the geometric factor appearing in the Poisson bracket;
                !> i.e., (dx/dpsi*dy/dalpha)*0.5
                g1xy = g1xy * exb_nonlin_fac
                g2xy = g2xy * exb_nonlin_fac
+               g3xy = g3xy * exb_nonlin_fac
                !> compute the contribution to the Poisson bracket from dg/dy*d<chi>/dx
                bracket1 = bracket1 - g0xy * g1xy
                bracket2 = bracket2 - g0xy * g2xy               
- 
+               bracket3 = bracket3 - g0xy * g3xy
+               
                !> estimate the CFL dt due to the above contribution
-               !> need to combine the phi bpar bit with the apar bit first:
-               g1xy = g1xy + g2xy
+               !> need to combine the phi bit with the apar and bpar bits first:
+               g1xy = g1xy + g2xy + g3xy
                cfl_dt_ExB = min(cfl_dt_ExB, 2.*pi / max(maxval(abs(g1xy)) * akx(ikx_max), zero))
 
                !if (radial_variation) then
@@ -1830,23 +1842,29 @@ contains
                
                   call transform_x2kx(bracket1, g0kxy)
                   if (full_flux_surface) then
-                     gout(:, :, iz, it, ivmu) = g0kxy
+                     phixhk(:, :, iz, it, ivmu) = g0kxy
                   else
                      call transform_y2ky(g0kxy, g0k_swap)
-                     call swap_kxky_back(g0k_swap, gout(:, :, iz, it, ivmu))
+                     call swap_kxky_back(g0k_swap, phixhk(:, :, iz, it, ivmu))
                   end if
                                     
                   call transform_x2kx(bracket2, g0kxy)
                   if (full_flux_surface) then
-                     gout_temp = g0kxy
+                     Axhk(:, :, iz, it, ivmu) = g0kxy
                   else
                      call transform_y2ky(g0kxy, g0k_swap)
-                     call swap_kxky_back(g0k_swap, gout_temp)
+                     call swap_kxky_back(g0k_swap, Axhk(:, :, iz, it, ivmu))
                   end if
         
-
+                  call transform_x2kx(bracket3, g0kxy)
+                  if (full_flux_surface) then
+                     bparxhk(:, :, iz, it, ivmu) = g0kxy
+                  else
+                     call transform_y2ky(g0kxy, g0k_swap)
+                     call swap_kxky_back(g0k_swap, bparxhk(:, :, iz, it, ivmu))
+                  end if
+                  
                else
-               
                   !call transform_y2ky_xfirst(bracket1, g0xky)
                   !g0xky = g0xky / prefac
                   !call transform_x2kx_xfirst(g0xky, gout(:, :, iz, it, ivmu))
@@ -1857,7 +1875,8 @@ contains
                   
                end if
    
-               gout(:, :, iz, it, ivmu) = gout(:, :, iz, it, ivmu) + gout_temp
+               gout(:, :, iz, it, ivmu) = phixhk(:, :, iz, it, ivmu) + Axhk(:, :, iz, it, ivmu) + bparxhk(:, :, iz, it, ivmu)
+               !gout(1,:,iz,it,ivmu) = 0.          
                
             end do
          end do
@@ -1867,7 +1886,7 @@ contains
       ! convert back from h to g = <f> (only needed for EM sims)
       if (include_apar .or. include_bpar) call g_to_h(g, phi, bpar, -fphi)
 
-      deallocate (g0k, g0a, g0xy, g1xy, g2xy, bracket1, bracket2, gout_temp)
+      deallocate (g0k, g0a, g0xy, g1xy, g2xy, g3xy, bracket1, bracket2, bracket3)
       if (allocated(g0k_swap)) deallocate (g0k_swap)
       if (allocated(g0xky)) deallocate (g0xky)
       if (allocated(g0kxy)) deallocate (g0kxy)

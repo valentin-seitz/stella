@@ -362,7 +362,8 @@ contains
    end subroutine write_phi2_nc
    
 
-   subroutine write_stress_nc(nout, Ah_stress, phih_stress)
+   subroutine write_stress_nc(nout, Ah_stress, phih_stress, bparh_stress, g_int, stream_stress,&
+       wdy_stress, wdx_stress, mirror_stress, wstar_stress)
 # ifdef NETCDF
       use neasyf, only: neasyf_write
 # endif
@@ -370,17 +371,48 @@ contains
       !> Current timestep
       integer, intent(in) :: nout
       !> stresses:
-      complex, dimension(:,:), intent(in) :: Ah_stress, phih_stress
+      complex, dimension(:,:), intent(in) :: Ah_stress, phih_stress, bparh_stress
+      complex, dimension(:,:), intent(in) :: g_int, stream_stress, wdy_stress
+      complex, dimension(:,:), intent(in) :: wdx_stress, mirror_stress, wstar_stress
 
 # ifdef NETCDF
-      call netcdf_write_complex(ncid, "phih_stress", phih_stress, &
-				[character(len=4)::"ri","kx", "zed", "t"], &
+      call netcdf_write_complex(ncid, "phih_stress", phih_stress,  &
+      	   			      		     [character(len=4)::"ri","kx", "zed", "t"], &
                                 long_name="Reynolds stress as a function of kx and zed", &
                                 start=[1, 1, 1, nout])
       call netcdf_write_complex(ncid, "Ah_stress", Ah_stress, &
                                 [character(len=4)::"ri","kx", "zed", "t"], &
                                 long_name="Maxwell stress as a function of kx and zed", &
-				start=[1, 1, 1, nout])
+						   	     start=[1, 1, 1, nout])
+      call netcdf_write_complex(ncid, "bparh_stress", bparh_stress, &
+                                [character(len=4)::"ri","kx", "zed", "t"], &
+                                long_name="Bpar stress as a function of kx and zed", &
+                                                             start=[1, 1, 1, nout])
+      call netcdf_write_complex(ncid, "g_int", g_int, &
+                                [character(len=4)::"ri","kx", "zed", "t"], &
+		                long_name="integral of g as a function of kx and zed", &
+                                          start=[1, 1, 1, nout])
+      call netcdf_write_complex(ncid, "stream_stress", stream_stress, &
+                                [character(len=4)::"ri","kx", "zed", "t"], &
+                                long_name="streaming stress as a function of kx and zed", &
+                                          start=[1, 1, 1, nout])
+      call netcdf_write_complex(ncid, "wdy_stress", wdy_stress, &
+                                [character(len=4)::"ri","kx", "zed", "t"], &
+                                long_name="y-component of mag drift stress as a function of kx and zed", &
+                                          start=[1, 1, 1, nout])
+      call netcdf_write_complex(ncid, "wdx_stress", wdx_stress, &
+                                [character(len=4)::"ri","kx", "zed", "t"], &
+                                long_name="x-component of mag drift stress as a function of kx and zed", &
+                                          start=[1, 1, 1, nout])
+      call netcdf_write_complex(ncid, "mirror_stress", mirror_stress, &
+                                [character(len=4)::"ri","kx", "zed", "t"], &
+                                long_name="mirror stress as a function of kx and zed", &
+                                          start=[1, 1, 1, nout])
+      call netcdf_write_complex(ncid, "wstar_stress", wstar_stress, &
+                                [character(len=4)::"ri","kx", "zed", "t"], &
+                                long_name="wstar stress as a function of kx and zed", &
+                                          start=[1, 1, 1, nout])
+
 # endif
    end subroutine write_stress_nc
 
@@ -471,17 +503,22 @@ contains
    end subroutine write_bpar_nc
 
    !> Write the complex frequency to netCDF
-   subroutine write_omega_nc(nout, omega)
+   subroutine write_omega_nc(nout, omega, dphidt)
       implicit none
 
       integer, intent(in) :: nout
       complex, dimension(:, :), intent(in) :: omega
+      complex, dimension(:, :), intent(in) :: dphidt
 
 # ifdef NETCDF
       call netcdf_write_complex(ncid, "omega", omega, &
                                 dim_names=["ri", "ky", "kx", "t "], &
                                 start=[1, 1, 1, nout], &
                                 long_name="Complex frequency", units="aref/vtref")
+      call netcdf_write_complex(ncid, "dphidt", dphidt, &
+                                dim_names=["ri ", "kx ", "zed", "t  "], &
+                                start=[1, 1, 1, nout], &
+                                long_name="dphi dt", units="aref/vtref")
 # endif
    end subroutine write_omega_nc
 
@@ -567,14 +604,14 @@ contains
 # endif
    end subroutine write_kspectra_species_nc
 
-   subroutine write_fluxes_nc(nout, pflx, vflx, qflx)
+   subroutine write_fluxes_nc(nout, pflx, vflx, qflx, qflx_apar, qflx_bpar)
 # ifdef NETCDF
       use neasyf, only: neasyf_write
 # endif
       implicit none
       !> Current timestep
       integer, intent(in) :: nout
-      real, dimension(:), intent(in) :: pflx, vflx, qflx
+      real, dimension(:), intent(in) :: pflx, vflx, qflx, qflx_apar, qflx_bpar
 
 # ifdef NETCDF
       call neasyf_write(ncid, "pflx", pflx, &
@@ -591,11 +628,21 @@ contains
                         dim_names=[character(len=7)::"species", "t"], &
                         start=[1, nout], &
                         units="TBD", &
-                        long_name="Heat flux")
+                        long_name="Electrostatic heat flux")
+      call neasyf_write(ncid, "qflx_apar", qflx_apar, &
+                        dim_names=[character(len=7)::"species", "t"], &
+                        start=[1, nout], &
+                        units="TBD", &
+                        long_name="Apar contribution to heat flux")
+      call neasyf_write(ncid, "qflx_bpar", qflx_bpar, &
+                        dim_names=[character(len=7)::"species", "t"], &
+                        start=[1, nout], &
+                        units="TBD", &
+                        long_name="Bpar contribution to heat flux")
 # endif
    end subroutine write_fluxes_nc
 
-   subroutine write_fluxes_kxkyz_nc(nout, pflx_kxkyz, vflx_kxkyz, qflx_kxkyz)
+   subroutine write_fluxes_kxkyz_nc(nout, pflx_kxkyz, vflx_kxkyz, qflx_kxkyz, qflx_kxkyz_apar, qflx_kxkyz_bpar)
 # ifdef NETCDF
       use neasyf, only: neasyf_write
 # endif
@@ -603,7 +650,7 @@ contains
       !> Current timestep
       integer, intent(in) :: nout
       real, dimension(:, :, :, :, :), intent(in) :: pflx_kxkyz, vflx_kxkyz, qflx_kxkyz
-
+      real, dimension(:, :, :, :, :), intent(in) :: qflx_kxkyz_apar, qflx_kxkyz_bpar
 # ifdef NETCDF
       call neasyf_write(ncid, "pflx_kxky", pflx_kxkyz, &
                         dim_names=[character(len=7)::"ky", "kx", "zed", "tube", "species", "t"], &
@@ -616,7 +663,15 @@ contains
       call neasyf_write(ncid, "qflx_kxky", qflx_kxkyz, &
                         dim_names=[character(len=7)::"ky", "kx", "zed", "tube", "species", "t"], &
                         start=[1, 1, 1, 1, 1, nout], &
-                        long_name="Heat flux")
+                        long_name="Electrostatic heat flux")
+      call neasyf_write(ncid, "qflx_kxky_apar", qflx_kxkyz_apar, &
+                        dim_names=[character(len=7)::"ky", "kx", "zed", "tube", "species", "t"], &
+                        start=[1, 1, 1, 1, 1, nout], &
+                        long_name="Apar contribution to heat flux")
+      call neasyf_write(ncid, "qflx_kxky_bpar", qflx_kxkyz_bpar, &
+                        dim_names=[character(len=7)::"ky", "kx", "zed", "tube", "species", "t"], &
+                        start=[1, 1, 1, 1, 1, nout], &
+                        long_name="Bpar contribution to heat flux")
 # endif
    end subroutine write_fluxes_kxkyz_nc
 
