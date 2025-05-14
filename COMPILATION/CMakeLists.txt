@@ -23,6 +23,7 @@ include(BuildType)
 # Build options
 option(STELLA_ENABLE_LAPACK "Enable LAPACK wrappers" ON)
 option(STELLA_ENABLE_FFT "Enable FFTs" ON)
+option(STELLA_ENABLE_OMP "Enable OpenMP" ON)
 option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
@@ -236,6 +237,13 @@ if (STELLA_ENABLE_NETCDF)
   add_subdirectory(../EXTERNALS/neasyf ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/neasyf)
   target_link_libraries(libstella PUBLIC netCDF::netcdff neasyf::neasyf)
   target_compile_definitions(libstella PUBLIC NETCDF=_DEFAULT_)
+endif()
+
+
+if (STELLA_ENABLE_OMP)
+  find_package(OpenMP REQUIRED Fortran)
+  target_link_libraries(libstella PUBLIC OpenMP::OpenMP_Fortran)
+  target_compile_definitions(libstella PUBLIC WITH_OPENMP)
 endif()
 
 if (STELLA_ENABLE_DOUBLE)
