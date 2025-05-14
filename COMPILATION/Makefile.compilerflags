@@ -231,7 +231,7 @@ INC_FLAGS= $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) \
 	   $(SFINCS_INC) $(PETSC_INC) $(LAPACK_INC)
 
 # Flags for the fortran compiler and the C compiler
-F90FLAGS += $(F90OPTFLAGS)
+F90FLAGS += $(F90OPTFLAGS) -fopenmp
 CFLAGS += $(COPTFLAGS)
 
 ############################################################# MORE DIRECTIVES
