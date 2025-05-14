@@ -440,6 +440,12 @@ contains
       if (fphi > epsilon(0.0)) then
          if (debug) write(*, *) 'fields_fluxtube::init_fields_fluxtube::init_gamtot'
          allocate (g0(nvpa, nmu))
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, ia) &
+         !$omp private(ikxkyz, it, iky, ikx, iz, is, g0, wgt, tmp) &
+         !$omp shared(maxwell_vpa, maxwell_mu, maxwell_fac, spec, gamtot, aj0v, nvpa, nmu, maxwellian_normalization)
+      
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             it = it_idx(kxkyz_lo, ikxkyz)
             !> Gamtot does not depend on flux tube index, so only compute for one flux tube index
@@ -461,6 +467,9 @@ contains
             call integrate_vmu(g0, iz, tmp)
             gamtot(iky, ikx, iz) = gamtot(iky, ikx, iz) + tmp * wgt
          end do
+         !$omp end do
+         !$omp end parallel
+
          call sum_allreduce(gamtot)
 
          gamtot_h = sum(spec%z * spec%z * spec%dens / spec%temp)
