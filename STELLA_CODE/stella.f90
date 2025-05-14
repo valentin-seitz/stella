@@ -447,7 +447,7 @@ contains
    
       use mp, only: proc0, nproc
       use parameters_numerical, only: print_extra_info_to_terminal
-
+      use omp_lib
       implicit none
 
       ! Stella version number and release date 
@@ -455,10 +455,17 @@ contains
       character(len=10), intent(in) :: git_date
 
       ! Strings to format data
-      character(len=23) :: str
+      character(len=1000) :: str
+
+      ! Actual number of processors is MPIxOpenMP
+      integer :: nthreads
       
       ! Only print the header on the first processor
-      if (.not. proc0) return 
+      if (.not. proc0) return
+      
+      !$OMP parallel default(none) shared(nthreads)
+         nthreads = omp_get_num_threads()
+      !$OMP end parallel
       
       ! Print the stella header
       if (print_extra_info_to_terminal) then
@@ -487,10 +494,10 @@ contains
          write (*, '(A)') "############################################################"
       end if
       if (nproc == 1) then
-         write (str, '(I10, A)') nproc, " processor."
+         write (str, '(I10, A, I10, A)') nproc, " processor with ", nthreads, " threads."
          write (*,*) ' '; write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
       else
-         write (str, '(I10, A)') nproc, " processors."
+         write (str, '(I10, A, I10, A)') nproc, " processors with ", nthreads, " threads."
          write (*, '(A,A,A)') " Running on ", adjustl(trim(str))
       end if
       write (*, *)
