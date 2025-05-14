@@ -163,15 +163,16 @@ include_directories("${CMAKE_SOURCE_DIR}/STELLA_CODE/utils")
 
 # When target `stella` is built, a symlink will be created
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 add_custom_command(TARGET stella POST_BUILD
     COMMAND echo Create symbolic link to stella in the directory above COMPILATION/build_cmake
-    COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/stella ${CMAKE_CURRENT_BINARY_DIR}/../../stella
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/stella ${CMAKE_CURRENT_BINARY_DIR}/../stella
     DEPENDS stella
     VERBATIM ON
 )
 add_custom_command(TARGET stella POST_BUILD
     COMMAND echo Create symbolic link to stella in the directory above COMPILATION
-    COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/stella ${CMAKE_CURRENT_BINARY_DIR}/../../../stella
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/stella ${CMAKE_CURRENT_BINARY_DIR}/../../stella
     DEPENDS stella
     VERBATIM ON
 )
