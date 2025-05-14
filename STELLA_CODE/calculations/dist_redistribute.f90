@@ -70,6 +70,12 @@ contains
       ! count number of elements to be redistributed to/from each processor
       nn_to = 0
       nn_from = 0
+      !$omp parallel default(none) &
+      !$omp firstprivate(kxkyz_lo) &
+      !$omp private(ikxkyz, imu, iv, iky,vmu_lo, ikx, iz, it, ivmu) &
+      !$omp shared(nn_to, nn_from, nmu, nvpa)
+
+      !$omp do
       do ikxkyz = kxkyz_lo%llim_world, kxkyz_lo%ulim_world
          do imu = 1, nmu
             do iv = 1, nvpa
@@ -81,6 +87,8 @@ contains
             end do
          end do
       end do
+      !$omp end do
+      !$omp end parallel
 
       do ip = 0, nproc - 1
          if (nn_from(ip) > 0) then
@@ -101,6 +109,12 @@ contains
       nn_to = 0
       nn_from = 0
 
+      !$omp parallel default(none) &
+      !$omp firstprivate(kxkyz_lo) &
+      !$omp private(ikxkyz, imu, iv, iky,vmu_lo, ikx, iz, it, ivmu, ip, n) &
+      !$omp shared(nn_to, nn_from, nmu, nvpa, to_list, from_list)
+     
+      !$omp do
       ! loop over all vmu indices, find corresponding y indices
       do ikxkyz = kxkyz_lo%llim_world, kxkyz_lo%ulim_world
          do imu = 1, nmu
@@ -135,6 +149,8 @@ contains
             end do
          end do
       end do
+      !$omp end do
+      !$omp end parallel
 
       from_low(1) = 1
       from_low(2) = 1
