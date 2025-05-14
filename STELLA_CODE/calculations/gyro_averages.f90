@@ -89,6 +89,12 @@ contains
 
       if (debug) write (*, *) 'gyro_averages::init_bessel::calculate_aj0v_aj1v'
       ia = 1
+      !$omp parallel default(none) &
+      !$omp firstprivate(kxkyz_lo, ia) &
+      !$omp private(ikxkyz, iky, ikx, iz, is, imu, arg) &
+      !$omp shared(spec, vperp2, kperp2, nmu, bmag, aj0v, aj1v)
+      
+      !$omp do
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -101,6 +107,8 @@ contains
             aj1v(imu, ikxkyz) = j1(arg)
          end do
       end do
+      !$omp end do
+      !$omp end parallel
 
       if (debug) write (*, *) 'gyro_averages::init_bessel::full_flux_surface'
       if (full_flux_surface) then
