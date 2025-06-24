@@ -1845,11 +1845,17 @@ contains
       ! the non-Boltzmann part of f (h = f + (Ze/T)*phi*F0)
       if (include_apar .or. include_bpar) call g_to_h(g, phi, bpar, fphi)
 
+      !$omp parallel default(none) &
+      !$omp firstprivate(vmu_lo, shift_state, exb_nonlin_fac, cfl_dt_ExB, naky,nakx, ny ,rho_clamped, exb_nonlin_fac_p, ikx_max) &
+      !$omp private(ivmu, imu, is, it, iz, nzgrid, g0k, g0xy, g0a, g1xy, bracket, g0xky, g0k_swap, g0kxy) &
+      !$omp shared(g, gout, gfac, g_scratch, apar, phi, bpar, aky, ntubes, full_flux_surface, suppress_zonal_interaction,radial_variation, prp_shear_enabled, hammett_flow_shear, g_exb, g_exbfac, prefac, yfirst, akx, fphi, phi_corr_GA, phi_corr_qn, zero)
+      ! Maybe make prefac firstprivate?
+      !$omp parallel do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-         imu = imu_idx(vmu_lo, ivmu)
-         is = is_idx(vmu_lo, ivmu)
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
+               imu = imu_idx(vmu_lo, ivmu)
+               is = is_idx(vmu_lo, ivmu)
                !> compute i*ky*g
                call get_dgdy(g(:, :, iz, it, ivmu), g0k)
                !> FFT to get dg/dy in (y,x) space
@@ -1951,6 +1957,7 @@ contains
             end do
          end do
       end do
+      !$omp end parallel
 
       ! convert back from h to g = <f> (only needed for EM sims)
       if (include_apar .or. include_bpar) call g_to_h(g, phi, bpar, -fphi)
