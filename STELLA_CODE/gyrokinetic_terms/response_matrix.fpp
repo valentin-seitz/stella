@@ -280,7 +280,13 @@ contains
       complex, dimension(:, :), allocatable :: gext
       complex, dimension(:), allocatable :: phi_ext, apar_ext, bpar_ext
 
+
+      !!$omp parallel default(none) &
+      !!$omp firstprivate(iky) &
+      !!$omp private(gext,phi_ext, apar_ext,ikx, iseg, bpar_ext, iz, idx, nz_ext,nresponse, izup, izl_offset, nresponse_per_field) &
+      !!$omp shared(neigen, proc0, mat_gen, nfields, include_apar, include_bpar, nsegments, vmu_lo, periodic, iz_low, nzed_segment, ikxmod, iz_up)
       ! loop over the sets of connected kx values
+      !!$omp do 
       do ie = 1, neigen(iky)
 
          ! number of zeds x number of segments on extended zed domain
@@ -295,9 +301,13 @@ contains
          end if
          nresponse = nresponse_per_field * nfields
 
+        
          if (proc0 .and. mat_gen) then
+            !!$omp critical
             write (unit=mat_unit) ie, nresponse
+            !!$omp end critical
          end if
+         
 
          call setup_response_matrix_zloc_idx(iky, ie, nresponse)
 
@@ -348,8 +358,10 @@ contains
             end do
          end if
          deallocate (gext, phi_ext, apar_ext, bpar_ext)
+         
       end do
-
+      !!$omp end do
+      !!$omp end parallel
    end subroutine calculate_vspace_integrated_response
 
    subroutine setup_response_matrix_zloc_idx(iky, ie, nresponse)
@@ -1003,6 +1015,15 @@ contains
       idx = 0; izl_offset = 0
       iseg = 1
       ikx = ikxmod(iseg, ie, iky)
+
+
+
+      !!$omp parallel default(none) &
+      !!$omp firstprivate(ikx,iseg,iky) &
+      !!$omp private(idx, g0, iv,imu,is) &
+      !!$omp shared(iz_low, iz_up,full_flux_surface,driftkinetic_implicit,wgt,phi,g, vmu_lo, j0_B_const)
+      ! loop over the sets of connected kx values
+      !!$omp do 
       do iz = iz_low(iseg), iz_up(iseg)
          idx = idx + 1
          if (.not. full_flux_surface .and. (.not. driftkinetic_implicit)) then
@@ -1018,7 +1039,9 @@ contains
             call integrate_species_ffs_rm(g0, wgt, phi(idx), reduce_in=.false.)
          end if
       end do
-
+      !!$omp end parallel
+      ! After the loop the idx would have been the number of loop iterations done by first loop
+      idx=iz_up(iseg) -iz_low(iseg) + 1  
       izl_offset = 1
       if (nsegments(ie, iky) > 1) then
          do iseg = 2, nsegments(ie, iky)
