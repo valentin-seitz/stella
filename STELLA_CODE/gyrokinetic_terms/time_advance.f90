@@ -1593,12 +1593,19 @@ contains
          allocate (g0y(ny, ikx_max, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
          allocate (g0k_swap(naky_all, ikx_max))
          !> transform dg/dy from k-space to y-space
+
+         !$omp parallel default(none) &
+         !$omp firstprivate(it) &
+         !$omp private(g0k_swap) &
+         !$omp shared(g0k,g0y, vmu_lo,nzgrid)
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             do iz = -nzgrid, nzgrid
                call swap_kxky(g0k(:, :, iz, it, ivmu), g0k_swap)
                call transform_ky2y(g0k_swap, g0y(:, :, iz, it, ivmu))
             end do
          end do
+         !$omp end parallel
 
          !> add vM . grad y dg/dy term to equation
          call add_explicit_term_ffs(g0y, wdrifty_g, gout)
@@ -1608,25 +1615,34 @@ contains
          call get_dgdy(g_scratch, g0k)
 
          !> transform d<phi>/dy from k-space to y-space
+         !$omp parallel default(none) &
+         !$omp firstprivate(it) &
+         !$omp private(g0k_swap) &
+         !$omp shared(g0k,g0y, vmu_lo,nzgrid)
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             do iz = -nzgrid, nzgrid
                call swap_kxky(g0k(:, :, iz, it, ivmu), g0k_swap)
                call transform_ky2y(g0k_swap, g0y(:, :, iz, it, ivmu))
             end do
          end do
+         !$omp end parallel
 
          !> add vM . grad y d<phi>/dy term to equation
+         ! VS: OMP DONE
          call add_explicit_term_ffs(g0y, wdrifty_phi, gout)
 
          deallocate (g0y, g0k_swap)
       else
          if (debug) write (*, *) 'time_advance::solve_gke::add_dgdy_term'
          ! add vM . grad y dg/dy term to equation
+         ! VS: OMP DONE
          call add_explicit_term(g0k, wdrifty_g(1, :, :), gout)
 
          !> Note that this is here because for FFS te gyro-average is calculated once outside this routine
          !> TODO-GA: can we do something similar for fluxtube to save cpu time?
          !> calculate dphi/dy in (ky,kx) space
+         ! VS: OMP DONE
          call get_dgdy(phi, dphidy)
 
          ! get <dphi/dy> in k-space
@@ -1707,12 +1723,20 @@ contains
          allocate (g0y(ny, ikx_max, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
          allocate (g0k_swap(naky_all, ikx_max))
          !> transform dg/dx from k-space to y-space
+
+         !$omp parallel default(none) &
+         !$omp firstprivate(it) &
+         !$omp private(g0k_swap) &
+         !$omp shared(g0k,g0y, vmu_lo,nzgrid)
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             do iz = -nzgrid, nzgrid
                call swap_kxky(g0k(:, :, iz, it, ivmu), g0k_swap)
                call transform_ky2y(g0k_swap, g0y(:, :, iz, it, ivmu))
             end do
          end do
+         !$omp end parallel
+
          !> add vM . grad x dg/dx term to equation
          call add_explicit_term_ffs(g0y, wdriftx_g, gout)
 
@@ -1721,12 +1745,19 @@ contains
          call get_dgdx(g_scratch, g0k)
 
          !> transform d<phi>/dx from k-space to y-space
+         !$omp parallel default(none) &
+         !$omp firstprivate(it) &
+         !$omp private(g0k_swap) &
+         !$omp shared(g0k,g0y, vmu_lo,nzgrid)
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             do iz = -nzgrid, nzgrid
                call swap_kxky(g0k(:, :, iz, it, ivmu), g0k_swap)
                call transform_ky2y(g0k_swap, g0y(:, :, iz, it, ivmu))
             end do
          end do
+         !$omp end parallel
+
          !> add vM . grad x d<phi>/dx term to equation
          call add_explicit_term_ffs(g0y, wdriftx_phi, gout)
          deallocate (g0y, g0k_swap)
@@ -1801,7 +1832,7 @@ contains
       real, dimension(:, :), allocatable :: g0xy, g1xy, bracket
 
       real :: zero, cfl_dt
-      integer :: ivmu, iz, it, imu, is
+      integer :: ivmu, iz, it
       logical :: yfirst
 
       ! alpha-component of magnetic drift (requires ky -> y)
@@ -1847,15 +1878,13 @@ contains
 
       !$omp parallel default(none) &
       !$omp firstprivate(vmu_lo, shift_state, exb_nonlin_fac, cfl_dt_ExB, naky,nakx, ny ,rho_clamped, exb_nonlin_fac_p, ikx_max) &
-      !$omp private(ivmu, imu, is, it, iz, nzgrid, g0k, g0xy, g0a, g1xy, bracket, g0xky, g0k_swap, g0kxy) &
-      !$omp shared(g, gout, gfac, g_scratch, apar, phi, bpar, aky, ntubes, full_flux_surface, suppress_zonal_interaction,radial_variation, prp_shear_enabled, hammett_flow_shear, g_exb, g_exbfac, prefac, yfirst, akx, fphi, phi_corr_GA, phi_corr_qn, zero)
+      !$omp private(g0k, g0xy, g0a, g1xy, bracket, g0xky, g0k_swap, g0kxy) &
+      !$omp shared(g, gout, gfac, g_scratch, apar, phi, bpar, aky, ntubes, full_flux_surface, suppress_zonal_interaction,radial_variation, prp_shear_enabled, hammett_flow_shear, g_exb, g_exbfac, prefac, yfirst, akx, fphi, phi_corr_GA, phi_corr_qn, zero, nzgrid)
       ! Maybe make prefac firstprivate?
       !$omp parallel do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
-               imu = imu_idx(vmu_lo, ivmu)
-               is = is_idx(vmu_lo, ivmu)
                !> compute i*ky*g
                call get_dgdy(g(:, :, iz, it, ivmu), g0k)
                !> FFT to get dg/dy in (y,x) space
@@ -2524,6 +2553,9 @@ contains
 
       integer :: it, iz, ikx
 
+      !$omp parallel default(none) &
+      !$omp shared(g,dgdy,aky,nzgrid,ntubes,nakx)
+      !$omp do collapse(3)
       do it = 1, ntubes
          do iz = -nzgrid, nzgrid
             do ikx = 1, nakx
@@ -2531,6 +2563,7 @@ contains
             end do
          end do
       end do
+      !$omp end parallel
 
    end subroutine get_dgdy_3d
 
@@ -2550,7 +2583,10 @@ contains
       complex, dimension(:, :, -nzgrid:, :, vmu_lo%llim_proc:), intent(out) :: dgdy
 
       integer :: ivmu, ikx, iz, it
-
+      
+      !$omp parallel default(none) &
+      !$omp shared(g,dgdy,aky,nzgrid,ntubes,vmu_lo,nakx)
+      !$omp do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
@@ -2560,6 +2596,7 @@ contains
             end do
          end do
       end do
+      !$omp end parallel
 
    end subroutine get_dgdy_4d
 
@@ -2649,7 +2686,10 @@ contains
 
       integer :: ivmu
       integer :: iky, ikx, iz, it
-
+      
+      !$omp parallel default(none) &
+      !$omp shared(src,pre_factor,g, vmu_lo,ntubes,nzgrid,naky,nakx)
+      !$omp do collapse(4)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
@@ -2661,6 +2701,7 @@ contains
             end do
          end do
       end do
+      !$omp end parallel
 
    end subroutine add_explicit_term
 
@@ -2680,6 +2721,9 @@ contains
       integer :: ivmu
       integer :: ia, ikx, iz, it
 
+      !$omp parallel default(none) &
+      !$omp shared(src,pre_factor,g, vmu_lo,ntubes,nzgrid,ikx_max,nalpha)
+      !$omp do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
@@ -2691,6 +2735,7 @@ contains
             end do
          end do
       end do
+      !$omp end parallel
 
    end subroutine add_explicit_term_ffs
 

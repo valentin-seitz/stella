@@ -50,7 +50,7 @@ module stella_transforms
    !> arrays for transforming from alpha-space to k-alpha space
    real, dimension(:), allocatable :: fft_alpha_alpha
    complex, dimension(:), allocatable :: fft_alpha_kalpha
-
+   !$OMP threadprivate(fft_y_in,fft_y_out,fft_x_k,fft_x_x,fft_xs_k,fft_xs_x,fft_ys_k,fft_ys_y,fftnp_x_k,fftnp_x_x,fftnp_y_k,fftnp_y_y,fft_alpha_alpha,fft_alpha_kalpha)
 contains
 
    subroutine init_transforms
@@ -221,6 +221,9 @@ contains
       iky_max = vmu_lo%naky
       ipad_up = iky_max + vmu_lo%ny - (2 * vmu_lo%naky - 1)
 
+      if (.not. allocated(fft_y_in)) allocate (fft_y_in(vmu_lo%ny))
+      if (.not. allocated(fft_y_out)) allocate (fft_y_out(vmu_lo%ny))
+
       ! now fill in non-zero elements of array
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, vmu_lo%ntubes
@@ -255,6 +258,9 @@ contains
       iky_max = vmu_lo%naky
       ipad_up = iky_max + vmu_lo%ny - (2 * vmu_lo%naky - 1)
 
+      if (.not. allocated(fft_y_in)) allocate (fft_y_in(vmu_lo%ny))
+      if (.not. allocated(fft_y_out)) allocate (fft_y_out(vmu_lo%ny))
+
       ! now fill in non-zero elements of array
       do ikx = 1, vmu_lo%nakx / 2 + 1
          fft_y_in(iky_max + 1:ipad_up) = 0.
@@ -281,6 +287,10 @@ contains
 
       iky_max = vmu_lo%naky
       ipad_up = iky_max + vmu_lo%ny - (2 * vmu_lo%naky - 1)
+
+      if (.not. allocated(fft_y_in)) allocate (fft_y_in(vmu_lo%ny))
+      if (.not. allocated(fft_y_out)) allocate (fft_y_out(vmu_lo%ny))
+
       ! now fill in non-zero elements of array
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, vmu_lo%ntubes
@@ -310,6 +320,9 @@ contains
       integer :: iky_max, ipad_up
       integer :: ikx
 
+      if (.not. allocated(fft_y_in)) allocate (fft_y_in(vmu_lo%ny))
+      if (.not. allocated(fft_y_out)) allocate (fft_y_out(vmu_lo%ny))
+
       iky_max = vmu_lo%naky
       ipad_up = iky_max + vmu_lo%ny - (2 * vmu_lo%naky - 1)
       ! now fill in non-zero elements of array
@@ -334,6 +347,9 @@ contains
 
       integer :: iy
 
+      if (.not. allocated(fft_x_k)) allocate (fft_x_k(vmu_lo%nx / 2 + 1))
+      if (.not. allocated(fft_x_x)) allocate (fft_x_x(vmu_lo%nx))
+
       ! now fill in non-zero elements of array
       do iy = 1, vmu_lo%ny
          ! first need to pad input array with zeros
@@ -356,6 +372,9 @@ contains
       complex, dimension(:, :), intent(out) :: gkx
 
       integer :: iy
+
+      if (.not. allocated(fft_x_k)) allocate (fft_x_k(vmu_lo%nx / 2 + 1))
+      if (.not. allocated(fft_x_x)) allocate (fft_x_x(vmu_lo%nx))
 
       do iy = 1, vmu_lo%ny
          fft_x_x = gx(iy, :)
