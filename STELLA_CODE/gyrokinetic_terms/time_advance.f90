@@ -2055,6 +2055,10 @@ contains
 
          complex, dimension(:, :), intent(in) :: gk
          real, dimension(:, :), intent(out) :: gx
+         !$OMP critical
+         ! There is some shared state namely the g0k_swap, g0xky and g0kxy arrays.
+         ! The approach is as always: make if work first, before trying to do premature optimzizations. 
+         ! Even though the crtical might impede performance, we should measure first, before getting rid of it
 
          if (yfirst) then
             ! we have i*ky*g(kx,ky) for ky >= 0 and all kx
@@ -2077,7 +2081,7 @@ contains
             g0xky = g0xky * prefac
             call transform_ky2y_xfirst(g0xky, gx)
          end if
-
+         !$OMP end critical
       end subroutine forward_transform
 
    end subroutine advance_ExB_nonlinearity
@@ -2553,9 +2557,9 @@ contains
 
       integer :: it, iz, ikx
 
-      !$omp parallel default(none) &
-      !$omp shared(g,dgdy,aky,nzgrid,ntubes,nakx)
-      !$omp do collapse(3)
+      !!$omp parallel default(none) &
+      !!$omp shared(g,dgdy,aky,nzgrid,ntubes,nakx)
+      !!$omp do collapse(3)
       do it = 1, ntubes
          do iz = -nzgrid, nzgrid
             do ikx = 1, nakx
@@ -2563,7 +2567,7 @@ contains
             end do
          end do
       end do
-      !$omp end parallel
+      !!$omp end parallel
 
    end subroutine get_dgdy_3d
 
@@ -2584,9 +2588,9 @@ contains
 
       integer :: ivmu, ikx, iz, it
       
-      !$omp parallel default(none) &
-      !$omp shared(g,dgdy,aky,nzgrid,ntubes,vmu_lo,nakx)
-      !$omp do collapse(3)
+      !!$omp parallel default(none) &
+      !!$omp shared(g,dgdy,aky,nzgrid,ntubes,vmu_lo,nakx)
+      !!$omp do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
@@ -2596,7 +2600,7 @@ contains
             end do
          end do
       end do
-      !$omp end parallel
+      !!$omp end parallel
 
    end subroutine get_dgdy_4d
 
@@ -2687,9 +2691,9 @@ contains
       integer :: ivmu
       integer :: iky, ikx, iz, it
       
-      !$omp parallel default(none) &
-      !$omp shared(src,pre_factor,g, vmu_lo,ntubes,nzgrid,naky,nakx)
-      !$omp do collapse(4)
+      !!$omp parallel default(none) &
+      !!$omp shared(src,pre_factor,g, vmu_lo,ntubes,nzgrid,naky,nakx)
+      !!$omp do collapse(4)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
@@ -2701,7 +2705,7 @@ contains
             end do
          end do
       end do
-      !$omp end parallel
+      !!$omp end parallel
 
    end subroutine add_explicit_term
 
@@ -2721,9 +2725,9 @@ contains
       integer :: ivmu
       integer :: ia, ikx, iz, it
 
-      !$omp parallel default(none) &
-      !$omp shared(src,pre_factor,g, vmu_lo,ntubes,nzgrid,ikx_max,nalpha)
-      !$omp do collapse(3)
+      !!$omp parallel default(none) &
+      !!$omp shared(src,pre_factor,g, vmu_lo,ntubes,nzgrid,ikx_max,nalpha)
+      !!$omp do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
@@ -2735,7 +2739,7 @@ contains
             end do
          end do
       end do
-      !$omp end parallel
+      !!$omp end parallel
 
    end subroutine add_explicit_term_ffs
 
