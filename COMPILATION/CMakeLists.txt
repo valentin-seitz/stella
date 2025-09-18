@@ -34,6 +34,8 @@ option(STELLA_ENABLE_POSIX "Enable POSIX functions for command line functionalit
 option(STELLA_ENABLE_RANDOM_MT "Enable Mersenne-Twister rng (not recommended)" OFF)
 option(STELLA_ENABLE_F200X "Enable use of F2003/F2008 functionality" ON)
 
+option(STELLA_ENABLE_NESMIK "Enable neSmiK annotations" ON)
+
 # Options for testing
 option(STELLA_ENABLE_TESTS "Enable pFUnit-based tests" OFF)
 option(STELLA_DOWNLOAD_PFUNIT "Download and compile pFUnit at configure time" ON)
@@ -235,6 +237,12 @@ if (STELLA_ENABLE_NETCDF)
   add_subdirectory(../EXTERNALS/neasyf ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/neasyf)
   target_link_libraries(libstella PUBLIC netCDF::netcdff neasyf::neasyf)
   target_compile_definitions(libstella PUBLIC NETCDF=_DEFAULT_)
+endif()
+
+if (STELLA_ENABLE_NESMIK)
+  find_package(nesmik REQUIRED)
+  target_link_libraries(libstella PUBLIC nesmik::nesmik)
+  target_compile_definitions(libstella PUBLIC "WITH_NESMIK")
 endif()
 
 if (STELLA_ENABLE_DOUBLE)
