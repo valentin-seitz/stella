@@ -24,6 +24,7 @@ USE_NAGLIB ?=              # Use nag libraray (spfunc,undefined)
 USE_SFINCS ?=              # Link to sfincs library at compilation
 USE_LAPACK ?= on           # Use LAPACK, needed for test particle collisions
 HAS_ISO_C_BINDING ?= on    # Does the compiler support the iso_c_binding features of Fortran? (needed for local parallel LU decomposition) 
+USE_NESMIK ?= on 		   # Uses neSmiK annotations to obtain insight into code executions
 
 # Which FFT library to use (fftw, fftw3, mkl_fftw, undefined)
 # We can't have any spaces behind 'fftw3' so we can't put the comment behind it
@@ -215,11 +216,17 @@ endif
 ifdef USE_SFINCS
 	CPPFLAGS += -DUSE_SFINCS
 endif
+ifdef USE_NESMIK
+	NESMIK_LIB =-L${NESMIK_HOME}/lib -Wl,-rpath ${NESMIK_HOME}/lib -lnesmik 
+	CPPFLAGS += -DWITH_NESMIK
+	NESMIK_INC = -I${NESMIK_HOME}/include
+endif
 
 # List of all the used libraries
 # Here $LIBSTELL_LIB points to utils/mini_libstell which contains a stellarator resource library
 LIBS += $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
-		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LAPACK_LIB) $(LIBSTELL_LIB) 
+		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LAPACK_LIB) $(LIBSTELL_LIB) \
+		$(NESMIK_LIB)
 
 # Note that either you define the dependencies on imports manually, like in the makefile.depend
 # file, or you attach the library where the compiler can find the functions. Since all utils
@@ -228,7 +235,7 @@ LIBS += $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
 
 # Include flags
 INC_FLAGS= $(DEFAULT_INC) $(MPI_INC) $(FFT_INC) $(NETCDF_INC) $(HDF5_INC) \
-	   $(SFINCS_INC) $(PETSC_INC) $(LAPACK_INC)
+	   $(SFINCS_INC) $(PETSC_INC) $(LAPACK_INC) $(NESMIK_INC)
 
 # Flags for the fortran compiler and the C compiler
 F90FLAGS += $(F90OPTFLAGS) -fopenmp

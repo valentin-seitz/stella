@@ -18,6 +18,7 @@ program stella
    use debug_flags, only: debug => stella_debug
    ! Input file
    use parameters_diagnostics, only: nsave
+   use nesmik, only: nesmik_region_start, nesmik_region_stop
 
    implicit none
 
@@ -53,13 +54,17 @@ program stella
    do while ((code_time <= tend .AND. tend > 0) .OR. (istep <= nstep .AND. nstep > 0))
       if (debug) write (*, *) 'istep = ', istep
       if (mod(istep, 10) == 0) then
+         call nesmik_region_start("checks_stella")
          call checkstop(stop_stella)
          call checktime(avail_cpu_time, stop_stella)
          call checkcodedt(stop_stella)
          call checksaturation(istep, stop_stella)
+         call nesmik_region_stop("checks_stella")
       end if
       if (stop_stella) exit
+      call nesmik_region_start("advance_stella")
       call advance_stella(istep, stop_stella)
+      call nesmik_region_stop("advance_stella")
       if (stop_stella) exit
       call update_time
       if (nsave > 0 .and. mod(istep, nsave) == 0) then
@@ -67,7 +72,9 @@ program stella
          call stella_save_for_restart(gvmu, istep, code_time, code_dt, istatus)
       end if
       call time_message(.false., time_diagnose_stella, ' diagnostics') 
+      call nesmik_region_start("diagnostics_stella")
       call diagnostics_stella(istep) 
+      call nesmik_region_start("diagnostics_stella")
       call time_message(.false., time_diagnose_stella, ' diagnostics')
       ierr = error_unit()
       call flush_output_file(ierr)
@@ -138,6 +145,7 @@ contains
       use dissipation, only: init_dissipation
       use sources, only: init_sources
       use volume_averages, only: init_volume_averages, volume_average
+      use nesmik, only: nesmik_region_start, nesmik_region_stop
       
       implicit none
 
@@ -157,11 +165,11 @@ contains
       !> initialize mpi message passing
       if (.not. mpi_initialized) call init_mp
       mpi_initialized = .true.
-
+      
       !> initialize timer
       if (debug) write (*, *) 'stella::init_stella::check_time'
       call checktime(avail_cpu_time, exit)
-
+      call nesmik_region_start("init_stella")
       if (proc0) then 
          !> initialize file i/o
          if (debug) write (*, *) 'stella::init_stella::init_file_utils'
@@ -372,7 +380,7 @@ contains
       call print_header
       !> stop the timing of the initialization
       if (proc0) call time_message(.false., time_init, ' Initialization')
-
+      call nesmik_region_stop("init_stella")
    end subroutine init_stella
 
    !> call all the multibox communication subroutines to make sure all the jobs have

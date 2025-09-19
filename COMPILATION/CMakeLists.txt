@@ -35,6 +35,8 @@ option(STELLA_ENABLE_POSIX "Enable POSIX functions for command line functionalit
 option(STELLA_ENABLE_RANDOM_MT "Enable Mersenne-Twister rng (not recommended)" OFF)
 option(STELLA_ENABLE_F200X "Enable use of F2003/F2008 functionality" ON)
 
+option(STELLA_ENABLE_NESMIK "Enable neSmiK annotations" ON)
+
 # Options for testing
 option(STELLA_ENABLE_TESTS "Enable pFUnit-based tests" OFF)
 option(STELLA_DOWNLOAD_PFUNIT "Download and compile pFUnit at configure time" ON)
@@ -243,6 +245,12 @@ if (STELLA_ENABLE_OMP)
   find_package(OpenMP REQUIRED Fortran)
   target_link_libraries(libstella PUBLIC OpenMP::OpenMP_Fortran)
   target_compile_definitions(libstella PUBLIC WITH_OPENMP)
+endif()
+
+if (STELLA_ENABLE_NESMIK)
+  find_package(nesmik REQUIRED)
+  target_link_libraries(libstella PUBLIC nesmik::nesmik)
+  target_compile_definitions(libstella PUBLIC "WITH_NESMIK")
 endif()
 
 if (STELLA_ENABLE_DOUBLE)

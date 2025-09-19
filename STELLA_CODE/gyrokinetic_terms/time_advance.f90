@@ -917,6 +917,7 @@ contains
       use parameters_numerical, only: explicit_option_switch, explicit_option_rk3, &
            explicit_option_rk2, explicit_option_rk4, explicit_option_euler
       
+      use nesmik, only: nesmik_region_start, nesmik_region_stop
       
       implicit none
 
@@ -926,6 +927,7 @@ contains
 
       integer :: ivmu, iv, sgn, iky
 
+      call nesmik_region_start("advance_explicit")
       !> start the timer for the explicit part of the solve
       if (proc0) call time_message(.false., time_gke(:, 8), ' explicit')
 
@@ -976,7 +978,7 @@ contains
 
       !> stop the timer for the explicit part of the solve
       if (proc0) call time_message(.false., time_gke(:, 8), ' explicit')
-
+      call nesmik_region_stop("advance_explicit")
    end subroutine advance_explicit
 
    !> advance_explicit_euler uses forward Euler to advance one time step
@@ -2763,6 +2765,7 @@ contains
       use flow_shear, only: advance_perp_flow_shear
       use multibox, only: RK_step
       use parameters_numerical, only: flip_flop
+      use nesmik, only: nesmik_region_start, nesmik_region_stop
       implicit none
 
       integer, intent(in) :: istep
@@ -2791,6 +2794,7 @@ contains
 !    end if
 
       ! start the timer for the implicit part of the solve
+      call nesmik_region_start("advance_implicit")
       if (proc0) call time_message(.false., time_gke(:, 9), ' implicit')
 
       ! reverse the order of operations every time step
@@ -2885,7 +2889,7 @@ contains
 
       ! stop the timer for the implict part of the solve
       if (proc0) call time_message(.false., time_gke(:, 9), ' implicit')
-
+      call nesmik_region_stop("advance_implicit")
    end subroutine advance_implicit
 
    subroutine mb_communicate(g_in)
