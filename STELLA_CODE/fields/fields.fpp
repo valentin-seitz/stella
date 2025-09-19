@@ -71,6 +71,7 @@ contains
       !> Routines from other field modules
       use fields_fluxtube, only: advance_fields_fluxtube
       use fields_ffs, only: get_fields_ffs
+      use nesmik, only: nesmik_region_start, nesmik_region_stop
 
 
       implicit none
@@ -81,6 +82,7 @@ contains
       logical, optional, intent(in) :: implicit_solve
       !-------------------------------------------------------------------------
       if (fields_updated) return
+      call nesmik_region_start("advance_fields")
 
       !> Time the communications + field solve
       if (proc0) call time_message(.false., time_field_solve(:, 1), ' fields')
@@ -111,6 +113,7 @@ contains
       fields_updated = .true.
       !> Time the communications + field solve
       if (proc0) call time_message(.false., time_field_solve(:, 1), ' fields')
+      call nesmik_region_stop("advance_fields")
 
    end subroutine advance_fields
 
