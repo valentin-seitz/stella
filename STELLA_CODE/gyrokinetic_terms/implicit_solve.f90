@@ -228,7 +228,14 @@ contains
 
          ! start the timer for the pdf update
          if (proc0) call time_message(.false., time_implicit_advance(:, 2), ' (bidiagonal solve)')
+         
+         !$omp parallel default(none) &
+         !!$omp firstprivate() &
+         !$omp private(ivmu, iky, it, ie, nz_ext, pdf1, pdf2, phiext, bparext, aparext, aparext_new, aparext_old, phiffsext, ulim) &
+         !$omp shared(vmu_lo, neigen, ntubes, naky, nsegments, nzed_segment, g1, phi_source, apar_source, apar, apar_old, bpar_source, phi_source_ffs, include_apar, include_bpar, mod, g)
 
+         !$omp do collapse(3)
+         ! loop over all vmu indices, find corresponding y indices
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             ! solve for the pdf, given the sources for phi and the pdf on the RHS of the GK equation
             ! we do this on set of connected zed segments at a time
@@ -263,7 +270,7 @@ contains
                      call map_to_extended_zgrid(it, ie, iky, g1(iky, :, :, :, ivmu), pdf1, ulim)
                      ! map the incoming potential 'phi_source' onto the extended zed domain and call it 'phiext'
                      call map_to_extended_zgrid(it, ie, iky, phi_source(iky, :, :, :), phiext, ulim)
-                     ! map incoming parallel magnetic vector potetial 'apar_sosurce' onto
+                     ! map incoming parallel magnetic vector potetial 'apar_source' onto
                      ! extended zed domain and call 'aparext'
                      if (include_apar) then
                         call map_to_extended_zgrid(it, ie, iky, apar_source(iky, :, :, :), aparext, ulim)
@@ -289,13 +296,17 @@ contains
                      call sweep_g_zext(iky, ie, it, ivmu, pdf2)
                      ! map the pdf 'pdf2' from the extended zed domain
                      ! to the standard zed domain; the mapped pdf is called 'g'
+                     !$omp critical (write_back)
                      call map_from_extended_zgrid(it, ie, iky, pdf2, g(iky, :, :, :, ivmu))
+                     !$omp end critical (write_back)
                      deallocate (pdf1, pdf2, phiext, aparext, aparext_new, aparext_old, bparext)
                      if (present(mod)) deallocate(phiffsext)
                   end do
                end do
             end do
          end do
+         !$omp end do
+         !$omp end parallel
 
          ! stop the timer for the pdf update
          if (proc0) call time_message(.false., time_implicit_advance(:, 2), ' (bidiagonal solve)')
