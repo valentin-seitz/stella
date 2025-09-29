@@ -399,6 +399,10 @@ contains
       ikx_max = vmu_lo%nakx / 2 + 1
       ipad_up = ikx_max + vmu_lo%nx - vmu_lo%nakx
 
+
+      if (.not. allocated(fft_xs_k)) allocate (fft_xs_k(vmu_lo%nx))
+      if (.not. allocated(fft_xs_x)) allocate (fft_xs_x(vmu_lo%nx))
+
       ! now fill in non-zero elements of array
       do iky = 1, vmu_lo%naky
          ! first need to pad input array with zeros
