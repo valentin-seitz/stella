@@ -1247,6 +1247,10 @@ contains
 
       if (debug) write (*, *) 'implicit_solve::invert_parstream_response'
 
+      !$omp parallel default(none) &
+      !$omp private(iky, ie, it, ulim, ikx, offset_apar, offset_bpar, nresponse_per_field, nresponse, nzp, fld_ext, phi_ext, apar_ext, bpar_ext, fld) &
+      !$omp shared(phi,ntubes, periodic, naky, nsegments, nzed_segment, response_matrix, nzgrid, nfields, include_apar, include_bpar, ikxmod, apar, bpar, phase_shift, neigen)
+      !$omp do
       ! put the fields onto the extended zed grid and use LU back substitution
       do iky = 1, naky
          ! avoid double counting of periodic endpoints for zonal (and any other periodic) modes
@@ -1326,16 +1330,21 @@ contains
 
                   ! get phi_ext contribution from fld_ext and map back to normal (z, kx) grid
                   phi_ext = fld_ext(:nresponse_per_field)
+                  !$omp critical (write_phi)
                   call map_from_extended_zgrid(it, ie, iky, phi_ext, phi(iky, :, :, :))
-
+                  !$omp end critical (write_phi)
                   ! if advancing apar, get apar_ext from fld_ext and map back to (z, kx) grid
                   if (include_apar) then
                      apar_ext = fld_ext(offset_apar + 1:nresponse_per_field + offset_apar)
+                     !$omp critical (write_apar)
                      call map_from_extended_zgrid(it, ie, iky, apar_ext, apar(iky, :, :, :))
+                     !$omp end critical (write_apar)
                   end if
                   if (include_bpar) then
                      bpar_ext = fld_ext(offset_bpar + 1:nresponse_per_field + offset_bpar)
+                     !$omp critical (write_bpar)
                      call map_from_extended_zgrid(it, ie, iky, bpar_ext, bpar(iky, :, :, :))
+                     !$omp end critical (write_bpar)
                   end if
 
                   deallocate (fld_ext)
@@ -1346,6 +1355,7 @@ contains
             end do
          end if
       end do
+      !$omp end parallel
 
    end subroutine invert_parstream_response
 
