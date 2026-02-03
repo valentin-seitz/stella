@@ -26,6 +26,7 @@ option(STELLA_ENABLE_FFT "Enable FFTs" ON)
 option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
+option(STELLA_ENABLE_OMP "Enable OpenMP" OFF)
 
 # Options for utils internal library
 option(STELLA_ENABLE_LOCAL_SPFUNC "Enable local special functions" OFF)
@@ -298,6 +299,12 @@ endif()
 if (STELLA_ENABLE_PETSC)
   find_package(PETSc REQUIRED)
   target_link_libraries(libstella PUBLIC PETSc::PETSc)
+endif()
+
+if (STELLA_ENABLE_OMP)
+  find_package(OpenMP REQUIRED Fortran)
+  target_link_libraries(libstella PUBLIC OpenMP::OpenMP_Fortran)
+  target_compile_definitions(libstella PUBLIC WITH_OPENMP)
 endif()
 
 # Link the <git_version> program
