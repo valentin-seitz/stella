@@ -23,6 +23,7 @@ USE_LOCAL_SPFUNC ?=        # Use local special functions (bin)
 USE_NAGLIB ?=              # Use nag libraray (spfunc,undefined)
 USE_SFINCS ?=              # Link to sfincs library at compilation
 USE_LAPACK ?= on           # Use LAPACK, needed for test particle collisions
+USE_OPENMP ?= on           # Use OpenMP to parallelize the Code
 HAS_ISO_C_BINDING ?= on    # Does the compiler support the iso_c_binding features of Fortran? (needed for local parallel LU decomposition)
 SPLIT_BY_NUMA ?=
 
@@ -184,6 +185,9 @@ ifdef USE_LAPACK
 		LAPACK_LIB = -llapack
 	endif
 	CPPFLAGS += -DLAPACK
+endif
+ifdef USE_OPENMP
+	F90FLAGS += -fopenmp -DUSE_OPENMP
 endif
 ifdef USE_HDF5
 	FC = $(H5FC_par)
