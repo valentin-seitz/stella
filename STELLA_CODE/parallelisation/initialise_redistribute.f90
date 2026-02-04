@@ -125,11 +125,12 @@ contains
                   !$omp critical
                   nn_from(proc_id(vmu_lo, ivmu)) = nn_from(proc_id(vmu_lo, ivmu)) + 1
                   !$omp end critical
-               endif
+               end if
                if (idx_local(vmu_lo, ivmu)) then
                   !$omp critical
                   nn_to(proc_id(kxkyz_lo, ikxkyz)) = nn_to(proc_id(kxkyz_lo, ikxkyz)) + 1
                   !$omp end critical
+               end if 
             end do
          end do
       end do

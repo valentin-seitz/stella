@@ -304,7 +304,7 @@ endif()
 if (STELLA_ENABLE_OMP)
   find_package(OpenMP REQUIRED Fortran)
   target_link_libraries(libstella PUBLIC OpenMP::OpenMP_Fortran)
-  target_compile_definitions(libstella PUBLIC WITH_OPENMP)
+  target_compile_definitions(libstella PUBLIC USE_OPENMP)
 endif()
 
 # Link the <git_version> program

@@ -46,7 +46,7 @@ module mp
    public :: max_reduce, max_allreduce
    public :: min_reduce, min_allreduce
    public :: comm_split, comm_free
-   public :: nproc, iproc, proc0, job, min_proc
+   public :: nproc, nthreads, iproc, proc0, job, min_proc
    public :: nshared_proc
    public :: send, ssend, receive
    public :: numnodes, inode
@@ -84,7 +84,7 @@ module mp
    !comm_cross    - communicator that links procs of same rank across comm_group
    !comm_scross   - communicator that links procs of same rank across comm_sgroup
 
-   integer, pointer :: nproc
+   integer, pointer :: nproc, nthreads
    integer, target :: ntot_proc, nshared_proc, ngroup_proc, ndomain_proc
    integer, target :: nsgroup_proc, nscross_proc
 
@@ -324,15 +324,24 @@ contains
       ! Local variables
       !integer :: info_numa
       integer :: ierror
+      integer :: provided_mpi_thread_level
       logical :: init
       
       !-------------------------------------------------------------------------
       ! Ensure MPI is initialized
       !-------------------------------------------------------------------------
-
       ! Check whether MPI has already been initialized, if not, initialise MPI
       call mpi_initialized(init, ierror)
+
+#ifdef USE_OPENMP
+      if (.not. init) call mpi_init_thread(MPI_THREAD_FUNNELED, provided_mpi_thread_level, ierror)
+      if(provided_mpi_thread_level < MPI_THREAD_FUNNELED) then
+         call mp_abort('ERROR: MPI Implementation does not support MPI_THREAD_FUNNELED. Compile without OpenMP or switch MPI implementation')
+      end if
+#else
       if (.not. init) call mpi_init(ierror)
+#endif
+
       
       ! Duplicate MPI_COMM_WORLD to avoid accidental modification elsewhere
       call mpi_comm_dup(mpi_comm_world, mpi_comm_world_private, ierror)
@@ -468,6 +477,17 @@ contains
       else
          write (error_unit(), *) 'ERROR: precision mismatch in mpi'
       end if
+
+#ifdef USE_OPENMP
+
+      !-------------------------------------------------------------------------
+      ! Query how many threads the OpenMP provides
+      !-------------------------------------------------------------------------
+
+      !$omp parallel default(none) shared(nthreads)
+         nthreads = omp_get_num_threads()
+      !$omp 
+#endif
 
    end subroutine init_mp
 

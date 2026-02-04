@@ -91,7 +91,7 @@ contains
       complex, dimension(:, :), allocatable :: g0kxy, g0xky, prefac
       real, dimension(:, :), allocatable :: g0xy, g1xy, bracket
       complex, dimension(:, :), allocatable :: tmp
-      integer :: ivmu, iz, it, imu, is
+      integer :: ivmu, iz, it
       real :: zero, cfl_dt
       logical :: yfirst
 
@@ -143,12 +143,14 @@ contains
       if (include_apar .or. include_bpar) call g_to_h(g, phi, bpar, fphi)
 
       ! Iterate over velocity space
+      !$omp parallel default(none) &
+      !$omp firstprivate(vmu_lo, shift_state, exb_nonlin_fac, cfl_dt_ExB, naky,nakx, ny ,rho_clamped, exb_nonlin_fac_p, ikx_max, code_dt, tmp) &
+      !$omp private(g0k, g0xy, g0a, g1xy, bracket, g0xky, g0k_swap, g0kxy, apar_kykx, bpar_kykx) &
+      !$omp shared(g, gout, include_apar,phi_gyro, include_bpar, gfac, apar, phi, bpar, aky, ntubes, full_flux_surface, suppress_zonal_interaction,radial_variation, prp_shear_enabled, hammett_flow_shear, g_exb, g_exbfac, prefac, yfirst, akx, fphi, phi_corr_GA, phi_corr_qn, zero, nzgrid)
+      !$omp do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-         imu = imu_idx(vmu_lo, ivmu)
-         is = is_idx(vmu_lo, ivmu)
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
-            
                ! Get the fields (to avoid indexing arrays which aren't allocated)
                if (include_apar) apar_kykx = apar(:, :, iz, it)
                if (include_bpar) bpar_kykx = bpar(:, :, iz, it)
@@ -270,6 +272,8 @@ contains
             end do
          end do
       end do
+      !$omp end do
+      !$omp end parallel
 
       ! Convert back from h to g = <f> (only needed for EM sims)
       if (include_apar .or. include_bpar) call g_to_h(g, phi, bpar, -fphi)
@@ -340,7 +344,11 @@ contains
          real, dimension(:, :), intent(out) :: gx
 
          !----------------------------------------------------------------------
-
+         !$omp critical (forward_transform)
+         ! There is some shared state namely the g0k_swap, g0xky and g0kxy arrays.
+         ! The approach is as always: make if work first, before trying to do premature optimzizations. 
+         ! Even though the crtical might impede performance, we should measure first, before getting rid of it
+         
          ! Fourier transform g(kx,ky) to g(kx,y) and then to g(x,y)
          if (yfirst) then
                ! We have i*ky*g(kx,ky) for ky >= 0 and all kx.
@@ -365,7 +373,7 @@ contains
                g0xky = g0xky * prefac
                call transform_ky2y_xfirst(g0xky, gx)
          end if
-
+         !$omp end critical (forward_transform)
       end subroutine forward_transform
 
    end subroutine advance_ExB_nonlinearity
