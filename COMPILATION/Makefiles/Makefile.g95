@@ -30,4 +30,3 @@ else
 		CFLAGS += -pg
 	endif
 endif
-
