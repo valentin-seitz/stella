@@ -188,6 +188,7 @@ ifdef USE_LAPACK
 endif
 ifdef USE_OPENMP
 	F90FLAGS += -fopenmp -DUSE_OPENMP
+	CPPFLAGS += -DUSE_OPENMP
 endif
 ifdef USE_HDF5
 	FC = $(H5FC_par)
