@@ -344,7 +344,7 @@ contains
          real, dimension(:, :), intent(out) :: gx
 
          !----------------------------------------------------------------------
-         !$omp critical (forward_transform)
+         !$omp critical (forward_transform_crit)
          ! There is some shared state namely the g0k_swap, g0xky and g0kxy arrays.
          ! The approach is as always: make if work first, before trying to do premature optimzizations. 
          ! Even though the crtical might impede performance, we should measure first, before getting rid of it
@@ -373,7 +373,7 @@ contains
                g0xky = g0xky * prefac
                call transform_ky2y_xfirst(g0xky, gx)
          end if
-         !$omp end critical (forward_transform)
+         !$omp end critical (forward_transform_crit)
       end subroutine forward_transform
 
    end subroutine advance_ExB_nonlinearity
