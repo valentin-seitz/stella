@@ -84,7 +84,7 @@ module mp
    !comm_cross    - communicator that links procs of same rank across comm_group
    !comm_scross   - communicator that links procs of same rank across comm_sgroup
 
-   integer, pointer :: nproc, nthreads
+   integer, pointer :: nproc
    integer, target :: ntot_proc, nshared_proc, ngroup_proc, ndomain_proc
    integer, target :: nsgroup_proc, nscross_proc
 
@@ -102,6 +102,9 @@ module mp
    integer, target :: comm_sgroup, comm_scross
 
    integer :: curr_focus
+
+   ! Number of OpenMP threads available at runtime
+   integer :: nthreads
 
    integer, parameter :: mp_info = MPI_INFO_NULL
 
@@ -315,7 +318,9 @@ contains
       ! Import numerical precision info and error output unit
       use constants, only: pi, kind_rs, kind_rd
       use file_utils, only: error_unit
-      
+#ifdef USE_OPENMP
+      use omp_lib
+#endif 
       implicit none
       
       ! Optional input communicator (allows embedding in a larger MPI program)
@@ -479,14 +484,15 @@ contains
       end if
 
 #ifdef USE_OPENMP
-
       !-------------------------------------------------------------------------
-      ! Query how many threads the OpenMP provides
+      ! Query how many threads the OpenMP runtime provides
       !-------------------------------------------------------------------------
 
       !$omp parallel default(none) shared(nthreads)
          nthreads = omp_get_num_threads()
-      !$omp 
+      !$omp end parallel
+#else 
+      nthreads = 0
 #endif
 
    end subroutine init_mp

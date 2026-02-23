@@ -444,12 +444,14 @@ contains
                write (*, '(A,I0,A)', advance='no') ' Running on ', nproc, ' processors'
             end if
 
-            ! Threads
-            if (nthreads == 1) then
-               write (*, '(A,I0,A)') ' with ', nthreads, ' thread.'
-            else
-               write (*, '(A,I0,A)') ' with ', nthreads, ' threads.'
-            end if
+            if(nthreads > 0) then
+               ! Threads
+               if (nthreads == 1) then
+                  write (*, '(A,I0,A)') ' with ', nthreads, ' thread.'
+               else
+                  write (*, '(A,I0,A)') ' with ', nthreads, ' threads.'
+               end if
+            endif
          end if
          
          ! Also print the grids and the number of points for 
