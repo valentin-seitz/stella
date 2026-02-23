@@ -26,7 +26,7 @@ option(STELLA_ENABLE_FFT "Enable FFTs" ON)
 option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
-option(STELLA_ENABLE_OMP "Enable OpenMP" OFF)
+option(STELLA_ENABLE_OPENMP "Enable OpenMP" ON)
 
 # Options for utils internal library
 option(STELLA_ENABLE_LOCAL_SPFUNC "Enable local special functions" OFF)
@@ -454,6 +454,7 @@ message("
    NetCDF support           : ${STELLA_ENABLE_NETCDF}
    Default real kind        : ${STELLA_DEFAULT_REAL_KIND}
    POSIX support            : ${STELLA_ENABLE_POSIX}
+   OpenMP                   : ${STELLA_ENABLE_OPENMP}
    Use F2003/8 intrinsics   : ${STELLA_ENABLE_F200X}
    Compilation flags        : ${STELLA_COMPILE_BUILD_FLAGS}
    Build type               : ${CMAKE_BUILD_TYPE}
