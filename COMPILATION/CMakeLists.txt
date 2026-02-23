@@ -301,7 +301,7 @@ if (STELLA_ENABLE_PETSC)
   target_link_libraries(libstella PUBLIC PETSc::PETSc)
 endif()
 
-if (STELLA_ENABLE_OMP)
+if (STELLA_ENABLE_OPENMP)
   find_package(OpenMP REQUIRED Fortran)
   target_link_libraries(libstella PUBLIC OpenMP::OpenMP_Fortran)
   target_compile_definitions(libstella PUBLIC USE_OPENMP)
