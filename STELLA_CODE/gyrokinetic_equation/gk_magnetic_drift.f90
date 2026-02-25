@@ -444,12 +444,18 @@ contains
          allocate (g0y(ny, ikx_max, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
          allocate (g0k_swap(naky_all, ikx_max))
          ! transform dg/dy from k-space to y-space
+         !$omp parallel default(none) &
+         !$omp firstprivate(it) &
+         !$omp private(g0k_swap) &
+         !$omp shared(g0k,g0y, vmu_lo,nzgrid)
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
                do iz = -nzgrid, nzgrid
                call swap_kxky(g0k(:, :, iz, it, ivmu), g0k_swap)
                call transform_ky2y(g0k_swap, g0y(:, :, iz, it, ivmu))
                end do
          end do
+         !$omp end parallel
 
          ! add vM . grad y dg/dy term to equation
          call add_explicit_term_ffs(g0y, wdrifty_g, gout)
@@ -459,12 +465,18 @@ contains
          call get_dgdy(phi_gyro, g0k)
 
          ! transform d<phi>/dy from k-space to y-space
+         !$omp parallel default(none) &
+         !$omp firstprivate(it) &
+         !$omp private(g0k_swap) &
+         !$omp shared(g0k,g0y, vmu_lo,nzgrid)
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
                do iz = -nzgrid, nzgrid
                call swap_kxky(g0k(:, :, iz, it, ivmu), g0k_swap)
                call transform_ky2y(g0k_swap, g0y(:, :, iz, it, ivmu))
                end do
          end do
+         !$omp end parallel
 
          ! add vM . grad y d<phi>/dy term to equation
          call add_explicit_term_ffs(g0y, wdrifty_phi, gout)
@@ -567,12 +579,18 @@ contains
          allocate (g0y(ny, ikx_max, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
          allocate (g0k_swap(naky_all, ikx_max))
          ! transform dg/dx from k-space to y-space
+         !$omp parallel default(none) &
+         !$omp firstprivate(it) &
+         !$omp private(g0k_swap) &
+         !$omp shared(g0k,g0y, vmu_lo,nzgrid)
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
                do iz = -nzgrid, nzgrid
                call swap_kxky(g0k(:, :, iz, it, ivmu), g0k_swap)
                call transform_ky2y(g0k_swap, g0y(:, :, iz, it, ivmu))
                end do
          end do
+         !$omp end parallel
          ! add vM . grad x dg/dx term to equation
          call add_explicit_term_ffs(g0y, wdriftx_g, gout)
 
@@ -581,12 +599,18 @@ contains
          call get_dgdx(phi_gyro, g0k)
 
          ! transform d<phi>/dx from k-space to y-space
+         !$omp parallel default(none) &
+         !$omp firstprivate(it) &
+         !$omp private(g0k_swap) &
+         !$omp shared(g0k,g0y, vmu_lo,nzgrid)
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
                do iz = -nzgrid, nzgrid
                call swap_kxky(g0k(:, :, iz, it, ivmu), g0k_swap)
                call transform_ky2y(g0k_swap, g0y(:, :, iz, it, ivmu))
                end do
          end do
+         !$omp end parallel
          ! add vM . grad x d<phi>/dx term to equation
          call add_explicit_term_ffs(g0y, wdriftx_phi, gout)
          deallocate (g0y, g0k_swap)

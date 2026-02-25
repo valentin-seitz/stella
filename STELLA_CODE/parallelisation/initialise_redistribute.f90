@@ -112,15 +112,29 @@ contains
 
       ! Count number of elements to be redistributed to/from each processor
       nn_to = 0; nn_from = 0
+      !$omp parallel default(none) &
+      !$omp firstprivate(kxkyz_lo, vmu_lo) &
+      !$omp private(iky, ikx, iz, it, ivmu, imu, iv) &
+      !$omp shared(nn_from,nn_to, nmu, nvpa)
+      !$omp do
       do ikxkyz = kxkyz_lo%llim_world, kxkyz_lo%ulim_world
          do imu = 1, nmu
             do iv = 1, nvpa
                call kxkyzidx2vmuidx(iv, imu, ikxkyz, kxkyz_lo, vmu_lo, iky, ikx, iz, it, ivmu)
-               if (idx_local(kxkyz_lo, ikxkyz)) nn_from(proc_id(vmu_lo, ivmu)) = nn_from(proc_id(vmu_lo, ivmu)) + 1
-               if (idx_local(vmu_lo, ivmu)) nn_to(proc_id(kxkyz_lo, ikxkyz)) = nn_to(proc_id(kxkyz_lo, ikxkyz)) + 1
+               if (idx_local(kxkyz_lo, ikxkyz)) then
+                  !$omp critical
+                  nn_from(proc_id(vmu_lo, ivmu)) = nn_from(proc_id(vmu_lo, ivmu)) + 1
+                  !$omp end critical
+               end if
+               if (idx_local(vmu_lo, ivmu)) then
+                  !$omp critical
+                  nn_to(proc_id(kxkyz_lo, ikxkyz)) = nn_to(proc_id(kxkyz_lo, ikxkyz)) + 1
+                  !$omp end critical
+               end if 
             end do
          end do
       end do
+      !$omp end parallel
       
       ! Debug message
       if (debug) then

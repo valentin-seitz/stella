@@ -421,7 +421,7 @@ contains
       !=========================================================================
       subroutine print_info_to_command_prompt
 
-         use mp, only: nproc
+         use mp, only: nproc, nthreads
          use iso_fortran_env, only: int64
          use debug_flags, only: print_extra_info_to_terminal
 
@@ -436,11 +436,22 @@ contains
             write (*, '(A)') '############################################################'
             write (*, '(A)') '                       PARALLELISATION                      '
             write (*, '(A)') '############################################################'
+
+            ! Processors
             if (nproc == 1) then
-               write (*, *) ''; write (*, '(A,I0,A)') ' Running on ', nproc, ' processor.'
+               write (*, '(A,I0,A)', advance='no') ' Running on ', nproc, ' processor'
             else
-               write (*, *) ''; write (*, '(A,I0,A)') ' Running on ', nproc, ' processors.'
+               write (*, '(A,I0,A)', advance='no') ' Running on ', nproc, ' processors'
             end if
+
+            if(nthreads > 0) then
+               ! Threads
+               if (nthreads == 1) then
+                  write (*, '(A,I0,A)') ' with ', nthreads, ' thread.'
+               else
+                  write (*, '(A,I0,A)') ' with ', nthreads, ' threads.'
+               end if
+            endif
          end if
          
          ! Also print the grids and the number of points for 
