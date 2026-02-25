@@ -341,7 +341,8 @@ contains
 #ifdef USE_OPENMP
       if (.not. init) call mpi_init_thread(MPI_THREAD_FUNNELED, provided_mpi_thread_level, ierror)
       if(provided_mpi_thread_level < MPI_THREAD_FUNNELED) then
-         call mp_abort('ERROR: MPI Implementation does not support MPI_THREAD_FUNNELED. Compile without OpenMP or switch MPI implementation')
+         call mp_abort("ERROR: MPI Implementation does not support MPI_THREAD_FUNNELED. " // &
+              "Compile without OpenMP or switch MPI implementation")
       end if
 #else
       if (.not. init) call mpi_init(ierror)
