@@ -4267,12 +4267,17 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       g_in = g
 
       allocate (gvmutr(nvpa, nmu))
-      allocate (ghrs(nmu * nvpa))
       allocate (field(naky, nakx, -nzgrid:nzgrid, ntubes, nspec))
       allocate (flds(naky, nakx, -nzgrid:nzgrid, ntubes, nresponse))
 
       ! since backwards difference in time, (I-dt*D)h_inh^{n+1} = g^{***}
       ! invert above equation to get h_inh^{n+1}
+      !$omp parallel default(none) &
+      !$omp firstprivate(kxkyz_lo, nvpa, nmu) &
+      !$omp private(ikxkyz, iky, ikx, iz, is, iv, info, ghrs) &
+      !$omp shared(g, cdiffmat_band, ipiv)
+      allocate (ghrs(nmu * nvpa))
+      !$omp do
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -4289,6 +4294,9 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             g(iv, :, ikxkyz) = ghrs(nmu * (iv - 1) + 1:nmu * iv)
          end do
       end do
+      !$omp end do
+      deallocate (ghrs)
+      !$omp end parallel
 
       ! obtain phi^{n+1} and conservation terms using response matrix approach
 
@@ -4402,6 +4410,12 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       deallocate (flds)
 
       ! invert system to get h^{n+1}
+      !$omp parallel default(none) &
+      !$omp firstprivate(kxkyz_lo, nvpa, nmu) &
+      !$omp private(ikxkyz, iky, ikx, iz, is, iv, info, ghrs) &
+      !$omp shared(g, cdiffmat_band, ipiv)
+      allocate (ghrs(nmu * nvpa))
+      !$omp do
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -4415,6 +4429,9 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             g(iv, :, ikxkyz) = ghrs(nmu * (iv - 1) + 1:nmu * iv)
          end do
       end do
+      !$omp end do
+      deallocate (ghrs)
+      !$omp end parallel
 
       ! get g^{n+1} from h^{n+1} and phi^{n+1}
       if (advfield_coll) then
@@ -4426,7 +4443,6 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       deallocate (g_in)
       deallocate (field)
       deallocate (gvmutr)
-      deallocate (ghrs)
 
    end subroutine advance_implicit_fp
 
