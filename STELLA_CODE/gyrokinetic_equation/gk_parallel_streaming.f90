@@ -653,6 +653,10 @@ contains
       !-------------------------------------------------------------------------
 
       iv = iv_idx(vmu_lo, ivmu)
+      !$omp parallel do default(none) collapse(2) &
+      !$omp firstprivate(naky, ntubes, iv) &
+      !$omp private(iky, it, ie, iseg, gleft, gright) &
+      !$omp shared(g, dgdz, neigen, nsegments, iz_low, iz_up, ikxmod, delzed, periodic, stream_sign)
       do iky = 1, naky
          do it = 1, ntubes
             do ie = 1, neigen(iky)
@@ -668,6 +672,7 @@ contains
             end do
          end do
       end do
+      !$omp end parallel do
 
    end subroutine get_dgdz
 
@@ -700,6 +705,10 @@ contains
       !-------------------------------------------------------------------------
 
       iv = iv_idx(vmu_lo, ivmu)
+      !$omp parallel do default(none) collapse(2) &
+      !$omp firstprivate(naky, ntubes, iv) &
+      !$omp private(iky, it, ie, iseg, gleft, gright) &
+      !$omp shared(g, dgdz, neigen, nsegments, iz_low, iz_up, ikxmod, delzed, periodic, stream_sign)
       do iky = 1, naky
          do it = 1, ntubes
             do ie = 1, neigen(iky)
@@ -715,6 +724,7 @@ contains
             end do
          end do
       end do
+      !$omp end parallel do
 
    end subroutine get_dgdz_centered
 
