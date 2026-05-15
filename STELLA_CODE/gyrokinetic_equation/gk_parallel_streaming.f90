@@ -319,12 +319,7 @@ contains
       if (proc0) call time_message(.false., time_parallel_streaming(:, 1), ' Stream advance')
 
       ! ========================================================================
-      ! Each thread allocates its own copy of the per-ivmu work arrays inside
-      ! the parallel region so that concurrent ivmu iterations do not alias.
-      !$omp parallel default(none) &
-      !$omp firstprivate(vmu_lo, nzgrid, ntubes, naky, naky_all, nakx, ikx_max, ny, full_flux_surface, include_bpar) &
-      !$omp private(ivmu, iv, imu, is, ia, iz, it, g0, dgphi_dz, dgbpar_dz, g0_swap, g0y, g1y) &
-      !$omp shared(g, phi, bpar, gout, mu, spec, maxwell_vpa, maxwell_mu, maxwell_fac, j0_ffs)
+      ! Allocate arrays needed for intermediate calculations
       allocate (g0(naky, nakx, -nzgrid:nzgrid, ntubes))
       allocate (dgphi_dz(naky, nakx, -nzgrid:nzgrid, ntubes))
       allocate (dgbpar_dz(naky, nakx, -nzgrid:nzgrid, ntubes))
@@ -333,7 +328,7 @@ contains
          allocate (g0y(ny, ikx_max, -nzgrid:nzgrid, ntubes))
          allocate (g1y(ny, ikx_max, -nzgrid:nzgrid, ntubes))
       end if
-      !$omp do
+
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          ! Get (iv,imu,is) indices corresponding to ivmu super-index
          iv = iv_idx(vmu_lo, ivmu)
@@ -415,10 +410,11 @@ contains
          end if
 
       end do
-      !$omp end do
+
+      ! ========================================================================
+      ! Deallocate intermediate arrays
       deallocate (g0, dgphi_dz, dgbpar_dz)
       if (full_flux_surface) deallocate (g0y, g1y, g0_swap)
-      !$omp end parallel
       ! ========================================================================
       ! Finish timing the subroutine
       if (proc0) call time_message(.false., time_parallel_streaming(:, 1), ' Stream advance')
