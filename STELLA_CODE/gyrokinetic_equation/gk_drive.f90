@@ -266,28 +266,36 @@ contains
       ! Assume only a single flux surface simulated
       it = 1
 
-      ! Allocate temporary arrays
+      ! Allocate temporary arrays (g0_swap is thread-private, allocated inside parallel region)
       allocate (g0(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
       allocate (g0y(ny, ikx_max, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
-      allocate (g0_swap(naky_all, ikx_max))
 
       ! Calculate d<phi>/dy in k-space, i.e., calculate i*ky*J_0*chi, and save it as <g0>
       ! Here phi_gyro is <phi> in k-space that has been pre-calculated and stored
       call get_dgdy(phi_gyro, g0)
-      
+
       ! Transform d<phi>/dy from ky-space to y-space
+      !$omp parallel default(none) &
+      !$omp firstprivate(vmu_lo, nzgrid, it, naky_all, ikx_max) &
+      !$omp private(ivmu, iz, g0_swap) &
+      !$omp shared(g0, g0y)
+      allocate (g0_swap(naky_all, ikx_max))
+      !$omp do collapse(2)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          do iz = -nzgrid, nzgrid
             call swap_kxky(g0(:, :, iz, it, ivmu), g0_swap)
             call transform_ky2y(g0_swap, g0y(:, :, iz, it, ivmu))
          end do
       end do
-      
+      !$omp end do
+      deallocate (g0_swap)
+      !$omp end parallel
+
       ! multiply d<chi>/dy with omega_* coefficient and add to source (RHS of GK eqn)
       call add_explicit_term_ffs(g0y, wstar, gout)
-      
+
       ! Deallocate
-      deallocate (g0y, g0_swap)
+      deallocate (g0y)
       deallocate (g0)
 
       ! Stop timing the time advance due to the driving gradients
