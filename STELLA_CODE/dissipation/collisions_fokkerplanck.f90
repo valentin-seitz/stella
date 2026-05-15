@@ -3484,6 +3484,11 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       allocate (mucoll_fp(nvpa, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc)); mucoll_fp = 0.0
 
       if (density_conservation) then
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nmu, nvpa, ia, vpa_operator, mu_operator, cfac) &
+         !$omp private(ikxkyz, iky, ikx, iz, is, imu, iv) &
+         !$omp shared(gvmu, coll_fp, mucoll_fp)
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iky = iky_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -3501,7 +3506,14 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             end if
             gvmu(:, :, ikxkyz) = coll_fp(:, :, ikxkyz) + mucoll_fp(:, :, ikxkyz)
          end do
+         !$omp end do
+         !$omp end parallel
       else
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nmu, nvpa, ia, vpa_operator, mu_operator, cfac) &
+         !$omp private(ikxkyz, iky, ikx, iz, is, imu, iv) &
+         !$omp shared(gvmu, coll_fp, mucoll_fp)
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iky = iky_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -3519,6 +3531,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             end if
             gvmu(:, :, ikxkyz) = coll_fp(:, :, ikxkyz) + mucoll_fp(:, :, ikxkyz)
          end do
+         !$omp end do
+         !$omp end parallel
       end if
 
       deallocate (coll_fp, mucoll_fp)
