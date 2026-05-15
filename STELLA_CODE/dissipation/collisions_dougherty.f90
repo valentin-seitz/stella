@@ -1143,7 +1143,12 @@ contains
 
          ! Take vpa derivatives
          allocate (coll(nvpa, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc))
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nvpa, nmu, ia, vpa_operator, mu_operator) &
+         !$omp private(ikxkyz, iky, ikx, iz, is, imu, iv, tfac, mucoll) &
+         !$omp shared(gvmu, coll, spec, rho_d_clamped, bmag, dBdrho, kperp2)
          allocate (mucoll(nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iky = iky_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -1171,7 +1176,10 @@ contains
             end if
             gvmu(:, :, ikxkyz) = coll(:, :, ikxkyz)
          end do
-         deallocate (coll, mucoll)
+         !$omp end do
+         deallocate (mucoll)
+         !$omp end parallel
+         deallocate (coll)
 
          ! Remap so that (ky,kx,z,tube) local
          call gather(kxkyz2vmu, gvmu, tmp_vmulo)
@@ -1209,7 +1217,12 @@ contains
 
          ! Take vpa derivatives
          allocate (coll(nvpa, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc))
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nvpa, nmu, ia, kfac, vpa_operator, mu_operator, momentum_conservation, energy_conservation) &
+         !$omp private(ikxkyz, iky, ikx, iz, is, imu, iv, mucoll) &
+         !$omp shared(gvmu, coll, spec, bmag, kperp2)
          allocate (mucoll(nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iky = iky_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -1234,7 +1247,10 @@ contains
             ! before re-allocating tmp_vmulo
             gvmu(:, :, ikxkyz) = coll(:, :, ikxkyz) - 0.5 * kfac * kperp2(iky, ikx, ia, iz) * (spec(is)%smz / bmag(ia, iz))**2 * gvmu(:, :, ikxkyz)
          end do
-         deallocate (coll, mucoll)
+         !$omp end do
+         deallocate (mucoll)
+         !$omp end parallel
+         deallocate (coll)
 
          ! Remap so that (ky,kx,z,tube) local
          call gather(kxkyz2vmu, gvmu, tmp_vmulo)
