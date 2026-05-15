@@ -137,13 +137,19 @@ contains
       !    <wdrifty_phi>[ialpha, iz, ivmu] = Z_s/T_s * exp(-v²) * (<wcvdrifty> + <wgbdrifty>)
       !-------------------------------------------------------------------------
 
-      ! Allocate temporary arrays
+      ! Iterate over velocity space
+      !$omp parallel default(none) &
+      !$omp firstprivate(vmu_lo, nalpha, nzgrid, code_dt, ydriftknob, xdriftknob, q_as_x, geo_surf) &
+      !$omp private(ivmu, iv, imu, is, fac, wcvdrifty, wgbdrifty, wcvdriftx, wgbdriftx) &
+      !$omp shared(wdriftx_g, wdrifty_g, wdriftx_phi, wdrifty_phi, wdriftx_bpar, wdrifty_bpar, &
+      !$omp        vpa, vperp2, mu, spec, maxwell_vpa, maxwell_mu, maxwell_fac, &
+      !$omp        B_times_kappa_dot_grady, B_times_gradB_dot_grady, &
+      !$omp        B_times_kappa_dot_gradx, B_times_gradB_dot_gradx)
       allocate (wcvdrifty(nalpha, -nzgrid:nzgrid))
       allocate (wgbdrifty(nalpha, -nzgrid:nzgrid))
       allocate (wcvdriftx(nalpha, -nzgrid:nzgrid))
       allocate (wgbdriftx(nalpha, -nzgrid:nzgrid))
-
-      ! Iterate over velocity space
+      !$omp do
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          iv = iv_idx(vmu_lo, ivmu)
          imu = imu_idx(vmu_lo, ivmu)
@@ -152,24 +158,24 @@ contains
          !----------------------------------------------------------------------
          !----------------------- Calculate y-components -----------------------
          !----------------------------------------------------------------------
-         
+
          ! Calculate <wcvdrifty> = 0.5 * code_dt * Ts/Zs * v_parallel² * <cvdrift>
          ! and <wgbdrifty> = 0.25 * code_dt * Ts/Zs * v_perp² * <gbvdrift>
          ! We also add the input parameter <ydriftknob> to rescale the y-drifts
          fac = -ydriftknob * 0.5 * code_dt * spec(is)%tz_psi0
          wcvdrifty = fac * 2 * B_times_kappa_dot_grady * vpa(iv) * vpa(iv)
          wgbdrifty = fac * B_times_gradB_dot_grady * vperp2(:, :, imu)
-         
+
          ! Calculate <wdrifty_g>[ialpha, iz, ivmu] = <wcvdrifty> + <wgbdrifty>
          wdrifty_g(:, :, ivmu) = wcvdrifty + wgbdrifty
-         
+
          ! Calculate <wdrifty_phi>[ialpha, iz, ivmu] = Z_s/T_s * exp(-v²) * (<wcvdrifty> + <wgbdrifty>)
          wdrifty_phi(:, :, ivmu) = spec(is)%zt * (wcvdrifty + wgbdrifty) &
                * maxwell_vpa(iv, is) * maxwell_mu(:, :, imu, is) * maxwell_fac(is)
-         
+
          ! TODO - write documentation and neoclassical terms not supported
          wdrifty_bpar(:,:,ivmu) = 4.0 * mu(imu) * wdrifty_phi(:, :, ivmu) * spec(is)%tz
-         
+
          !----------------------------------------------------------------------
          !----------------------- Calculate x-components -----------------------
          !----------------------------------------------------------------------
@@ -184,20 +190,21 @@ contains
          end if
          wcvdriftx = fac * B_times_kappa_dot_gradx * 2. * geo_surf%shat * vpa(iv) * vpa(iv)
          wgbdriftx = fac * B_times_gradB_dot_gradx * geo_surf%shat * vperp2(:, :, imu)
-         
+
          ! Calculate <wdriftx_g>[ialpha, iz, ivmu] = <wcvdriftx> + <wgbdriftx>
          wdriftx_g(:, :, ivmu) = wcvdriftx + wgbdriftx
-         
+
          ! Calculate <wdriftx_phi>[ialpha, iz, ivmu] = Z_s/T_s * exp(-v²) * (<wcvdriftx> + <wgbdriftx>)
          wdriftx_phi(:, :, ivmu) = spec(is)%zt * (wcvdriftx + wgbdriftx) &
                * maxwell_vpa(iv, is) * maxwell_mu(:, :, imu, is) * maxwell_fac(is)
-         
+
          ! TODO - write documentation and neoclassical terms not supported
          wdriftx_bpar(:,:,ivmu) = 4.0 * mu(imu) * wdriftx_phi(:, :, ivmu) * spec(is)%tz
 
       end do
-
-      deallocate (wcvdriftx, wgbdriftx, wcvdrifty, wgbdrifty) 
+      !$omp end do
+      deallocate (wcvdriftx, wgbdriftx, wcvdrifty, wgbdrifty)
+      !$omp end parallel
 
    end subroutine init_wdrift_without_neoclassical_terms
    
@@ -246,20 +253,29 @@ contains
       ! FLAG -- need to deal with shat=0 case.  ideally move away from q as x-coordinate
       !-------------------------------------------------------------------------
 
-      ! Allocate temporary arrays
+      ! Iterate over velocity space
+      !$omp parallel default(none) &
+      !$omp firstprivate(vmu_lo, nalpha, nzgrid, code_dt, ydriftknob, xdriftknob, q_as_x, geo_surf, &
+      !$omp              include_neoclassical_terms, drhodpsi, dydalpha, dxdpsi, gds23, gds24) &
+      !$omp private(ivmu, iv, imu, is, fac, wcvdrifty, wgbdrifty, wcvdriftx, wgbdriftx) &
+      !$omp shared(wdriftx_g, wdrifty_g, wdriftx_phi, wdrifty_phi, wdriftx_bpar, wdrifty_bpar, &
+      !$omp        vpa, vperp2, mu, spec, maxwell_vpa, maxwell_mu, maxwell_fac, &
+      !$omp        B_times_kappa_dot_grady, B_times_gradB_dot_grady, &
+      !$omp        B_times_kappa_dot_gradx, B_times_gradB_dot_gradx, &
+      !$omp        dphineo_dzed, dphineo_drho, dphineo_dalpha, &
+      !$omp        dfneo_dvpa, dfneo_dzed, dfneo_dalpha)
       allocate (wcvdrifty(nalpha, -nzgrid:nzgrid))
       allocate (wgbdrifty(nalpha, -nzgrid:nzgrid))
       allocate (wcvdriftx(nalpha, -nzgrid:nzgrid))
       allocate (wgbdriftx(nalpha, -nzgrid:nzgrid))
-
-      ! Iterate over velocity space
+      !$omp do
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
          iv = iv_idx(vmu_lo, ivmu)
          imu = imu_idx(vmu_lo, ivmu)
          is = is_idx(vmu_lo, ivmu)
-         
+
          fac = -ydriftknob * 0.5 * code_dt * spec(is)%tz_psi0
-         
+
          ! Calculate <wcvdrifty> = 0.5 * code_dt * Ts/Zs * v_parallel² * 2 * <B_times_kappa_dot_grady>
          ! This is the curvature drift piece of wdrifty with missing factor of vpa
          ! vpa factor is missing to avoid singularity when including
@@ -331,8 +347,9 @@ contains
          end if
 
       end do
-
-      deallocate (wcvdriftx, wgbdriftx, wcvdrifty, wgbdrifty) 
+      !$omp end do
+      deallocate (wcvdriftx, wgbdriftx, wcvdrifty, wgbdrifty)
+      !$omp end parallel
 
    end subroutine init_wdrift_with_neoclassical_terms
       
