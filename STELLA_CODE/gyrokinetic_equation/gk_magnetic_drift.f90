@@ -493,18 +493,22 @@ contains
          call get_dgdy(phi, dphidy)
 
          ! get <dphi/dy> in k-space
+         !$omp parallel do default(none) firstprivate(vmu_lo) private(ivmu) shared(dphidy, g0k)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
                call gyro_average(dphidy, ivmu, g0k(:, :, :, :, ivmu))
          end do
+         !$omp end parallel do
 
          ! add vM . grad y d<phi>/dy term to equation
          call add_explicit_term(g0k, wdrifty_phi(1, :, :), gout)
-         
+
          if (include_bpar) then
                ! get <dbpar/dy> in k-space
+               !$omp parallel do default(none) firstprivate(vmu_lo) private(ivmu) shared(dbpardy, g0k)
                do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
                call gyro_average_j1(dbpardy, ivmu, g0k(:, :, :, :, ivmu))
                end do
+               !$omp end parallel do
                ! add vM . grad y (4 mu d<bpar>/dy) term to equation
                call add_explicit_term(g0k, wdrifty_bpar(1, :, :), gout)
          end if
@@ -621,16 +625,20 @@ contains
          ! calculate dphi/dx in (ky,kx) space
          call get_dgdx(phi, dphidx)
          ! get <dphi/dx> in k-space
+         !$omp parallel do default(none) firstprivate(vmu_lo) private(ivmu) shared(dphidx, g0k)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
                call gyro_average(dphidx, ivmu, g0k(:, :, :, :, ivmu))
          end do
+         !$omp end parallel do
          ! add vM . grad x d<phi>/dx term to equation
          call add_explicit_term(g0k, wdriftx_phi(1, :, :), gout)
          if (include_bpar) then
                ! get <dbpar/dx> in k-space
+               !$omp parallel do default(none) firstprivate(vmu_lo) private(ivmu) shared(dbpardx, g0k)
                do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
                call gyro_average(dbpardx, ivmu, g0k(:, :, :, :, ivmu))
                end do
+               !$omp end parallel do
                ! add vM . grad x ( 4 mu d<bpar>/dx ) term to equation
                call add_explicit_term(g0k, wdriftx_bpar(1, :, :), gout)
          end if
