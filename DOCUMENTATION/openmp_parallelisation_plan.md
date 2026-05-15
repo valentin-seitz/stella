@@ -165,7 +165,7 @@ careful placement. Defer until Tier A/B are validated.
 2. [x] Tier A2 — `dissipation_hyper.f90` apply loops
 3. [x] Tier A3 — `dissipation_hyper.f90` `get_dgdvpa_fourth_order`
 4. [x] Tier A4 — `dissipation_hyper.f90` `get_dgdz_fourth_order`
-5. [ ] Tier B1 — `collisions_dougherty.f90` explicit loops
-6. [ ] Tier B2 — `gk_magnetic_drift.f90` init loops
-7. [ ] Tier B3 — `collisions_dougherty.f90` init matrix loops
-8. [ ] Tier C1 — `gk_parallel_nonlinearity.f90`
+5. [x] Tier B1 — `collisions_dougherty.f90` explicit loops
+6. [x] Tier B2 — `gk_magnetic_drift.f90` init loops
+7. [x] Tier B3 — `collisions_dougherty.f90` init matrix loops
+8. [ ] Tier C1 — `gk_parallel_nonlinearity.f90` (deferred)
