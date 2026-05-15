@@ -284,34 +284,48 @@ contains
       c = c * tupwndfac
 
       if (full_flux_surface) then
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxyz_lo, nmu, nvpa, tupwndfac) &
+         !$omp private(ikxyz, iy, iz, is, sgn, imu, iv) &
+         !$omp shared(mirror_tri_a, mirror_tri_b, mirror_tri_c, a, b, c, mirror, mirror_sign)
+         !$omp do collapse(3)
          do ikxyz = kxyz_lo%llim_proc, kxyz_lo%ulim_proc
-            iy = iy_idx(kxyz_lo, ikxyz)
-            iz = iz_idx(kxyz_lo, ikxyz)
-            is = is_idx(kxyz_lo, ikxyz)
-            sgn = mirror_sign(iy, iz)
             do imu = 1, nmu
                do iv = 1, nvpa
+                  iy = iy_idx(kxyz_lo, ikxyz)
+                  iz = iz_idx(kxyz_lo, ikxyz)
+                  is = is_idx(kxyz_lo, ikxyz)
+                  sgn = mirror_sign(iy, iz)
                   mirror_tri_a(iv, imu, ikxyz) = -a(iv, sgn) * mirror(iy, iz, imu, is)
                   mirror_tri_b(iv, imu, ikxyz) = 1.0 - b(iv, sgn) * mirror(iy, iz, imu, is) * tupwndfac
                   mirror_tri_c(iv, imu, ikxyz) = -c(iv, sgn) * mirror(iy, iz, imu, is)
                end do
             end do
          end do
+         !$omp end do
+         !$omp end parallel
       else
          ! Multiply by mirror coefficient
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nmu, nvpa, tupwndfac) &
+         !$omp private(ikxkyz, iy, iz, is, sgn, imu, iv) &
+         !$omp shared(mirror_tri_a, mirror_tri_b, mirror_tri_c, a, b, c, mirror, mirror_sign)
+         !$omp do collapse(3)
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
-            iy = 1
-            iz = iz_idx(kxkyz_lo, ikxkyz)
-            is = is_idx(kxkyz_lo, ikxkyz)
-            sgn = mirror_sign(iy, iz)
             do imu = 1, nmu
                do iv = 1, nvpa
+                  iy = 1
+                  iz = iz_idx(kxkyz_lo, ikxkyz)
+                  is = is_idx(kxkyz_lo, ikxkyz)
+                  sgn = mirror_sign(iy, iz)
                   mirror_tri_a(iv, imu, ikxkyz) = -a(iv, sgn) * mirror(iy, iz, imu, is)
                   mirror_tri_b(iv, imu, ikxkyz) = 1.0 - b(iv, sgn) * mirror(iy, iz, imu, is) * tupwndfac
                   mirror_tri_c(iv, imu, ikxkyz) = -c(iv, sgn) * mirror(iy, iz, imu, is)
                end do
             end do
          end do
+         !$omp end do
+         !$omp end parallel
       end if
 
       deallocate (a, b, c)
