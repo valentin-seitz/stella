@@ -585,17 +585,24 @@ contains
 
       !-------------------------------------------------------------------------
 
+      !$omp parallel default(none) &
+      !$omp firstprivate(vmu_lo, nzgrid, ntubes, nakx) &
+      !$omp private(ivmu, imu, is, it, iz, ikx) &
+      !$omp shared(g, src, mirror)
+      !$omp do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-         imu = imu_idx(vmu_lo, ivmu)
-         is = is_idx(vmu_lo, ivmu)
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
+               imu = imu_idx(vmu_lo, ivmu)
+               is = is_idx(vmu_lo, ivmu)
                do ikx = 1, nakx
                   src(:, ikx, iz, it, ivmu) = src(:, ikx, iz, it, ivmu) + mirror(1, iz, imu, is) * g(:, ikx, iz, it, ivmu)
                end do
             end do
          end do
       end do
+      !$omp end do
+      !$omp end parallel
 
    end subroutine add_mirror_term
 
@@ -617,17 +624,26 @@ contains
       integer :: imu, is, ivmu
       integer :: it, iz, ikx
 
+      !-------------------------------------------------------------------------
+
+      !$omp parallel default(none) &
+      !$omp firstprivate(vmu_lo, nzgrid, ntubes, ikx_max) &
+      !$omp private(ivmu, imu, is, it, iz, ikx) &
+      !$omp shared(g, src, mirror)
+      !$omp do collapse(3)
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-         imu = imu_idx(vmu_lo, ivmu)
-         is = is_idx(vmu_lo, ivmu)
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
+               imu = imu_idx(vmu_lo, ivmu)
+               is = is_idx(vmu_lo, ivmu)
                do ikx = 1, ikx_max
                   src(:, ikx, iz, it, ivmu) = src(:, ikx, iz, it, ivmu) + mirror(:, iz, imu, is) * g(:, ikx, iz, it, ivmu)
                end do
             end do
          end do
       end do
+      !$omp end do
+      !$omp end parallel
 
    end subroutine add_mirror_term_ffs
 
