@@ -431,8 +431,14 @@ contains
          allocate (g0v(nvpa, nmu, kxyz_lo%llim_proc:kxyz_lo%ulim_alloc))
          allocate (g0x(ny, ikx_max, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
          allocate (dgdv(nvpa, nmu))
-         allocate (g_swap(naky_all, ikx_max))
 
+         ! g_swap is thread-private, allocated inside parallel region
+         !$omp parallel default(none) &
+         !$omp firstprivate(vmu_lo, nzgrid, it, naky_all, ikx_max) &
+         !$omp private(ivmu, iz, g_swap) &
+         !$omp shared(g, g0x)
+         allocate (g_swap(naky_all, ikx_max))
+         !$omp do collapse(2)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             do iz = -nzgrid, nzgrid
                ! Swap from ky >= 0 and all kx to kx >= 0 and all ky
@@ -444,6 +450,10 @@ contains
                call transform_ky2y(g_swap, g0x(:, :, iz, it, ivmu))
             end do
          end do
+         !$omp end do
+         deallocate (g_swap)
+         !$omp end parallel
+
          ! Remap g so velocities are local
          call scatter(kxyz2vmu, g0x, g0v)
          ! Next, calculate dg/dvpa;
@@ -463,7 +473,7 @@ contains
 
          ! Finally add the mirror term to the RHS of the GK eqn
          call add_mirror_term_ffs(g0x, gout)
-         deallocate (dgdv, g_swap)
+         deallocate (dgdv)
       else
          allocate (g0v(nvpa, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc))
          allocate (g0x(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
