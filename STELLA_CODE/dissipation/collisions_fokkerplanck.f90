@@ -387,6 +387,18 @@ contains
       bb_blcs = 0.
       cc_blcs = 0.
 
+      !$omp parallel do default(none) &
+      !$omp   firstprivate(kxkyz_lo, ia, vfac, nuDfac, nspec, nvpa, nmu) &
+      !$omp   private(imu, iv, ikxkyz, iky, ikx, iz, is, isb, &
+      !$omp           vpap, vpam, mum, mup, xpv, xmv, &
+      !$omp           nupapv, nupamv, nuDpv, nuDmv, mwpv, mwmv, &
+      !$omp           gam_mu, gam_mum, gam_mup, mwm, mwp, &
+      !$omp           nuDm, nuDp, nupam, nupap, xm, xp, &
+      !$omp           massr, eiediff, eidefl) &
+      !$omp   shared(aa_blcs, bb_blcs, cc_blcs, nux, mw, maxwell_mu, maxwell_vpa, &
+      !$omp          vpa, mu, bmag, dmu, dvpa, spec, code_dt, &
+      !$omp          spitzer_problem, density_conservation, mu_operator,nupa, &
+      !$omp          eimassr_approx, eiediffknob, eideflknob, deflknob, nuD)
       do imu = 1, nmu
          do iv = 1, nvpa
             do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
@@ -1250,6 +1262,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             end do
          end do
       end do
+      !$omp end parallel do
 
       if (testpart .eqv. .false.) then
          aa_blcs = 0.
@@ -1300,6 +1313,10 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       ! a_ij is stored in aband(ku+1+i-j,j) for $\max(1,j-ku) \leq i \leq \min(m,j+kl)$
       cdiffmat_band = 0.
 
+      !$omp parallel do default(none) &
+      !$omp   firstprivate(kxkyz_lo, nmu, nvpa, nspec) &
+      !$omp   private(ikxkyz, iky, ikx, iz, is, iv, imu, imu2, isb, bm_colind, bm_rowind) &
+      !$omp   shared(cdiffmat_band, aa_blcs, bb_blcs, cc_blcs)
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -1389,8 +1406,14 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
          end do
 
       end do
+      !$omp end parallel do
 
       ! add the gyro-diffusive term to cdiffmat
+      !$omp parallel do default(none) &
+      !$omp   firstprivate(kxkyz_lo, nmu, nvpa, nspec, ia) &
+      !$omp   private(ikxkyz, iky, ikx, iz, is, iv, imu, ivv, imm, isb, eiediff, eidefl) &
+      !$omp   shared(cdiffmat_band, kperp2, nupa, nuD, spec, mu, vpa, bmag, &
+      !$omp          code_dt, cfac, deflknob, eimassr_approx, eiediffknob, eideflknob)
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -1426,6 +1449,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             end do
          end do
       end do
+      !$omp end parallel do
 
       ! add 1 to the diagonal, since the matrix operator is 1 - C^{ab}[h_a]
       do is = 1, nspec
@@ -1462,6 +1486,10 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       nc = nvpa * nmu
       nb = nmu + 1
       lldab = 3 * (nmu + 1) + 1
+      !$omp parallel do default(none) &
+      !$omp   firstprivate(kxkyz_lo, nc, nb, lldab) &
+      !$omp   private(ikxkyz, iky, ikx, iz, is, info) &
+      !$omp   shared(cdiffmat_band, ipiv)
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -1469,6 +1497,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
          is = is_idx(kxkyz_lo, ikxkyz)
          call zgbtrf(nc, nc, nb, nb, cdiffmat_band(:, :, iky, ikx, iz, is), lldab, ipiv(:, iky, ikx, iz, is), info)
       end do
+      !$omp end parallel do
 
    end subroutine init_fp_diffmatrix
 
@@ -1499,6 +1528,10 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
 
       ia = 1
 
+      !$omp parallel do default(none) &
+      !$omp   firstprivate(nvpa, nmu, nzgrid, lmax, ia) &
+      !$omp   private(iv, imu, iz, ll, mm, xi) &
+      !$omp   shared(legendre_vpamu, vpa, mu, bmag)
       do iv = 1, nvpa
          do imu = 1, nmu
             do iz = -nzgrid, nzgrid
@@ -1511,6 +1544,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             end do
          end do
       end do
+      !$omp end parallel do
 
    end subroutine init_legendre
 
@@ -1973,6 +2007,11 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       end do
 
       ! get normalisations for psijls
+      !$omp parallel do default(none) collapse(4) &
+      !$omp   firstprivate(nspec, lmax, jmax, nzgrid, ia) &
+      !$omp   private(isa, isb, ll, iz, jj) &
+      !$omp   shared(psijnorm, legendre_vpamu, vlaguerre_vmu, deltaj, velvpamu, spec, &
+      !$omp          exact_conservation, exact_conservation_tp)
       do isa = 1, nspec
          do isb = 1, nspec
             do ll = 0, lmax
@@ -2028,6 +2067,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             end do
          end do
       end do
+      !$omp end parallel do
 
       psijnorm = psijnorm / (4 * pi) ! account for theta and phi integrals included in integrate_vmu
 
