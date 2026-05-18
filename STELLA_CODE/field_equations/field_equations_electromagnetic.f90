@@ -181,10 +181,12 @@ contains
          call gyro_average_j1(g, phi_gyro)
          
          ! Multiply by mu factor from vperp2
+         !$omp parallel do default(none) firstprivate(vmu_lo) private(ivmu, imu) shared(phi_gyro, mu)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             imu = imu_idx(vmu_lo, ivmu)
             phi_gyro(:, :, :, :, ivmu) = phi_gyro(:, :, :, :, ivmu) * mu(imu)
          end do
+         !$omp end parallel do
          
          ! <g> requires modification if radial profile variation is included; not supported for bpar MRH
          ! Integrate <g> over velocity space and sum over species
@@ -216,10 +218,12 @@ contains
          ! For parallel Amperes Law, need to calculate parallel current rather than density,
          ! so multiply <g> by vpa before integrating. 
          ! Because we are parallelising over (vpa, mu) we need to first get the vpa index, then multiply with vpa
+         !$omp parallel do default(none) firstprivate(vmu_lo) private(ivmu, iv) shared(phi_gyro, vpa)
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             iv = iv_idx(vmu_lo, ivmu)
             phi_gyro(:, :, :, :, ivmu) = phi_gyro(:, :, :, :, ivmu) * vpa(iv)
          end do
+         !$omp end parallel do
          
          ! Integrate vpa*<g> over velocity space and sum over species
          ! store result in apar, which will be further modified below to account for apar pre-factor
@@ -438,6 +442,11 @@ contains
       ia = 1
       
       if (dist == 'gbar' .or. dist == 'g') then
+         !$omp parallel do default(none) collapse(4) &
+         !$omp firstprivate(ntubes, nzgrid, nakx, naky) &
+         !$omp private(it, iz, ikx, iky, antot1, antot3) &
+         !$omp shared(phi, bpar, denominator_fields_inv11, denominator_fields_inv13, &
+         !$omp        denominator_fields_inv31, denominator_fields_inv33)
          do it = 1, ntubes
             do iz = -nzgrid, nzgrid
                do ikx = 1, nakx
@@ -450,6 +459,7 @@ contains
                end do
             end do
          end do
+         !$omp end parallel do
       
       else if (dist == 'h') then
          ! divide sum ( Zs int J0 h d^3 v) by sum(Zs^2 ns / Ts)
