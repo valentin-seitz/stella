@@ -299,34 +299,38 @@ contains
          if (debug) write (*, *) 'field_equations_electromagnetic::advance_fields::kxkyzlo::include_bpar'
          if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g int_dv_g_vperp2')
          
-         ! Allocate temporary arrays
+         ! Iterate over the (kx,ky,z,mu,vpa,s) points; species sum needs reduction
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nvpa, nmu) &
+         !$omp private(ikxkyz, iz, it, ikx, iky, is, wgt, tmp, g0) &
+         !$omp reduction(+:phi, bpar) &
+         !$omp shared(g, spec, mu, beta)
          allocate (g0(nvpa, nmu))
-          
-         ! Iterate over the (kx,ky,z,mu,vpa,s) points
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iz = iz_idx(kxkyz_lo, ikxkyz)
             it = it_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
             iky = iky_idx(kxkyz_lo, ikxkyz)
             is = is_idx(kxkyz_lo, ikxkyz)
-            
+
             ! Integrate g to get sum_s Z_s n_s J0 g and store in phi
             call gyro_average(g(:, :, ikxkyz), ikxkyz, g0)
             wgt = spec(is)%z * spec(is)%dens_psi0
             call integrate_vmu(g0, iz, tmp)
             phi(iky, ikx, iz, it) = phi(iky, ikx, iz, it) + wgt * tmp
-            
+
             ! Integrate g to get - 2 beta sum_s n_s T_s J1 mu g and store in bpar
             call gyro_average_j1(spread(mu, 1, nvpa) * g(:, :, ikxkyz), ikxkyz, g0)
             wgt = -2.0 * beta* spec(is)%z * spec(is)%dens_psi0 * spec(is)%temp_psi0
             call integrate_vmu(g0, iz, tmp)
             bpar(iky, ikx, iz, it) = bpar(iky, ikx, iz, it) + wgt * tmp
-            
+
          end do
-         
-         ! Deallocate temporary arrays
+         !$omp end do
          deallocate (g0)
-         
+         !$omp end paralllel
+
          ! Sum the values on all processors and send them to <proc0>
          call sum_allreduce(phi)
          call sum_allreduce(bpar)
@@ -349,29 +353,36 @@ contains
          ! Debug 
          if (debug) write (*, *) 'field_equations_electromagnetic::advance_fields::kxkyzlo::include_apar'
          
-         ! Allocate temporary arrays
-         allocate (g0(nvpa, nmu))
-         
-         ! Iterate over the (kx,ky,z,mu,vpa,s) points
+         ! Iterate over the (kx,ky,z,mu,vpa,s) points; species sum needs reduction
          ! This gives: 2 β sum_s Z_s n_s vth J0 vpa g
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nvpa, nmu) &
+         !$omp private(ikxkyz, iz, it, ikx, iky, is, wgt, tmp, g0) &
+         !$omp reduction(+:apar) &
+         !$omp shared(g, spec, vpa, beta)
+         allocate (g0(nvpa, nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iz = iz_idx(kxkyz_lo, ikxkyz)
             it = it_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
             iky = iky_idx(kxkyz_lo, ikxkyz)
             is = is_idx(kxkyz_lo, ikxkyz)
-            
+
             call gyro_average(spread(vpa, 2, nmu) * g(:, :, ikxkyz), ikxkyz, g0)
             wgt = 2.0 * beta * spec(is)%z * spec(is)%dens * spec(is)%stm
             call integrate_vmu(g0, iz, tmp)
             apar(iky, ikx, iz, it) = apar(iky, ikx, iz, it) + tmp * wgt
-            
+
          end do
-         
+         !$omp end do
+         deallocate (g0)
+         !$omp end paralllel
+
          ! Sum the values on all processors and send them to <proc0>
          call sum_allreduce(apar)
-         
-         ! Depending on the distribution function used the denominator is modified. 
+
+         ! Depending on the distribution function used the denominator is modified.
          if (dist == 'h') then
             apar = apar / spread(kperp2(:, :, ia, :), 4, ntubes)
          else if (dist == 'gbar') then
@@ -383,9 +394,6 @@ contains
             if (proc0) write (*, *) 'unknown dist option in get_fields. aborting'
             call mp_abort('unknown dist option in get_fields. aborting')
          end if
-         
-         ! Deallocate temporary arrays
-         deallocate (g0)
          
       end if
 
@@ -578,7 +586,14 @@ contains
       apar = 0.
       
       if (include_apar) then
+         ! Species sum needs reduction
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nvpa, nmu) &
+         !$omp private(ikxkyz, iz, it, ikx, iky, is, wgt, tmp, scratch) &
+         !$omp reduction(+:apar) &
+         !$omp shared(g, spec, vpa, beta)
          allocate (scratch(nvpa, nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iz = iz_idx(kxkyz_lo, ikxkyz)
             it = it_idx(kxkyz_lo, ikxkyz)
@@ -590,12 +605,14 @@ contains
             call integrate_vmu(scratch, iz, tmp)
             apar(iky, ikx, iz, it) = apar(iky, ikx, iz, it) + tmp * wgt
          end do
+         !$omp end do
+         deallocate (scratch)
+         !$omp end paralllel
          ! Apar for different species may be spread over processors at this point, so
          ! broadcast to all procs and sum over species
          call sum_allreduce(apar)
          ! Divide by the appropriate apar pre-factor to get apar
          call get_apar(apar, dist)
-         deallocate (scratch)
       end if
 
    end subroutine advance_apar
@@ -694,7 +711,14 @@ contains
       ! Paralel Ampere's Law apar_denom
       !
       if (include_apar) then
+         ! Species sum needs reduction
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, ia, nvpa, nmu) &
+         !$omp private(ikxkyz, it, iz, ikx, iky, is, wgt, tmp, g0) &
+         !$omp reduction(+:apar_denom) &
+         !$omp shared(spec, maxwell_vpa, maxwell_mu, maxwell_fac, aj0v, vpa, beta)
          allocate (g0(nvpa, nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             it = it_idx(kxkyz_lo, ikxkyz)
             ! apar_denom does not depend on flux tube index,
@@ -710,16 +734,23 @@ contains
             call integrate_vmu(g0, iz, tmp)
             apar_denom(iky, ikx, iz) = apar_denom(iky, ikx, iz) + tmp * wgt
          end do
+         !$omp end do
+         deallocate (g0)
+         !$omp end paralllel
          call sum_allreduce(apar_denom)
          apar_denom = apar_denom + kperp2(:, :, ia, :)
-
-         deallocate (g0)
       end if 
 
       ! 
       if (include_bpar) then
-         ! denominator_fields33
+         ! denominator_fields33; species sum needs reduction
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, ia, nvpa, nmu) &
+         !$omp private(ikxkyz, it, iz, ikx, iky, is, wgt, tmp, g0) &
+         !$omp reduction(+:denominator_fields33) &
+         !$omp shared(spec, maxwell_vpa, maxwell_mu, maxwell_fac, aj1v, mu)
          allocate (g0(nvpa, nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             it = it_idx(kxkyz_lo, ikxkyz)
             ! denominator_fields33 does not depend on flux tube index,
@@ -736,11 +767,20 @@ contains
             call integrate_vmu(g0, iz, tmp)
             denominator_fields33(iky, ikx, iz) = denominator_fields33(iky, ikx, iz) + tmp * wgt
          end do
+         !$omp end do
+         deallocate (g0)
+         !$omp end paralllel
          call sum_allreduce(denominator_fields33)
-
          denominator_fields33 = 1.0 + beta * denominator_fields33
 
-         !denominator_fields13
+         !denominator_fields13; species sum needs reduction
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, ia, nvpa, nmu) &
+         !$omp private(ikxkyz, it, iz, ikx, iky, is, wgt, tmp, g0) &
+         !$omp reduction(+:denominator_fields13) &
+         !$omp shared(spec, maxwell_vpa, maxwell_mu, maxwell_fac, aj0v, aj1v, mu)
+         allocate (g0(nvpa, nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             it = it_idx(kxkyz_lo, ikxkyz)
             ! denominator_fields13 does not depend on flux tube index,
@@ -757,9 +797,11 @@ contains
             call integrate_vmu(g0, iz, tmp)
             denominator_fields13(iky, ikx, iz) = denominator_fields13(iky, ikx, iz) + tmp * wgt
          end do
-         call sum_allreduce(denominator_fields13)
-         denominator_fields31 = -0.5 * beta * denominator_fields13 
+         !$omp end do
          deallocate (g0)
+         !$omp end paralllel
+         call sum_allreduce(denominator_fields13)
+         denominator_fields31 = -0.5 * beta * denominator_fields13
       end if
 
       ! Compute: denominator_fields_inv11, denominator_fields_inv13, denominator_fields_inv31, denominator_fields_inv33 

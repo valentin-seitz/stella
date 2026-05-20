@@ -321,31 +321,35 @@ contains
          ! Start timer
          if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g')
          
-         ! Allocate temporary arrays
+         ! Iterate over the (kx,ky,z,mu,vpa,s) points; species sum needs reduction
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nvpa, nmu) &
+         !$omp private(ikxkyz, iz, it, ikx, iky, is, wgt, tmp, g0) &
+         !$omp reduction(+:phi) &
+         !$omp shared(g, spec)
          allocate (g0(nvpa, nmu))
-         
-         ! Iterate over the (kx,ky,z,mu,vpa,s) points
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iz = iz_idx(kxkyz_lo, ikxkyz)
             it = it_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
             iky = iky_idx(kxkyz_lo, ikxkyz)
             is = is_idx(kxkyz_lo, ikxkyz)
-            
+
             ! First gyro-average the distribution function g at each phase space location
             ! and store this as g0 = <g>_R = J_0 g
             call gyro_average(g(:, :, ikxkyz), ikxkyz, g0)
-            
+
             ! Calculate phi = sum_s Z_s n_s [ (2B/sqrt(pi)) int dvpa int dmu J_0 * g ]
             wgt = spec(is)%z * spec(is)%dens_psi0
             call integrate_vmu(g0, iz, tmp)
             phi(iky, ikx, iz, it) = phi(iky, ikx, iz, it) + wgt * tmp
-            
+
          end do
-         
-         ! Deallocate temporary array
+         !$omp end do
          deallocate (g0)
-         
+         !$omp end parallel
+
          ! Sum the values on all processors and send them to <proc0>
          call sum_allreduce(phi)
 
@@ -670,10 +674,7 @@ contains
       ! Calculate the denominators needed for electrostatic simulations
       if (fphi > epsilon(0.0)) then
       
-         ! Allocate temporary arrays
          if (debug) write(*, *) 'field_equations_fluxtube::init_field_equations_fluxtube::init_denominator_fields'
-         allocate (g0(nvpa, nmu))
-
 
          !----------------------------------------------------------------------
          !--------------- Guiding-center distribution function g ---------------
@@ -686,8 +687,16 @@ contains
          !
          !     (1 - Gamma0(b_k) = (2B/sqrt(pi)) int dvpa int dmu (1 - J_0(a_k)²) exp(v²)
          !----------------------------------------------------------------------
+         ! Species sum needs reduction
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, ia, nvpa, nmu) &
+         !$omp private(ikxkyz, it, iz, ikx, iky, is, wgt, tmp, g0) &
+         !$omp reduction(+:denominator_fields) &
+         !$omp shared(spec, maxwell_vpa, maxwell_mu, maxwell_fac, aj0v)
+         allocate (g0(nvpa, nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
-            
+
             ! <denominator_fields> does not depend on flux tube index, so only compute for one flux tube index
             it = it_idx(kxkyz_lo, ikxkyz)
             if (it /= 1) cycle
@@ -705,9 +714,12 @@ contains
             wgt = spec(is)%z * spec(is)%z * spec(is)%dens_psi0 / spec(is)%temp
             call integrate_vmu(g0, iz, tmp)
             denominator_fields(iky, ikx, iz) = denominator_fields(iky, ikx, iz) + tmp * wgt
-            
+
          end do
-         
+         !$omp end do
+         deallocate (g0)
+         !$omp end parallel
+
          ! Sum the values on all processors and send them to <proc0>
          call sum_allreduce(denominator_fields)
          
