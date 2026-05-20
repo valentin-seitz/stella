@@ -329,7 +329,7 @@ contains
          end do
          !$omp end do
          deallocate (g0)
-         !$omp end paralllel
+         !$omp end parallel
 
          ! Sum the values on all processors and send them to <proc0>
          call sum_allreduce(phi)
@@ -377,7 +377,7 @@ contains
          end do
          !$omp end do
          deallocate (g0)
-         !$omp end paralllel
+         !$omp end parallel
 
          ! Sum the values on all processors and send them to <proc0>
          call sum_allreduce(apar)
@@ -607,7 +607,7 @@ contains
          end do
          !$omp end do
          deallocate (scratch)
-         !$omp end paralllel
+         !$omp end parallel
          ! Apar for different species may be spread over processors at this point, so
          ! broadcast to all procs and sum over species
          call sum_allreduce(apar)
@@ -736,7 +736,7 @@ contains
          end do
          !$omp end do
          deallocate (g0)
-         !$omp end paralllel
+         !$omp end parallel
          call sum_allreduce(apar_denom)
          apar_denom = apar_denom + kperp2(:, :, ia, :)
       end if 
@@ -769,7 +769,7 @@ contains
          end do
          !$omp end do
          deallocate (g0)
-         !$omp end paralllel
+         !$omp end parallel
          call sum_allreduce(denominator_fields33)
          denominator_fields33 = 1.0 + beta * denominator_fields33
 
@@ -799,7 +799,7 @@ contains
          end do
          !$omp end do
          deallocate (g0)
-         !$omp end paralllel
+         !$omp end parallel
          call sum_allreduce(denominator_fields13)
          denominator_fields31 = -0.5 * beta * denominator_fields13
       end if
