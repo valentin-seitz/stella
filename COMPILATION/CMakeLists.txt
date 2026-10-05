@@ -26,6 +26,7 @@ option(STELLA_ENABLE_FFT "Enable FFTs" ON)
 option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
+option(STELLA_ENABLE_OPENMP "Enable OpenMP" ON)
 
 # Options for utils internal library
 option(STELLA_ENABLE_LOCAL_SPFUNC "Enable local special functions" OFF)
@@ -300,6 +301,12 @@ if (STELLA_ENABLE_PETSC)
   target_link_libraries(libstella PUBLIC PETSc::PETSc)
 endif()
 
+if (STELLA_ENABLE_OPENMP)
+  find_package(OpenMP REQUIRED Fortran)
+  target_link_libraries(libstella PUBLIC OpenMP::OpenMP_Fortran)
+  target_compile_definitions(libstella PUBLIC USE_OPENMP)
+endif()
+
 # Link the <git_version> program
 add_subdirectory(../EXTERNALS/git_version ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/git_version)
 target_link_libraries(libstella PUBLIC fortran_git::fortran_git)
@@ -411,6 +418,13 @@ else()
   set(STELLA_PFUNIT_LOCATION "Not used")
 endif()
 
+# Enforce the standard 
+if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" OR CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std08")
+else()
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f08")
+endif()
+
 ############################################################
 # Configure summary
 
@@ -440,6 +454,7 @@ message("
    NetCDF support           : ${STELLA_ENABLE_NETCDF}
    Default real kind        : ${STELLA_DEFAULT_REAL_KIND}
    POSIX support            : ${STELLA_ENABLE_POSIX}
+   OpenMP                   : ${STELLA_ENABLE_OPENMP}
    Use F2003/8 intrinsics   : ${STELLA_ENABLE_F200X}
    Compilation flags        : ${STELLA_COMPILE_BUILD_FLAGS}
    Build type               : ${CMAKE_BUILD_TYPE}

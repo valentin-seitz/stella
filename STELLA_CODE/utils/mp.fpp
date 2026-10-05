@@ -46,7 +46,7 @@ module mp
    public :: max_reduce, max_allreduce
    public :: min_reduce, min_allreduce
    public :: comm_split, comm_free
-   public :: nproc, iproc, proc0, job, min_proc
+   public :: nproc, nthreads, iproc, proc0, job, min_proc
    public :: nshared_proc
    public :: send, ssend, receive
    public :: numnodes, inode
@@ -102,6 +102,9 @@ module mp
    integer, target :: comm_sgroup, comm_scross
 
    integer :: curr_focus
+
+   ! Number of OpenMP threads available at runtime
+   integer :: nthreads
 
    integer, parameter :: mp_info = MPI_INFO_NULL
 
@@ -315,7 +318,9 @@ contains
       ! Import numerical precision info and error output unit
       use constants, only: pi, kind_rs, kind_rd
       use file_utils, only: error_unit
-      
+#ifdef USE_OPENMP
+      use omp_lib
+#endif 
       implicit none
       
       ! Optional input communicator (allows embedding in a larger MPI program)
@@ -324,15 +329,25 @@ contains
       ! Local variables
       !integer :: info_numa
       integer :: ierror
+      integer :: provided_mpi_thread_level
       logical :: init
       
       !-------------------------------------------------------------------------
       ! Ensure MPI is initialized
       !-------------------------------------------------------------------------
-
       ! Check whether MPI has already been initialized, if not, initialise MPI
       call mpi_initialized(init, ierror)
+
+#ifdef USE_OPENMP
+      if (.not. init) call mpi_init_thread(MPI_THREAD_FUNNELED, provided_mpi_thread_level, ierror)
+      if(provided_mpi_thread_level < MPI_THREAD_FUNNELED) then
+         call mp_abort("ERROR: MPI Implementation does not support MPI_THREAD_FUNNELED. " // &
+              "Compile without OpenMP or switch MPI implementation")
+      end if
+#else
       if (.not. init) call mpi_init(ierror)
+#endif
+
       
       ! Duplicate MPI_COMM_WORLD to avoid accidental modification elsewhere
       call mpi_comm_dup(mpi_comm_world, mpi_comm_world_private, ierror)
@@ -468,6 +483,18 @@ contains
       else
          write (error_unit(), *) 'ERROR: precision mismatch in mpi'
       end if
+
+#ifdef USE_OPENMP
+      !-------------------------------------------------------------------------
+      ! Query how many threads the OpenMP runtime provides
+      !-------------------------------------------------------------------------
+
+      !$omp parallel default(none) shared(nthreads)
+         nthreads = omp_get_num_threads()
+      !$omp end parallel
+#else 
+      nthreads = 0
+#endif
 
    end subroutine init_mp
 
