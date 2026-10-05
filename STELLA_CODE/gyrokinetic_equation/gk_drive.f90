@@ -175,7 +175,6 @@ contains
    subroutine advance_wstar_explicit_flux_tube(phi, gout)
 
       ! Parallelisation
-      use mp, only: proc0
       
       ! Data arrays
       use arrays, only: wstar
@@ -191,8 +190,7 @@ contains
       use calculations_kxky_derivatives, only: get_dchidy
       
       ! Time this routine
-      use timers, only: time_gke
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
 
       implicit none
 
@@ -213,7 +211,7 @@ contains
       !-------------------------------------------------------------------------
 
       ! Start timing the time advance due to the driving gradients
-      if (proc0) call time_message(.false., time_gke(:, 6), ' wstar advance')
+      call region_start('drive_wstar')
 
       ! Allocate temporary array for <g0> = i ky J_0 ϕ_k
       allocate (g0(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
@@ -230,15 +228,15 @@ contains
       deallocate (g0)
 
       ! Stop timing the time advance due to the driving gradients
-      if (proc0) call time_message(.false., time_gke(:, 6), ' wstar advance')
+      call region_end('drive_wstar')
 
    end subroutine advance_wstar_explicit_flux_tube
    
    !---------------------------- Full flux surface -----------------------------
    subroutine advance_wstar_explicit_ffs(gout)
 
-      use mp, only: proc0, mp_abort
-      use job_manage, only: time_message
+      use mp, only: mp_abort
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: vmu_lo
       use calculations_transforms, only: transform_ky2y
       use grids_z, only: nzgrid, ntubes
@@ -249,7 +247,6 @@ contains
       use calculations_gyro_averages, only: gyro_average
       use calculations_add_explicit_terms, only: add_explicit_term_ffs
       use calculations_kxky_derivatives, only: get_dgdy, get_dchidy
-      use timers, only: time_gke
 
       implicit none
 
@@ -261,7 +258,7 @@ contains
       !-------------------------------------------------------------------------
 
       ! Start timing the time advance due to the driving gradients
-      if (proc0) call time_message(.false., time_gke(:, 6), ' wstar advance')
+      call region_start('drive_wstar')
       
       ! Assume only a single flux surface simulated
       it = 1
@@ -291,7 +288,7 @@ contains
       deallocate (g0)
 
       ! Stop timing the time advance due to the driving gradients
-      if (proc0) call time_message(.false., time_gke(:, 6), ' wstar advance')
+      call region_end('drive_wstar')
 
    end subroutine advance_wstar_explicit_ffs
 

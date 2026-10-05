@@ -77,11 +77,10 @@ contains
    !=========================================================================
    !================== CALCULATE OMEGA AT EVERY TIME STEP ===================
    !========================================================================= 
-   subroutine calculate_omega(istep, timer)
+   subroutine calculate_omega(istep)
       
       ! Parallelisation
-      use job_manage, only: time_message
-      use mp, only: proc0
+      use timers, only: region_start, region_end
       
       ! Physics flags
       use parameters_physics, only: include_apar
@@ -105,7 +104,6 @@ contains
 
       ! Arguments
       integer, intent(in) :: istep  ! The current time step
-      real, dimension(:), intent(in out) :: timer
 
       ! Local variables
       complex, dimension(:, :), allocatable :: phi_vs_kykx
@@ -121,7 +119,7 @@ contains
       if (.not. write_omega) return
 
       ! Start the timer
-      if (proc0) call time_message(.false., timer(:), 'calculate omega')
+      call region_start('diagnostics_calculate_omega')
  
       ! Allocate temporary arrays and define a <zero>
       allocate (phi_vs_kykx(naky, nakx)); phi_vs_kykx = 0.0
@@ -161,18 +159,17 @@ contains
       deallocate (aparavg, aparoldavg)
 
       ! End the timer
-      if (proc0) call time_message(.false., timer(:), 'calculate omega')
+      call region_end('diagnostics_calculate_omega')
 
    end subroutine calculate_omega 
 
    !=========================================================================
    !=============== WRITE OMEGA AT EVERY <NWRITE> TIME STEPS ================
    !========================================================================= 
-   subroutine write_omega_to_netcdf_file(istep, nout, timer, write_to_netcdf_file)
+   subroutine write_omega_to_netcdf_file(istep, nout, write_to_netcdf_file)
       
       ! Parallelisation
-      use job_manage, only: time_message
-      use mp, only: proc0
+      use timers, only: region_start, region_end
       
       ! Write to netCDF file
       use write_diagnostics_to_netcdf, only: write_omega_nc
@@ -186,7 +183,6 @@ contains
       integer, intent(in) :: istep  ! The current time step
       integer, intent(in) :: nout   ! The pointer in the netcdf file
       logical, intent(in) :: write_to_netcdf_file
-      real, dimension(:), intent(in out) :: timer
 
       ! Local variables
       integer :: it_runningaverage
@@ -197,7 +193,7 @@ contains
       if (.not. write_omega) return
       
       ! Start timer
-      if (proc0) call time_message(.false., timer(:), 'write omega')
+      call region_start('diagnostics_write_omega')
 
       ! Get the index of the current time point in <omega_vs_tkykx>
       it_runningaverage = mod(istep, navg) + 1
@@ -215,7 +211,7 @@ contains
       deallocate (omega_vs_kykx)
 
      ! End timer
-      if (proc0) call time_message(.false., timer(:), 'write omega')
+      call region_end('diagnostics_write_omega')
 
    end subroutine write_omega_to_netcdf_file
 
