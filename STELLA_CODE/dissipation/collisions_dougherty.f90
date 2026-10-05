@@ -158,6 +158,10 @@ contains
       end do
 
       ia = 1
+      !$omp parallel do default(none) &
+      !$omp firstprivate(kxkyz_lo, ia) &
+      !$omp private(ikxkyz, iky, ikx, iz, is) &
+      !$omp shared(bb_vpa, code_dt, spec, kperp2, bmag, dvpa)
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -166,6 +170,7 @@ contains
          bb_vpa(:, ikxkyz) = 1.0 + code_dt * spec(is)%vnew(is) &
             * (0.25 * kperp2(iky, ikx, ia, iz) * (spec(is)%smz / bmag(ia, iz))**2 + 1./dvpa**2)
       end do
+      !$omp end parallel do
 
    end subroutine init_vpadiff_matrix
 
@@ -216,6 +221,10 @@ contains
       ! where h'(i+1/2) = (h(i+1)-h(i))/(mu(i+1)-mu(i))
       ! left  endpoint i=1   -> mu(i-1/2) = 0
       ! right endpoint i=nmu -> h(i+1/2) = h'(i+1/2) = 0 (these are the two boundary conditions)
+      !$omp parallel do default(none) &
+      !$omp firstprivate(kxkyz_lo, ia, nmu) &
+      !$omp private(ikxkyz, iky, ikx, iz, is) &
+      !$omp shared(bb_mu, code_dt, spec, kperp2, bmag, dmu, dmu_cell, mu_cell, wgts_mu_bare)
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -232,6 +241,7 @@ contains
             * (0.25 * kperp2(iky, ikx, ia, iz) * (spec(is)%smz / bmag(ia, iz))**2 &
                + mu_cell(nmu - 1) * (1.0 / (dmu(nmu - 1) * bmag(ia, iz)) + 1.0) / wgts_mu_bare(nmu))
       end do
+      !$omp end parallel do
 
    end subroutine init_mudiff_matrix
 
@@ -1143,7 +1153,12 @@ contains
 
          ! Take vpa derivatives
          allocate (coll(nvpa, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc))
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nvpa, nmu, ia, vpa_operator, mu_operator) &
+         !$omp private(ikxkyz, iky, ikx, iz, is, imu, iv, tfac, mucoll) &
+         !$omp shared(gvmu, coll, spec, rho_d_clamped, bmag, dBdrho, kperp2)
          allocate (mucoll(nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iky = iky_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -1171,7 +1186,10 @@ contains
             end if
             gvmu(:, :, ikxkyz) = coll(:, :, ikxkyz)
          end do
-         deallocate (coll, mucoll)
+         !$omp end do
+         deallocate (mucoll)
+         !$omp end parallel
+         deallocate (coll)
 
          ! Remap so that (ky,kx,z,tube) local
          call gather(kxkyz2vmu, gvmu, tmp_vmulo)
@@ -1209,7 +1227,12 @@ contains
 
          ! Take vpa derivatives
          allocate (coll(nvpa, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc))
+         !$omp parallel default(none) &
+         !$omp firstprivate(kxkyz_lo, nvpa, nmu, ia, kfac, vpa_operator, mu_operator, momentum_conservation, energy_conservation) &
+         !$omp private(ikxkyz, iky, ikx, iz, is, imu, iv, mucoll) &
+         !$omp shared(gvmu, coll, spec, bmag, kperp2)
          allocate (mucoll(nmu))
+         !$omp do
          do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
             iky = iky_idx(kxkyz_lo, ikxkyz)
             ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -1234,7 +1257,10 @@ contains
             ! before re-allocating tmp_vmulo
             gvmu(:, :, ikxkyz) = coll(:, :, ikxkyz) - 0.5 * kfac * kperp2(iky, ikx, ia, iz) * (spec(is)%smz / bmag(ia, iz))**2 * gvmu(:, :, ikxkyz)
          end do
-         deallocate (coll, mucoll)
+         !$omp end do
+         deallocate (mucoll)
+         !$omp end parallel
+         deallocate (coll)
 
          ! Remap so that (ky,kx,z,tube) local
          call gather(kxkyz2vmu, gvmu, tmp_vmulo)
