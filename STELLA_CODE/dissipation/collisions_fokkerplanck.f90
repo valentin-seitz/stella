@@ -2178,7 +2178,6 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       use arrays_distribution_function, only: gvmu
       use field_equations_fluxtube, only: advance_fields_fluxtube_using_field_equations
       use field_equations_collisions, only: get_fields_by_spec_idx
-      use job_manage, only: time_message, timer_local
       use file_utils, only: open_output_file, close_output_file
       use constants, only: pi
 
@@ -2608,7 +2607,6 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       use grids_velocity, only: set_vpa_weights
       use parallelisation_layouts, only: kxkyz_lo
       use parallelisation_layouts, only: iky_idx, ikx_idx, iz_idx, is_idx, it_idx
-      use job_manage, only: time_message, timer_local
       use constants, only: pi
       use file_utils, only: open_output_file, close_output_file
 
@@ -3419,10 +3417,10 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
    !****************************************************************************
    !                                      Title
    !****************************************************************************
-   subroutine advance_collisions_fp_explicit(g, phi, bpar, gke_rhs, time_collisions)
+   subroutine advance_collisions_fp_explicit(g, phi, bpar, gke_rhs)
 
-      use mp, only: proc0, mp_abort
-      use job_manage, only: time_message
+      use mp, only: mp_abort
+      use timers, only: region_start, region_end
       use redistribute, only: scatter, gather
       use grids_time, only: code_dt
       use grids_z, only: nzgrid, ntubes
@@ -3442,7 +3440,6 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       complex, dimension(:, :, -nzgrid:, :, vmu_lo%llim_proc:), intent(in) :: g
       complex, dimension(:, :, -nzgrid:, :), intent(in) :: phi, bpar
       complex, dimension(:, :, -nzgrid:, :, vmu_lo%llim_proc:), intent(in out) :: gke_rhs
-      real, dimension(:, :), intent(in out) :: time_collisions
 
       integer :: is, ikxkyz, imu, iv, ivmu, ikx, iky, iz, ia
       logical :: conservative_wgts
@@ -3460,7 +3457,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
          call mp_abort("collisions not currently supported for full_flux_surface=T.  Aborting.")
       end if
 
-      if (proc0) call time_message(.false., time_collisions(:, 1), ' collisions')
+      call region_start('collisions')
 
       allocate (tmp_vmulo(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
 
@@ -3473,9 +3470,9 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       call g_to_h(tmp_vmulo, phi, bpar, fphi)
 
       ! remap so that (vpa,mu) local
-      if (proc0) call time_message(.false., time_collisions(:, 2), ' coll_redist')
+      call region_start('collisions_redistribute')
       call scatter(kxkyz2vmu, tmp_vmulo, gvmu)
-      if (proc0) call time_message(.false., time_collisions(:, 2), ' coll_redist')
+      call region_end('collisions_redistribute')
 
       ia = 1
 
@@ -3535,7 +3532,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       conservative_wgts = .false.
       call set_vpa_weights(conservative_wgts)
 
-      if (proc0) call time_message(.false., time_collisions(:, 1), ' collisions')
+      call region_end('collisions')
 
    end subroutine advance_collisions_fp_explicit
 
@@ -3680,7 +3677,6 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       use grids_species, only: spec
       use arrays, only: kperp2
       use constants, only: pi
-      use job_manage, only: timer_local, time_message
 
       implicit none
 
@@ -3986,7 +3982,6 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       use grids_species, only: spec
       use arrays, only: kperp2
       use constants, only: pi
-      use job_manage, only: timer_local, time_message
 
       implicit none
 
