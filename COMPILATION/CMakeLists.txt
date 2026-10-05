@@ -337,7 +337,11 @@ target_compile_options(libstella PRIVATE
 
 add_subdirectory(../STELLA_CODE/utils ${CMAKE_CURRENT_BINARY_DIR}/STELLA_CODE/utils)
 add_subdirectory(../EXTERNALS/mini_libstell ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/mini_libstell)
-target_link_libraries(libstella PUBLIC mini_libstell stella_utils)
+
+enable_language(C)
+add_subdirectory(../STELLA_CODE/region_timer ${CMAKE_CURRENT_BINARY_DIR}/STELLA_CODE/region_timer)
+
+target_link_libraries(libstella PUBLIC mini_libstell stella_utils region_timer)
 
 ############################################################
 #                          Tests                           #

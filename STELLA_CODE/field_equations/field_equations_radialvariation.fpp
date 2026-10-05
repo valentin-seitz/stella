@@ -43,7 +43,7 @@ contains
    subroutine calculate_phi_for_radial_variation(phi, dist, skip_fsa)
 
       use mp, only: proc0, mp_abort, job
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use parameters_physics, only: radial_variation
       use parameters_multibox, only: ky_solve_radial, ky_solve_real
       use grids_z, only: nzgrid
@@ -54,7 +54,6 @@ contains
       use multibox, only: mb_calculate_phi
       use arrays, only: denominator_fields
       use file_utils, only: runtype_option_switch, runtype_multibox
-      use timers, only: time_field_solve
 
       implicit none
 
@@ -87,7 +86,7 @@ contains
       multibox_mode = runtype_option_switch == runtype_multibox
       center_cell = multibox_mode .and. job == 1 .and. .not. ky_solve_real
 
-      if (proc0) call time_message(.false., time_field_solve(:, 4), ' calculate_phi')
+      call region_start('calculate_phi')
       if (dist == 'gbar') then
          if (global_quasineutrality .and. (center_cell .or. .not. multibox_mode) .and. .not. ky_solve_real) then
             call calculate_phi_radial(phi)
@@ -101,10 +100,10 @@ contains
       end if
 
       if (any(denominator_fields(1, 1, :) < epsilon(0.))) phi(1, 1, :, :) = 0.0
-      if (proc0) call time_message(.false., time_field_solve(:, 4), ' calculate_phi')
+      call region_end('calculate_phi')
 
       ! Now handle adiabatic electrons if needed
-      if (proc0) call time_message(.false., time_field_solve(:, 5), 'calculate_phi_adia_elec')
+      call region_start('calculate_phi_adia_elec')
       if (adia_elec .and. zonal_mode(1) .and. .not. skip_fsa_local) then
          if (debug) write (*, *) 'dist_fn::advance_stella::adiabatic_electrons'
 
@@ -119,7 +118,7 @@ contains
             call mp_abort('unknown dist option in get_fields. aborting')
          end if
       end if
-      if (proc0) call time_message(.false., time_field_solve(:, 5), 'calculate_phi_adia_elec')
+      call region_end('calculate_phi_adia_elec')
 
    end subroutine calculate_phi_for_radial_variation
 
