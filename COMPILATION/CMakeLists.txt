@@ -26,6 +26,7 @@ option(STELLA_ENABLE_FFT "Enable FFTs" ON)
 option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
+option(STELLA_ENABLE_NESMIK "Build region_timer against the nesmik profiling library (https://gitlab.pm.bsc.es/beppp/nesmik), found via $NESMIK_HOME" OFF)
 
 # Options for utils internal library
 option(STELLA_ENABLE_LOCAL_SPFUNC "Enable local special functions" OFF)
@@ -339,6 +340,22 @@ add_subdirectory(../STELLA_CODE/utils ${CMAKE_CURRENT_BINARY_DIR}/STELLA_CODE/ut
 add_subdirectory(../EXTERNALS/mini_libstell ${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/mini_libstell)
 
 enable_language(C)
+
+if (STELLA_ENABLE_NESMIK)
+  if (NOT NESMIK_HOME)
+    if (DEFINED ENV{NESMIK_HOME})
+      set(NESMIK_HOME "$ENV{NESMIK_HOME}")
+    else()
+      message(FATAL_ERROR "STELLA_ENABLE_NESMIK is ON but NESMIK_HOME is not set; point it at your nesmik install prefix")
+    endif()
+  endif()
+  # nesmik ships its own CMake package config (<prefix>/lib/cmake/nesmik),
+  # which provides the imported target nesmik::nesmik. CMake automatically
+  # rpaths its absolute IMPORTED_LOCATION into anything that links it, so
+  # running `stella` doesn't require LD_LIBRARY_PATH to be set.
+  find_package(nesmik REQUIRED CONFIG PATHS "${NESMIK_HOME}" NO_DEFAULT_PATH)
+endif()
+
 add_subdirectory(../STELLA_CODE/region_timer ${CMAKE_CURRENT_BINARY_DIR}/STELLA_CODE/region_timer)
 
 target_link_libraries(libstella PUBLIC mini_libstell stella_utils region_timer)
@@ -445,6 +462,7 @@ message("
    NetCDF support           : ${STELLA_ENABLE_NETCDF}
    Default real kind        : ${STELLA_DEFAULT_REAL_KIND}
    POSIX support            : ${STELLA_ENABLE_POSIX}
+   Nesmik support            : ${STELLA_ENABLE_NESMIK}
    Use F2003/8 intrinsics   : ${STELLA_ENABLE_F200X}
    Compilation flags        : ${STELLA_COMPILE_BUILD_FLAGS}
    Build type               : ${CMAKE_BUILD_TYPE}
