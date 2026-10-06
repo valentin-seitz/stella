@@ -1034,10 +1034,10 @@ contains
    !****************************************************************************
    !                                      Title
    !****************************************************************************
-   subroutine advance_collisions_dougherty_explicit(g, phi, bpar, gke_rhs, time_collisions)
+   subroutine advance_collisions_dougherty_explicit(g, phi, bpar, gke_rhs)
 
-      use mp, only: proc0, mp_abort
-      use job_manage, only: time_message
+      use mp, only: mp_abort
+      use timers, only: region_start, region_end
       use redistribute, only: scatter, gather
       use grids_time, only: code_dt
       use grids_z, only: nzgrid, ntubes
@@ -1065,7 +1065,6 @@ contains
       complex, dimension(:, :, -nzgrid:, :, vmu_lo%llim_proc:), intent(in) :: g
       complex, dimension(:, :, -nzgrid:, :), intent(in) :: phi, bpar
       complex, dimension(:, :, -nzgrid:, :, vmu_lo%llim_proc:), intent(in out) :: gke_rhs
-      real, dimension(:, :), intent(in out) :: time_collisions
 
       ! Local variables
       integer :: is, ikxkyz, imu, iv, ivmu, ikx, iky, iz, ia, it
@@ -1084,7 +1083,7 @@ contains
          call mp_abort("collisions not currently supported for full_flux_surface=T.  Aborting.")
       end if
 
-      if (proc0) call time_message(.false., time_collisions(:, 1), ' collisions')
+      call region_start('collisions')
 
       kfac = 0.0
       if (mu_operator) kfac = kfac + 0.5
@@ -1137,9 +1136,9 @@ contains
          end do
 
          ! Remap so that (vpa,mu) local
-         if (proc0) call time_message(.false., time_collisions(:, 2), ' coll_redist')
+         call region_start('collisions_redistribute')
          call scatter(kxkyz2vmu, tmp_vmulo, gvmu)
-         if (proc0) call time_message(.false., time_collisions(:, 2), ' coll_redist')
+         call region_end('collisions_redistribute')
 
          ! Take vpa derivatives
          allocate (coll(nvpa, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc))
@@ -1201,9 +1200,9 @@ contains
          call g_to_h(tmp_vmulo, phi, bpar, fphi)
 
          ! Remap so that (vpa,mu) local
-         if (proc0) call time_message(.false., time_collisions(:, 2), ' coll_redist')
+         call region_start('collisions_redistribute')
          call scatter(kxkyz2vmu, tmp_vmulo, gvmu)
-         if (proc0) call time_message(.false., time_collisions(:, 2), ' coll_redist')
+         call region_end('collisions_redistribute')
 
          ia = 1
 
@@ -1251,7 +1250,7 @@ contains
       conservative_wgts = .false.
       call set_vpa_weights(conservative_wgts)
 
-      if (proc0) call time_message(.false., time_collisions(:, 1), ' collisions')
+      call region_end('collisions')
 
    end subroutine advance_collisions_dougherty_explicit
 

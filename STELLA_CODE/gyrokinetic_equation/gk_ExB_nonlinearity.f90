@@ -30,7 +30,7 @@ contains
       use constants, only: pi, zi
 
       ! Parallelisation
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use mp, only: proc0, min_allreduce
       use mp, only: scope, allprocs, subprocs
       use parallelisation_layouts, only: vmu_lo, imu_idx, is_idx
@@ -75,7 +75,6 @@ contains
       use geometry, only: exb_nonlin_fac, exb_nonlin_fac_p, gfac
       
       ! TImers
-      use timers, only: time_gke
 
       implicit none
 
@@ -98,7 +97,7 @@ contains
       !-------------------------------------------------------------------------
 
       ! Start timer
-      if (proc0) call time_message(.false., time_gke(:, 7), ' ExB nonlinear advance')
+      call region_start('exb_nonlinearity')
       if (debug) write (*, *) 'time_advance::solve_gke::advance_ExB_nonlinearity::get_dgdy'
 
       ! Avoid dividing by zero in cfl_dt terms below
@@ -323,7 +322,7 @@ contains
          restart_time_step = .true.
       end if
 
-      if (proc0) call time_message(.false., time_gke(:, 7), ' ExB nonlinear advance')
+      call region_end('exb_nonlinearity')
 
    contains
 

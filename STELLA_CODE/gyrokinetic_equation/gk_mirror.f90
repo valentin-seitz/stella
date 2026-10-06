@@ -386,9 +386,7 @@ contains
    subroutine advance_mirror_explicit(g, gout)
 
       ! Parallelisation
-      use mp, only: proc0
-      use job_manage, only: time_message
-      use timers, only: time_mirror
+      use timers, only: region_start, region_end
       use initialise_redistribute, only: kxkyz2vmu, kxyz2vmu
       use redistribute, only: gather, scatter
       use parallelisation_layouts, only: fields_kxkyz
@@ -422,7 +420,7 @@ contains
       !-------------------------------------------------------------------------
 
       ! Start the timer for this subroutine
-      if (proc0) call time_message(.false., time_mirror(:, 1), ' Mirror advance')
+      call region_start('mirror')
 
       if (full_flux_surface) then
          ! Assume we are simulating a single flux train
@@ -469,9 +467,9 @@ contains
          allocate (g0x(naky, nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
 
          if (.not. fields_kxkyz) then
-            if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+            call region_start('mirror_redistribute')
             call scatter(kxkyz2vmu, g, gvmu)
-            if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+            call region_end('mirror_redistribute')
          end if
 
          ! Incoming gvmu is g = <f>
@@ -481,15 +479,15 @@ contains
          call get_dgdvpa_explicit(g0v)
 
          ! Swap layouts so that (z,kx,ky) are local
-         if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+         call region_start('mirror_redistribute')
          call gather(kxkyz2vmu, g0v, g0x)
-         if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+         call region_end('mirror_redistribute')
          ! Get mirror term and add to source
          call add_mirror_term(g0x, gout)
       end if
       deallocate (g0x, g0v)
 
-      if (proc0) call time_message(.false., time_mirror(:, 1), ' Mirror advance')
+      call region_end('mirror')
 
    end subroutine advance_mirror_explicit
 
@@ -641,9 +639,7 @@ contains
 
       ! Parallelisation
       use constants, only: zi
-      use mp, only: proc0
-      use job_manage, only: time_message
-      use timers, only: time_mirror
+      use timers, only: region_start, region_end
       use initialise_redistribute, only: kxkyz2vmu, kxyz2vmu
       use redistribute, only: gather, scatter
       use parallelisation_layouts, only: iy_idx
@@ -699,7 +695,7 @@ contains
 
       !-------------------------------------------------------------------------
 
-      if (proc0) call time_message(.false., time_mirror(:, 1), ' Mirror advance')
+      call region_start('mirror')
 
       tupwnd = (1.0 - time_upwind) * 0.5
       
@@ -721,9 +717,9 @@ contains
          ! For the mirror term, we need the velocity data to be local, therefore, scatter the
          ! g(naky, nakx, -nzgrid:nzgrid, ntubes, vmu-layout) data to gvmu(nvpa, nmu, kxkyz-layout) 
          if (.not. collisions_implicit) then 
-            if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+            call region_start('mirror_redistribute')
             call scatter(kxkyz2vmu, g, gvmu)
-            if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+            call region_end('mirror_redistribute')
          end if
 
          allocate (g0v(nvpa, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc))
@@ -790,9 +786,9 @@ contains
          end if
 
          ! then take the results and remap again so ky,kx,z local.
-         if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+         call region_start('mirror_redistribute')
          call gather(kxkyz2vmu, g0v, g)
-         if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+         call region_end('mirror_redistribute')
          
       ! ------------------------------------------------------------------------
       !                            Full Flux Surface                            
@@ -832,9 +828,9 @@ contains
          end if
 
          ! Second, remap g so velocities are local
-         if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+         call region_start('mirror_redistribute')
          call scatter(kxyz2vmu, g0x, g0v)
-         if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+         call region_end('mirror_redistribute')
 
          allocate (dgdvpa(nvpa, nmu, kxyz_lo%llim_proc:kxyz_lo%ulim_alloc))
          do ikxyz = kxyz_lo%llim_proc, kxyz_lo%ulim_proc
@@ -884,7 +880,7 @@ contains
 
       deallocate (g0x, g0v)
 
-      if (proc0) call time_message(.false., time_mirror, ' Mirror advance')
+      call region_end('mirror')
 
    end subroutine advance_mirror_implicit
 
@@ -991,10 +987,8 @@ contains
    subroutine add_mirror_radial_variation(g, gout)
 
       ! Parallelisation
-      use mp, only: proc0
       use initialise_redistribute, only: kxkyz2vmu
-      use job_manage, only: time_message
-      use timers, only: time_mirror
+      use timers, only: region_start, region_end
       use redistribute, only: gather, scatter
       use parallelisation_layouts, only: kxkyz_lo, vmu_lo
       use parallelisation_layouts, only: is_idx, imu_idx
@@ -1025,17 +1019,17 @@ contains
          ! FLAG DSO - Someday one should be able to do full global
       else
          if (.not. fields_kxkyz) then
-            if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+            call region_start('mirror_redistribute')
             call scatter(kxkyz2vmu, g, gvmu)
-            if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+            call region_end('mirror_redistribute')
          end if
          ! Get dg/dvpa and store in g0v
          g0v = gvmu
          call get_dgdvpa_explicit(g0v)
          ! Swap layouts so that (z,kx,ky) are local
-         if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+         call region_start('mirror_redistribute')
          call gather(kxkyz2vmu, g0v, gout)
-         if (proc0) call time_message(.false., time_mirror(:, 2), ' mirror_redist')
+         call region_end('mirror_redistribute')
 
          ! Get mirror term and add to source
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc

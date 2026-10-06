@@ -243,9 +243,7 @@ contains
    !****************************************************************************
    subroutine add_krook_operator(g, gke_rhs)
 
-      use mp, only: proc0
-      use timers, only: time_sources
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use grids_z, only: nzgrid, ntubes
       use constants, only: pi, zi
       use grids_kxky, only: akx, zonal_mode 
@@ -274,7 +272,7 @@ contains
       ia = 1
       if (.not. zonal_mode(1)) return
 
-      if (proc0) call time_message(.false., time_sources(:, 1), ' sources')
+      call region_start('sources')
 
       if (debug) write (6, *) 'sources::add_krook_operator'
 
@@ -348,7 +346,7 @@ contains
          end do
       end if
 
-      if (proc0) call time_message(.false., time_sources(:, 1), ' sources')
+      call region_end('sources')
 
    end subroutine add_krook_operator
 
@@ -357,9 +355,7 @@ contains
    !****************************************************************************
    subroutine update_tcorr_krook(g)
 
-      use mp, only: proc0
-      use timers, only: time_sources
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use constants, only: pi, zi
       use arrays_distribution_function, only: g_krook, g_symm
       use grids_z, only: nzgrid, ntubes
@@ -385,7 +381,7 @@ contains
 
       if (.not. zonal_mode(1)) return
 
-      if (proc0) call time_message(.false., time_sources(:, 1), ' sources')
+      call region_start('sources')
 
       ia = 1
 
@@ -443,7 +439,7 @@ contains
          end do
       end if
 
-      if (proc0) call time_message(.false., time_sources(:, 1), ' sources')
+      call region_end('sources')
 
    end subroutine update_tcorr_krook
 
@@ -452,9 +448,7 @@ contains
    !****************************************************************************
    subroutine enforce_momentum_conservation(g_work)
 
-      use mp, only: proc0
-      use timers, only: time_sources
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use redistribute, only: scatter, gather
       use parallelisation_layouts, only: vmu_lo, kxkyz_lo
       use parallelisation_layouts, only: imu_idx, is_idx, iv_idx
@@ -472,9 +466,9 @@ contains
 
       !-------------------------------------------------------------------------
 
-      if (proc0) call time_message(.false., time_sources(:, 2), ' source_redist')
+      call region_start('sources_redistribute')
       call scatter(kxkyz2vmu, g_work, gvmu)
-      if (proc0) call time_message(.false., time_sources(:, 2), ' source_redist')
+      call region_end('sources_redistribute')
 
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          do imu = 1, nmu
@@ -487,9 +481,9 @@ contains
          end do
       end do
 
-      if (proc0) call time_message(.false., time_sources(:, 2), ' source_redist')
+      call region_start('sources_redistribute')
       call gather(kxkyz2vmu, gvmu, g_work)
-      if (proc0) call time_message(.false., time_sources(:, 2), ' source_redist')
+      call region_end('sources_redistribute')
 
    end subroutine enforce_momentum_conservation
 
@@ -595,9 +589,7 @@ contains
    !****************************************************************************
    subroutine project_out_zero(gold, gnew)
 
-      use mp, only: proc0
-      use timers, only: time_sources
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use grids_z, only: nzgrid, ntubes
       use constants, only: pi, zi
       use grids_kxky, only: zonal_mode, akx
@@ -626,7 +618,7 @@ contains
 
       if (debug) write (6, *) 'sources::project_out_zero'
 
-      if (proc0) call time_message(.false., time_sources(:, 1), ' sources')
+      call region_start('sources')
 
       allocate (g(nakx, -nzgrid:nzgrid, ntubes, vmu_lo%llim_proc:vmu_lo%ulim_alloc))
 
@@ -718,7 +710,7 @@ contains
 
       deallocate (g)
 
-      if (proc0) call time_message(.false., time_sources(:, 1), ' sources')
+      call region_end('sources')
 
    end subroutine project_out_zero
 
