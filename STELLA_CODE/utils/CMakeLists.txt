@@ -122,6 +122,10 @@ if (STELLA_ENABLE_F200X)
   target_compile_definitions(stella_utils PRIVATE F200X_INTRINSICS ISO_C_BINDING)
 endif()
 
+if (STELLA_ENABLE_OPENMP)
+  target_compile_definitions(stella_utils PRIVATE USE_OPENMP)
+endif()
+
 if (STELLA_ENABLE_RANDOM_MT)
   target_compile_definitions(stella_utils PRIVATE RANDOM=_RANMT_)
 endif()
