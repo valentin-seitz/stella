@@ -34,10 +34,8 @@ contains
    subroutine advance_distribution_function_using_explicit_gyrokinetic_terms(g, restart_time_step, istep)
 
       ! Parallelisation
-      use mp, only: proc0
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: vmu_lo, iv_idx
-      use timers, only: time_gke
       
       ! Fields
       use parameters_physics, only: include_apar
@@ -74,7 +72,7 @@ contains
       !-------------------------------------------------------------------------
 
       ! Start the timer for the explicit part of the solve
-      if (proc0) call time_message(.false., time_gke(:, 8), ' explicit')
+      call region_start('explicit_gke')
       
       ! If the fields are not already updated, then update them
       if (include_apar) then
@@ -126,7 +124,7 @@ contains
       end do
 
       ! Stop the timer for the explicit part of the solve
-      if (proc0) call time_message(.false., time_gke(:, 8), ' explicit')
+      call region_end('explicit_gke')
 
    end subroutine advance_distribution_function_using_explicit_gyrokinetic_terms
    
@@ -141,7 +139,6 @@ contains
    subroutine add_explicit_gyrokinetic_terms(pdf, rhs_ky, restart_time_step, istep)
 
       ! Parallelisation
-      use job_manage, only: time_message
       use multibox, only: add_multibox_krook
       use parallelisation_layouts, only: vmu_lo
       use calculations_transforms, only: transform_y2ky
