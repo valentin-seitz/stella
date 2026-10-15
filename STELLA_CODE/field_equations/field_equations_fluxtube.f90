@@ -79,13 +79,11 @@ contains
    subroutine advance_fields_fluxtube(g, phi, apar, bpar, dist, skip_fsa)
 
       ! Parallelisation
-      use mp, only: proc0
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: vmu_lo
       use redistribute, only: scatter
       use initialise_redistribute, only: kxkyz2vmu
       use parallelisation_layouts, only: fields_kxkyz
-      use timers, only: time_field_solve
 
       ! Arrays
       use arrays_distribution_function, only: gvmu
@@ -117,9 +115,9 @@ contains
          ! First gather (vpa,mu) onto processor for v-space operations
          ! and parallelise over (kx,ky,z). This changes g -> gvmu
          if (debug) write (*, *) 'field_equations_fluxtube::advance_fields_fluxtube::scatter'
-         if (proc0) call time_message(.false., time_field_solve(:, 2), ' field_equations_redist')
+         call region_start('fields_redistribute')
          call scatter(kxkyz2vmu, g, gvmu)
-         if (proc0) call time_message(.false., time_field_solve(:, 2), ' field_equations_redist')
+         call region_end('fields_redistribute')
          
          ! Given gvmu with vpa and mu local, calculate the corresponding fields
          ! This will call advance_fields_fluxtube_using_field_equations_kxkyzlo
@@ -146,10 +144,9 @@ contains
    subroutine advance_fields_fluxtube_using_field_equations_vmulo(g, phi, apar, bpar, dist, skip_fsa)
 
       ! Parallelisation
-      use mp, only: mp_abort, proc0
-      use job_manage, only: time_message
+      use mp, only: mp_abort
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: vmu_lo, iv_idx, imu_idx
-      use timers, only: time_field_solve
       
       ! Arrays
       use arrays_distribution_function, only: phi_gyro
@@ -202,7 +199,7 @@ contains
          ! Debug message
          if (debug) write (*, *) 'field_equations_fluxtube::vmulo::electrostatic'
          ! Start timer
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g')
+         call region_start('int_dv_g')
          
          ! First gyro-average the distribution function g at each phase space location
          ! and store this as phi_gyro = <g>_R = J_0 g in k-space
@@ -218,7 +215,7 @@ contains
          call integrate_species(phi_gyro, spec%z * spec%dens_psi0, phi)
 
          ! Stop timer
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g')
+         call region_end('int_dv_g')
          
          ! Calculate phi = sum_s Z_s n_s [ (2B/sqrt(pi)) int dvpa int dmu J_0 * g ] / [ sum_s (Z_s² n_s/T_s) (1 - Gamma0) ]
          ! by dividing with denominator_fields[iky,ikz,iz] = sum_s (Z_s² n_s/T_s) (1 - Gamma0) in the calculate_phi() routine
@@ -257,12 +254,10 @@ contains
    subroutine advance_fields_fluxtube_using_field_equations_kxkyzlo(g, phi, apar, bpar, dist, skip_fsa)
 
       ! Parallelisation
-      use mp, only: proc0
       use mp, only: sum_allreduce, mp_abort
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: kxkyz_lo
       use parallelisation_layouts, only: iz_idx, it_idx, ikx_idx, iky_idx, is_idx
-      use timers, only: time_field_solve
       
       ! Parameters
       use parameters_physics, only: fphi
@@ -319,7 +314,7 @@ contains
          ! Debug message
          if (debug) write (*, *) 'field_equations_fluxtube::kxkyzlo::electrostatic'
          ! Start timer
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g')
+         call region_start('int_dv_g')
          
          ! Allocate temporary arrays
          allocate (g0(nvpa, nmu))
@@ -348,6 +343,9 @@ contains
          
          ! Sum the values on all processors and send them to <proc0>
          call sum_allreduce(phi)
+
+         ! Stop timer
+         call region_end('int_dv_g')
 
          ! Calculate phi = sum_s Z_s n_s [ (2B/sqrt(pi)) int dvpa int dmu J_0 * g ] / [ sum_s (Z_s² n_s/T_s) (1 - Gamma0) ]
          ! by dividing with denominator_fields[iky,ikz,iz] = sum_s (Z_s² n_s/T_s) (1 - Gamma0) in the calculate_phi() routine
@@ -390,9 +388,8 @@ contains
 
       ! Parallelisation
       use mp, only: proc0, mp_abort
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use multibox, only: mb_calculate_phi
-      use timers, only: time_field_solve
       
       ! Arrays
       use arrays, only: denominator_fields
@@ -445,7 +442,7 @@ contains
       adia_elec = .not. has_elec .and. (adiabatic_option_switch == adiabatic_option_fieldlineavg)
 
       ! Start timer
-      if (proc0) call time_message(.false., time_field_solve(:, 4), ' calculate_phi')
+      call region_start('calculate_phi')
       
       ! ------------------------------------------------------------------------------------------
       !                         Using h as the distribution function
@@ -495,7 +492,7 @@ contains
       ! The kx = ky = 0.0 mode is not evolved by stella so make sure this term is set to zero.
       if (debug) write(*, *) 'field_equations_quasineutrality::fluxtube::calculate_phi::set kxky=0.0 to zero'
       if (any(denominator_fields(1, 1, :) < epsilon(0.))) phi(1, 1, :, :) = 0.0
-      if (proc0) call time_message(.false., time_field_solve(:, 4), ' calculate_phi')
+      call region_end('calculate_phi')
 
       ! ------------------------------------------------------------------------------------------
       !                                   Adiabatic electrons
@@ -529,7 +526,7 @@ contains
       ! ------------------------------------------------------------------------------------------
 
       ! Start timer 
-      if (proc0) call time_message(.false., time_field_solve(:, 5), 'calculate_phi_adia_elec')
+      call region_start('calculate_phi_adia_elec')
 
       if (adia_elec .and. zonal_mode(1) .and. .not. skip_fsa_local) then
          ! ---------------------------------------------------------------------------------------
@@ -569,7 +566,7 @@ contains
       end if
       
       ! Stop timer
-      if (proc0) call time_message(.false., time_field_solve(:, 5), 'calculate_phi_adia_elec')
+      call region_end('calculate_phi_adia_elec')
 
    end subroutine calculate_phi
 

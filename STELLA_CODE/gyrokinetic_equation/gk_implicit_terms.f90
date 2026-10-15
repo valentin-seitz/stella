@@ -55,9 +55,7 @@ contains
    !****************************************************************************
    subroutine advance_implicit_terms(g, phi, apar, bpar)
 
-      use mp, only: proc0
-      use job_manage, only: time_message
-      use timers, only: time_implicit_advance
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: vmu_lo
       use parallelisation_layouts, only: iv_idx, imu_idx, is_idx
       use arrays_distribution_function, only: g1, g2
@@ -100,7 +98,7 @@ contains
 
       if (debug) write (*, *) 'implicit_solve::advance_implicit_terms'
       ! Start timer 
-      if (proc0) call time_message(.false., time_implicit_advance(:, 1), ' Implicit time advance')
+      call region_start('implicit_advance')
 
       ! =====================================================================
       ! Allocate arrays that act as source terms for the RHS of the equation
@@ -234,10 +232,10 @@ contains
          !----------------------------------------------------------------------
          if (use_deltaphi_for_response_matrix) phi = phi - phi_old
          if (use_deltaphi_for_response_matrix .and. include_bpar) bpar = bpar - bpar_old
-         if (proc0) call time_message(.false., time_implicit_advance(:, 3), ' (back substitution)')
+         call region_start('back_substitution')
          ! For Drift kinetic implicit this is full phi^{n+1, i+1}
          call invert_parstream_response(phi, apar, bpar)
-         if (proc0) call time_message(.false., time_implicit_advance(:, 3), ' (back substitution)')
+         call region_end('back_substitution')
          
          ! If using deltaphi formulation, must account for fact that phi = phi^{n+1}-phi^{n*}, but
          ! tupwnd_p should multiply phi^{n+1}
@@ -293,7 +291,7 @@ contains
       if(driftkinetic_implicit) deallocate (fields_source_ffs)
       if(driftkinetic_implicit) deallocate (phi_source_ffs, drifts_source_ffs)
 
-      if (proc0) call time_message(.false., time_implicit_advance(:, 1), ' Stream advance')
+      call region_end('implicit_advance')
 
    contains
 
@@ -321,7 +319,7 @@ contains
           
          if (debug) write (*, *) 'implicit_solve::update_pdf'
          ! Start the timer for the pdf update
-         if (proc0) call time_message(.false., time_implicit_advance(:, 2), ' (bidiagonal solve)')
+         call region_start('bidiagonal_solve')
 
          do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
             ! Solve for the pdf, given the sources for phi and the pdf on the RHS of the GK equation
@@ -392,7 +390,7 @@ contains
          end do
 
          ! Stop the timer for the pdf update
-         if (proc0) call time_message(.false., time_implicit_advance(:, 2), ' (bidiagonal solve)')
+         call region_end('bidiagonal_solve')
 
       end subroutine update_pdf
 

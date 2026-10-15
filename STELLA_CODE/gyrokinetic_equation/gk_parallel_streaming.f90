@@ -282,9 +282,7 @@ contains
    !****************************************************************************
    subroutine advance_parallel_streaming_explicit(g, phi, bpar, gout)
 
-      use mp, only: proc0
-      use job_manage, only: time_message
-      use timers, only: time_parallel_streaming
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: vmu_lo
       use parallelisation_layouts, only: iv_idx, imu_idx, is_idx
       
@@ -316,7 +314,7 @@ contains
 
       ! ------------------------------------------------------------------------
       ! Start the timer for the parallel streaming part of the time advance
-      if (proc0) call time_message(.false., time_parallel_streaming(:, 1), ' Stream advance')
+      call region_start('parallel_streaming')
 
       ! ========================================================================
       ! Allocate arrays needed for intermmediate calculations
@@ -423,7 +421,7 @@ contains
       if (full_flux_surface) deallocate (g0y, g1y, g0_swap)
       ! ========================================================================
       ! Finish timing the subroutine
-      if (proc0) call time_message(.false., time_parallel_streaming(:, 1), ' Stream advance')
+      call region_end('parallel_streaming')
 
    end subroutine advance_parallel_streaming_explicit
 
@@ -434,7 +432,6 @@ contains
 
       use parallelisation_layouts, only: vmu_lo
       use parallelisation_layouts, only: iv_idx, imu_idx, is_idx
-      use job_manage, only: time_message
       use grids_z, only: nzgrid, ntubes
       use grids_kxky, only: naky, nakx
       use grids_velocity, only: maxwell_vpa, maxwell_mu, maxwell_fac

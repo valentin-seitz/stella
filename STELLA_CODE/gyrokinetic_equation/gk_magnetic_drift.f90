@@ -397,9 +397,8 @@ contains
    !*****************************************************************************
    subroutine advance_wdrifty_explicit(g, phi, bpar, gout)
 
-      use mp, only: proc0
       use parallelisation_layouts, only: vmu_lo
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use calculations_transforms, only: transform_ky2y
       use grids_z, only: nzgrid, ntubes
       use grids_kxky, only: nakx, ikx_max, naky, naky_all, ny
@@ -410,7 +409,6 @@ contains
       use arrays_distribution_function, only: phi_gyro
       use calculations_add_explicit_terms, only: add_explicit_term, add_explicit_term_ffs
       use calculations_kxky_derivatives, only: get_dgdy
-      use timers, only: time_gke
 
       implicit none
 
@@ -426,7 +424,7 @@ contains
       !-------------------------------------------------------------------------
 
       ! start the timing of the y component of the magnetic drift advance
-      if (proc0) call time_message(.false., time_gke(:, 4), ' dgdy advance')
+      call region_start('magnetic_drift_y')
 
       allocate (dphidy(naky, nakx, -nzgrid:nzgrid, ntubes))
       allocate (dbpardy(naky, nakx, -nzgrid:nzgrid, ntubes))
@@ -500,7 +498,7 @@ contains
       deallocate (g0k, dphidy, dbpardy)
 
       ! stop the timing of the y component of the magnetic drift advance
-      if (proc0) call time_message(.false., time_gke(:, 4), ' dgdy advance')
+      call region_end('magnetic_drift_y')
 
    end subroutine advance_wdrifty_explicit
 
@@ -512,9 +510,8 @@ contains
    !****************************************************************************
    subroutine advance_wdriftx_explicit(g, phi, bpar, gout)
 
-      use mp, only: proc0
       use parallelisation_layouts, only: vmu_lo
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use calculations_transforms, only: transform_ky2y
       use grids_z, only: nzgrid, ntubes
       use grids_kxky, only: nakx, ikx_max, naky, naky_all, ny
@@ -526,7 +523,6 @@ contains
       use arrays_distribution_function, only: phi_gyro
       use calculations_kxky_derivatives, only: get_dgdx
       use calculations_add_explicit_terms, only: add_explicit_term, add_explicit_term_ffs
-      use timers, only: time_gke
 
       implicit none
 
@@ -542,11 +538,11 @@ contains
       !-------------------------------------------------------------------------
 
       ! start the timing of the x component of the magnetic drift advance
-      if (proc0) call time_message(.false., time_gke(:, 5), ' dgdx advance')
+      call region_start('magnetic_drift_x')
 
       ! do not calculate if wdriftx terms are all zero
       if (maxval(abs(akx)) < epsilon(0.)) then
-         if (proc0) call time_message(.false., time_gke(:, 5), ' dgdx advance')
+         call region_end('magnetic_drift_x')
          return
       end if
 
@@ -614,7 +610,7 @@ contains
       deallocate (g0k, dphidx, dbpardx)
 
       ! stop the timing of the x component of the magnetic drift advance
-      if (proc0) call time_message(.false., time_gke(:, 5), ' dgdx advance')
+      call region_end('magnetic_drift_x')
       
    end subroutine advance_wdriftx_explicit
 

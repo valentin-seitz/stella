@@ -23,6 +23,7 @@ USE_LOCAL_SPFUNC ?=        # Use local special functions (bin)
 USE_NAGLIB ?=              # Use nag libraray (spfunc,undefined)
 USE_SFINCS ?=              # Link to sfincs library at compilation
 USE_LAPACK ?= on           # Use LAPACK, needed for test particle collisions
+USE_NESMIK ?=              # Build region_timer against the nesmik profiling library (bin), needs $NESMIK_HOME
 HAS_ISO_C_BINDING ?= on    # Does the compiler support the iso_c_binding features of Fortran? (needed for local parallel LU decomposition)
 SPLIT_BY_NUMA ?=
 
@@ -224,7 +225,7 @@ endif
 # List of all the used libraries
 # Here $LIBSTELL_LIB points to utils/mini_libstell which contains a stellarator resource library
 LIBS += $(DEFAULT_LIB) $(MPI_LIB) $(FFT_LIB) $(NETCDF_LIB) $(HDF5_LIB) \
-		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LAPACK_LIB) $(LIBSTELL_LIB) 
+		$(NAG_LIB) $(SFINCS_LIB) $(PETSC_LIB) $(LAPACK_LIB) $(LIBSTELL_LIB) $(REGION_TIMER_LIB)
 
 # Note that either you define the dependencies on imports manually, like in the makefile.depend
 # file, or you attach the library where the compiler can find the functions. Since all utils

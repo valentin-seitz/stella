@@ -120,13 +120,12 @@ contains
    subroutine advance_fields_electromagnetic_vmulo(g, phi, apar, bpar, dist)
 
       ! Parallelisation
-      use mp, only: proc0, mp_abort
-      use job_manage, only: time_message
+      use mp, only: mp_abort
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: vmu_lo, iv_idx, imu_idx
       
       ! Arrays
       use arrays_distribution_function, only: phi_gyro
-      use timers, only: time_field_solve
       
       ! Parameters
       use parameters_physics, only: beta
@@ -164,7 +163,7 @@ contains
       
          ! Start timer
          if (debug) write (*, *) 'field_equations_electromagnetic::advance_fields::vmulo::include_bpar'
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g int_dv_g_vperp2')
+         call region_start('int_dv_g')
          
          ! Gyroaverage the distribution function g at each phase space location
          call gyro_average(g, phi_gyro)
@@ -193,7 +192,7 @@ contains
          call integrate_species(phi_gyro, -2.0 * beta * spec%temp_psi0 * spec%dens_psi0, bpar)
          
          ! End timer
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g int_dv_g_vperp2')
+         call region_end('int_dv_g')
          
          ! Get phi and bpar
          call calculate_phi_and_bpar(phi, bpar, dist)
@@ -208,7 +207,7 @@ contains
       
          ! Start timer
          if (debug) write (*, *) 'field_equations_electromagnetic::advance_fields::vmulo::include_apar'
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g')
+         call region_start('int_dv_g')
          
          ! If fphi > 0, then phi_gyro = <g> already calculated above
          call gyro_average(g, phi_gyro)
@@ -227,7 +226,7 @@ contains
          call integrate_species(phi_gyro, spec%z * spec%dens_psi0 * spec%stm_psi0 * beta, apar)
          
          ! End timer
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g')
+         call region_end('int_dv_g')
          
          ! Divide the apar obtained above by the appropriate Apar pre-factor;
          ! this is just kperp2 if g = <f> is used or apar_denom = (kperp2 + ...)
@@ -246,10 +245,9 @@ contains
       ! Parallelisation
       use mp, only: proc0
       use mp, only: sum_allreduce, mp_abort
-      use job_manage, only: time_message
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: kxkyz_lo
       use parallelisation_layouts, only: iz_idx, it_idx, ikx_idx, iky_idx, is_idx
-      use timers, only: time_field_solve
       
       ! Arrays
       use arrays, only: kperp2 
@@ -293,7 +291,7 @@ contains
       
          ! Start timer
          if (debug) write (*, *) 'field_equations_electromagnetic::advance_fields::kxkyzlo::include_bpar'
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g int_dv_g_vperp2')
+         call region_start('int_dv_g')
          
          ! Allocate temporary arrays
          allocate (g0(nvpa, nmu))
@@ -328,7 +326,7 @@ contains
          call sum_allreduce(bpar)
          
          ! End timer
-         if (proc0) call time_message(.false., time_field_solve(:, 3), ' int_dv_g int_dv_g_vperp2')
+         call region_end('int_dv_g')
 
          ! Get phi and bpar - Need to divide by the correct denominator
          ! For this, see notes at the top of this file
@@ -404,8 +402,7 @@ contains
 
       ! Parallelisation
       use mp, only: proc0, mp_abort
-      use job_manage, only: time_message
-      use timers, only: time_field_solve
+      use timers, only: region_start, region_end
       
       ! Arrays
       use arrays, only: denominator_fields_inv11
@@ -432,7 +429,7 @@ contains
       
       ! Start timer
       if (debug) write (*, *) 'field_equations_electromagnetic::calculate_phi_and_bpar'
-      if (proc0) call time_message(.false., time_field_solve(:, 4), ' calculate_phi_and_bpar')
+      call region_start('calculate_phi')
 
       ! Assume we only have one field line
       ia = 1
@@ -464,6 +461,9 @@ contains
          return
          
       end if
+
+      ! Stop timer
+      call region_end('calculate_phi')
 
    end subroutine calculate_phi_and_bpar
 
