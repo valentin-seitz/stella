@@ -94,6 +94,26 @@ contains
     @assertTrue(all(x(n + 1:, :) == b(n + 1:, :)))
   end subroutine test_lu_complex_matrix_nonsquare
 
+  ! A A^-1 should be the identity at round-off level
+  @test
+  subroutine test_lu_complex_inverse
+    complex, dimension(n, n) :: a, lu, inv, id
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i
+
+    a = test_matrix()
+    lu = a
+    call lu_decomposition(lu, idx, d)
+    call lu_inverse(lu, idx, inv)
+    id = 0.0
+    do i = 1, n
+      id(i, i) = 1.0
+    end do
+    @assertLessThan(maxval(abs(matmul(a, inv) - id)), 1.0e-10)
+    @assertLessThan(maxval(abs(matmul(inv, a) - id)), 1.0e-10)
+  end subroutine test_lu_complex_inverse
+
   ! The determinant d * prod(diag(U)) does not depend on the pivoting, so it also checks the sign d
   @test
   subroutine test_lu_complex_determinant
