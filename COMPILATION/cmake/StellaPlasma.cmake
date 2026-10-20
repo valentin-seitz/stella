@@ -7,9 +7,14 @@
 # If PLASMA_DIR (cmake variable or environment variable) points
 # to the install prefix of PLASMA, that installation is used.
 # Otherwise the git submodule EXTERNALS/plasma is compiled as an
-# external project and installed in the build directory. PLASMA
+# external project in the build directory. PLASMA
 # requires the CBLAS and LAPACKE libraries, extra cmake flags for
 # PLASMA can be passed through PLASMA_CMAKE_FLAGS (a cmake list).
+# Only the PLASMA libraries are compiled, since the PLASMA tester
+# needs LAPACKE routines missing from older LAPACK versions, e.g.
+# LAPACKE_zlangb in LAPACK 3.10 (Ubuntu 22.04). The libraries are
+# used from the PLASMA build directory, since installing PLASMA
+# would also install (and therefore require) the tester.
 #
 # Note that the plasmaConfig.cmake file installed by PLASMA does
 # not define its targets, so we define imported targets ourselves.
@@ -35,25 +40,24 @@ if (PLASMA_DIR)
 else()
 
   get_filename_component(_plasma_source_dir "${CMAKE_CURRENT_LIST_DIR}/../../EXTERNALS/plasma" ABSOLUTE)
-  set(_plasma_install_dir "${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/plasma/install")
+  set(_plasma_build_dir "${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/plasma/build")
   if (NOT EXISTS "${_plasma_source_dir}/CMakeLists.txt")
     message(FATAL_ERROR "The PLASMA submodule is missing, run: git submodule update --init EXTERNALS/plasma")
   endif()
   message(STATUS "Compiling PLASMA from the submodule ${_plasma_source_dir}")
 
-  set(_plasma_library "${_plasma_install_dir}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}plasma${CMAKE_SHARED_LIBRARY_SUFFIX}")
-  set(_plasma_core_blas_library "${_plasma_install_dir}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}plasma_core_blas${CMAKE_SHARED_LIBRARY_SUFFIX}")
+  set(_plasma_library "${_plasma_build_dir}/${CMAKE_SHARED_LIBRARY_PREFIX}plasma${CMAKE_SHARED_LIBRARY_SUFFIX}")
+  set(_plasma_core_blas_library "${_plasma_build_dir}/${CMAKE_SHARED_LIBRARY_PREFIX}plasma_core_blas${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
   include(ExternalProject)
   ExternalProject_Add(plasma_external
     SOURCE_DIR "${_plasma_source_dir}"
-    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/EXTERNALS/plasma/build"
-    INSTALL_DIR "${_plasma_install_dir}"
+    BINARY_DIR "${_plasma_build_dir}"
     CMAKE_ARGS
       -DCMAKE_BUILD_TYPE=Release
-      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-      -DCMAKE_INSTALL_LIBDIR=lib
       ${PLASMA_CMAKE_FLAGS}
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target plasma plasma_core_blas
+    INSTALL_COMMAND ""
     BUILD_BYPRODUCTS "${_plasma_library}" "${_plasma_core_blas_library}"
     )
 

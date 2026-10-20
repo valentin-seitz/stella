@@ -80,7 +80,7 @@ jobs:
             sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
             sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev 
             if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then sudo apt install -y libblas-dev liblapack-dev; fi
-            if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y cmake libopenblas-dev liblapacke-dev; fi
+            if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libblas-dev liblapack-dev liblapacke-dev; fi
           fi
 
       # Check-out repository under $GITHUB_WORKSPACE
@@ -256,7 +256,7 @@ jobs:
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
           sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y cmake libopenblas-dev liblapacke-dev; fi
+          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libblas-dev liblapack-dev liblapacke-dev; fi
 
       # The PLASMA library only changes when its submodule changes
       - name: Get the PLASMA submodule commit
@@ -338,7 +338,7 @@ jobs:
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
           sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libopenblas-dev liblapacke-dev; fi
+          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libblas-dev liblapack-dev liblapacke-dev; fi
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
           sed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
 
@@ -394,7 +394,7 @@ jobs:
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
           sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libopenblas-dev liblapacke-dev; fi
+          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libblas-dev liblapack-dev liblapacke-dev; fi
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
           sed -i 's/nproc = 16/nproc = 1/g' AUTOMATIC_TESTS/config.ini 
 

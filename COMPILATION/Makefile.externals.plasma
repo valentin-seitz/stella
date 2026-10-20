@@ -34,18 +34,25 @@ $(PLASMA_SRC_DIR)/CMakeLists.txt:
 	git submodule update --init --recursive
 	@echo "  "
 
-# Configure, compile and install PLASMA with cmake
+# Configure and compile PLASMA with cmake, and copy the libraries and headers to
+# $(PLASMA_BUILD_DIR)/install. Only the libraries are compiled, since PLASMA's
+# tester (plasmatest) needs LAPACKE routines missing from older LAPACK versions,
+# e.g. LAPACKE_zlangb in LAPACK 3.10 (Ubuntu 22.04). We can't use cmake --install
+# because it also installs the tester. The libraries find each other through a
+# relative rpath ($ORIGIN), so they can be moved together, e.g., in CI artifacts.
 $(PLASMA_BUILD_DIR)/install/lib/libplasma.so: | $(PLASMA_SRC_DIR)/CMakeLists.txt
 	@mkdir -p $(PLASMA_BUILD_DIR)
 	@echo "   (plasma) configure PLASMA with cmake"
 	@cmake -S $(PLASMA_SRC_DIR) -B $(PLASMA_BUILD_DIR)/build -DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_INSTALL_PREFIX=$(PLASMA_BUILD_DIR)/install -DCMAKE_INSTALL_LIBDIR=lib \
-		$(PLASMA_CMAKE_FLAGS) > $(PLASMA_BUILD_DIR)/cmake_configure.log 2>&1 \
+		-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON $(PLASMA_CMAKE_FLAGS) > $(PLASMA_BUILD_DIR)/cmake_configure.log 2>&1 \
 		|| (cat $(PLASMA_BUILD_DIR)/cmake_configure.log; exit 1)
 	@echo "   (plasma) compile PLASMA, see $(PLASMA_BUILD_DIR)/cmake_build.log"
-	@cmake --build $(PLASMA_BUILD_DIR)/build -j > $(PLASMA_BUILD_DIR)/cmake_build.log 2>&1 \
+	@cmake --build $(PLASMA_BUILD_DIR)/build -j --target plasma plasma_core_blas > $(PLASMA_BUILD_DIR)/cmake_build.log 2>&1 \
 		|| (tail -n 50 $(PLASMA_BUILD_DIR)/cmake_build.log; exit 1)
-	@cmake --install $(PLASMA_BUILD_DIR)/build > /dev/null
+	@mkdir -p $(PLASMA_BUILD_DIR)/install/lib $(PLASMA_BUILD_DIR)/install/include
+	@cp $(PLASMA_SRC_DIR)/include/plasma*.h $(PLASMA_BUILD_DIR)/install/include/
+	@cp -P $(PLASMA_BUILD_DIR)/build/libplasma_core_blas.so* $(PLASMA_BUILD_DIR)/install/lib/
+	@cp -P $(PLASMA_BUILD_DIR)/build/libplasma.so* $(PLASMA_BUILD_DIR)/install/lib/
 
 # Extra commands so we can compile PLASMA separately through
 # >> make plasma_clean; make plasma USE_PLASMA=on
