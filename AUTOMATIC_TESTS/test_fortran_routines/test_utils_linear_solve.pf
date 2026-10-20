@@ -271,6 +271,24 @@ contains
     @assertTrue(all(x(n + 1:, :) == b(n + 1:, :)))
   end subroutine test_lu_real_matrix_nonsquare
 
+  ! Real A and complex b
+  @test
+  subroutine test_lu_real_complex_residual
+    real, dimension(n, n) :: a, lu
+    complex, dimension(n) :: b, x
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i
+
+    a = test_matrix_real()
+    b = [(cmplx(real(i), 2.0 - real(i * i)), i=1, n)]
+    lu = a
+    x = b
+    call lu_decomposition(lu, idx, d)
+    call lu_back_substitution(lu, idx, x)
+    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
+  end subroutine test_lu_real_complex_residual
+
   ! Real version of test_lu_complex_determinant
   @test
   subroutine test_lu_real_determinant

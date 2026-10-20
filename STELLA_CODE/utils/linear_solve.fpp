@@ -327,11 +327,21 @@ contains
 
       integer :: i, n, ii, ll
       complex :: summ
+#ifdef PLASMA_DENSE
+      real, dimension(size(lu, 1), 2) :: br
+#endif
 
     !! The dot products we use below automatically take the complex conjugate of its
     !! first argument, which we do not want here. Hence the use of conjg to undo this
 
       n = size(lu, 1)
+#ifdef PLASMA_DENSE
+      ! Solve for the real and imaginary parts as two right-hand sides
+      br(:, 1) = real(b(1:n))
+      br(:, 2) = aimag(b(1:n))
+      call serial_getrs_d(lu, idx, n, 2, br, n)
+      b(1:n) = cmplx(br(:, 1), br(:, 2))
+#else
       ii = 0
       do i = 1, n
          ll = idx(i)
@@ -347,6 +357,7 @@ contains
       do i = n, 1, -1
          b(i) = (b(i) - dot_product(lu(i, i + 1:n), b(i + 1:n))) / lu(i, i)
       end do
+#endif
 
    end subroutine lu_back_substitution_real_complex
 
