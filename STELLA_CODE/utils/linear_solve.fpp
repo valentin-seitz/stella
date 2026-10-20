@@ -80,6 +80,10 @@ contains
 
       integer :: j, n, imax
 
+#ifdef PLASMA_DENSE
+      if (plasma_lu_decomposition_complex(lu, idx, d)) return
+#endif
+
       n = size(lu, 1)
 
       d = 1.0
@@ -104,6 +108,64 @@ contains
       end do
 
    end subroutine lu_decomposition_complex
+
+#ifdef PLASMA_DENSE
+   !****************************************************************************
+   !                     LU decomposition with plasma_zgetrf
+   !****************************************************************************
+   ! PLASMA uses partial pivoting, instead of the implicit (scaled) partial
+   ! pivoting of <lu_decomposition_complex>, so the factors can differ, but they
+   ! are stored in the same way: L (unit diagonal) below and U on and above the
+   ! diagonal, and idx(j) is the row that was swapped with row j at step j.
+   ! Hence the factors can be used by <lu_back_substitution>.
+   !
+   ! Returns .false. if PLASMA was not used, in which case <lu> is unchanged:
+   !  - if PLASMA is not initialised;
+   !  - inside an OpenMP parallel region, since plasma_zgetrf uses the shared
+   !    PLASMA context and opens its own parallel region;
+   !  - if the matrix is singular, since then plasma_zgetrf does not return the
+   !    factors. The stella routine replaces zero pivots by a small number instead.
+   !****************************************************************************
+   logical function plasma_lu_decomposition_complex(lu, idx, d) result(success)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: plasma_zgetrf, stella_plasma_initialised
+#ifdef USE_OPENMP
+      use omp_lib, only: omp_in_parallel
+#endif
+
+      implicit none
+
+      complex, dimension(:, :), intent(in out) :: lu
+      integer, dimension(:), intent(out) :: idx
+      real, intent(out) :: d
+
+      integer(c_int), dimension(size(lu, 1)) :: ipiv
+      integer(c_int) :: n, info
+      integer :: j
+
+      !-------------------------------------------------------------------------
+
+      success = .false.
+      if (.not. stella_plasma_initialised) return
+#ifdef USE_OPENMP
+      if (omp_in_parallel()) return
+#endif
+
+      n = int(size(lu, 1), c_int)
+      info = plasma_zgetrf(n, n, lu, n, ipiv)
+      if (info /= 0) return
+
+      ! The sign of the permutation, i.e., -1 for every row swap
+      d = 1.0
+      do j = 1, n
+         idx(j) = ipiv(j)
+         if (ipiv(j) /= j) d = -d
+      end do
+      success = .true.
+
+   end function plasma_lu_decomposition_complex
+#endif
 
    subroutine lu_back_substitution_real(lu, idx, b)
 

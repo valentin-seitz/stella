@@ -110,6 +110,9 @@ There are a few build options:
   linear algebra library, which is compiled from the `EXTERNALS/plasma` submodule
   unless `PLASMA_DIR` points to an existing installation (default: off).
   With Make, use `USE_PLASMA=on` (and optionally `PLASMA_DIR`).
+- `STELLA_ENABLE_PLASMA_DENSE`: Use PLASMA for the dense LU decompositions in
+  `utils/linear_solve`, needs `STELLA_ENABLE_PLASMA` (default: off).
+  With Make, use `USE_PLASMA_DENSE=on`.
 
 You can turn these on or off with `-D<option name>=ON/OFF`. You can
 get a complete list of options by running the following in a build

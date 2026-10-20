@@ -47,6 +47,10 @@ module plasma_interface
    integer(c_int), parameter, public :: PlasmaNb = 1
    integer(c_int), parameter, public :: PlasmaIb = 2
 
+   ! Whether <stella_plasma_init> has been called, the PLASMA routines that use
+   ! the PLASMA context can only be called after it
+   logical, public, protected :: stella_plasma_initialised = .false.
+
    public :: plasma_init, plasma_finalize, plasma_set, plasma_get
    public :: plasma_zgetrf, plasma_zgetrs, plasma_zgetri
    public :: plasma_dgetrf, plasma_dgetrs, plasma_dgetri
@@ -195,6 +199,7 @@ contains
       if (info /= PlasmaSuccess) call mp_abort('stella_plasma_init: plasma_init failed')
       info = plasma_set(PlasmaTuning, PlasmaDisabled)
       if (info /= PlasmaSuccess) call mp_abort('stella_plasma_init: disabling PLASMA tuning failed')
+      stella_plasma_initialised = .true.
 #endif
 
    end subroutine stella_plasma_init
@@ -212,6 +217,7 @@ contains
       !-------------------------------------------------------------------------
 
       info = plasma_finalize()
+      stella_plasma_initialised = .false.
 #endif
 
    end subroutine stella_plasma_finish

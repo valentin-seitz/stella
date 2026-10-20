@@ -28,6 +28,7 @@ option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" 
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
 option(STELLA_ENABLE_OPENMP "Enable OpenMP" ON)
 option(STELLA_ENABLE_PLASMA "Link to the PLASMA linear algebra library, see COMPILATION/cmake/StellaPlasma.cmake" OFF)
+option(STELLA_ENABLE_PLASMA_DENSE "Use PLASMA for the dense LU routines in utils/linear_solve, needs STELLA_ENABLE_PLASMA" OFF)
 option(STELLA_ENABLE_NESMIK "Build region_timer against the nesmik profiling library (https://gitlab.pm.bsc.es/beppp/nesmik), found via $NESMIK_HOME" OFF)
 
 # Options for utils internal library
@@ -256,6 +257,10 @@ if (STELLA_ENABLE_PLASMA)
   target_compile_definitions(libstella PUBLIC PLASMA)
 endif()
 
+if (STELLA_ENABLE_PLASMA_DENSE AND NOT STELLA_ENABLE_PLASMA)
+  message(FATAL_ERROR "STELLA_ENABLE_PLASMA_DENSE requires STELLA_ENABLE_PLASMA")
+endif()
+
 if (STELLA_ENABLE_FFT)
   if (STELLA_ENABLE_DOUBLE)
     set(_fftw_component DOUBLE_LIB)
@@ -432,6 +437,7 @@ if (STELLA_ENABLE_TESTS)
   stella_add_standard_tests(TEST_NAMES
     simple
     utils_convert
+    utils_linear_solve
     )
   add_custom_target(run-automated-fortran-tests-with-cmake
     COMMAND ctest --output-on-failure -R unit

@@ -25,6 +25,7 @@ USE_SFINCS ?=              # Link to sfincs library at compilation
 USE_LAPACK ?= on           # Use LAPACK, needed for test particle collisions
 USE_OPENMP ?= on           # Use OpenMP to parallelize the Code
 USE_PLASMA ?=              # Link to the PLASMA library, see Makefile.externals.plasma (bin)
+USE_PLASMA_DENSE ?=        # Use PLASMA for the dense LU routines in utils/linear_solve, needs USE_PLASMA (bin)
 USE_NESMIK ?=              # Build region_timer against the nesmik profiling library (bin), needs $NESMIK_HOME
 HAS_ISO_C_BINDING ?= on    # Does the compiler support the iso_c_binding features of Fortran? (needed for local parallel LU decomposition)
 SPLIT_BY_NUMA ?=
@@ -198,6 +199,12 @@ ifdef USE_PLASMA
 $(error USE_PLASMA requires DBLE, since stella is bound to the double precision PLASMA routines)
 	endif
 	CPPFLAGS += -DPLASMA
+endif
+ifdef USE_PLASMA_DENSE
+	ifndef USE_PLASMA
+$(error USE_PLASMA_DENSE requires USE_PLASMA)
+	endif
+	CPPFLAGS += -DPLASMA_DENSE
 endif
 ifdef USE_HDF5
 	FC = $(H5FC_par)

@@ -1,0 +1,110 @@
+module test_utils_linear_solve
+  use funit
+  use linear_solve
+  use plasma_interface, only: stella_plasma_init, stella_plasma_finish
+  implicit none
+
+  integer, parameter :: n = 12
+
+contains
+
+  ! PLASMA has to be initialised for the PLASMA_DENSE code, without PLASMA these do nothing
+  @before
+  subroutine set_up
+    call stella_plasma_init
+  end subroutine set_up
+
+  @after
+  subroutine tear_down
+    call stella_plasma_finish
+  end subroutine tear_down
+
+  ! A complex matrix that needs pivoting (small diagonal)
+  function test_matrix() result(a)
+    complex, dimension(n, n) :: a
+    integer :: i, j
+    do j = 1, n
+      do i = 1, n
+        a(i, j) = cmplx(sin(real(3 * i + 7 * j)), cos(real(5 * i - 2 * j)))
+      end do
+      a(j, j) = 1.0e-3 * a(j, j)
+    end do
+  end function test_matrix
+
+  ! Factorise A and solve A x = b, the residual |A x - b| should be at round-off level
+  @test
+  subroutine test_lu_complex_residual
+    complex, dimension(n, n) :: a, lu
+    complex, dimension(n) :: b, x
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i
+
+    a = test_matrix()
+    b = [(cmplx(real(i), -0.5 * real(i)), i=1, n)]
+    lu = a
+    x = b
+    call lu_decomposition(lu, idx, d)
+    call lu_back_substitution(lu, idx, x)
+    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
+    @assertTrue(abs(d) == 1.0)
+  end subroutine test_lu_complex_residual
+
+  ! Solve for several right-hand sides at once with the same factors. The stella routine loops
+  ! over size(lu, 1) columns of b, so b has to be square
+  @test
+  subroutine test_lu_complex_matrix_residual
+    complex, dimension(n, n) :: a, lu
+    complex, dimension(n, n) :: b, x
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i, k
+
+    a = test_matrix()
+    do k = 1, n
+      b(:, k) = [(cmplx(real(i * k), 1.0 / real(i + k)), i=1, n)]
+    end do
+    lu = a
+    x = b
+    call lu_decomposition(lu, idx, d)
+    call lu_back_substitution(lu, idx, x)
+    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
+  end subroutine test_lu_complex_matrix_residual
+
+  ! The determinant d * prod(diag(U)) does not depend on the pivoting, so it also checks the sign d
+  @test
+  subroutine test_lu_complex_determinant
+    complex, dimension(3, 3) :: lu
+    integer, dimension(3) :: idx
+    real :: d
+    complex :: det
+    integer :: j
+
+    ! The rows (0,1,2), (1,0,3), (4,-3,8) give det = 0 - 1*(8-12) + 2*(-3) = -2, and the zero
+    ! in the first column needs pivoting
+    lu = transpose(reshape([cmplx(0.0), cmplx(1.0), cmplx(2.0), &
+                            cmplx(1.0), cmplx(0.0), cmplx(3.0), &
+                            cmplx(4.0), cmplx(-3.0), cmplx(8.0)], [3, 3]))
+    call lu_decomposition(lu, idx, d)
+    det = d
+    do j = 1, 3
+      det = det * lu(j, j)
+    end do
+    @assertLessThan(abs(det - cmplx(-2.0)), 1.0e-12)
+  end subroutine test_lu_complex_determinant
+
+  ! A singular matrix must not give NaNs or Infs (zero pivots are replaced by a small number)
+  @test
+  subroutine test_lu_complex_singular
+    complex, dimension(2, 2) :: lu
+    integer, dimension(2) :: idx
+    real :: d
+
+    lu = reshape([cmplx(1.0), cmplx(2.0), cmplx(2.0), cmplx(4.0)], [2, 2])
+    call lu_decomposition(lu, idx, d)
+    @assertTrue(all(abs(lu) < huge(1.0)))
+    @assertTrue(abs(d) == 1.0)
+    @assertTrue(abs(lu(2, 2)) > 0.0)
+  end subroutine test_lu_complex_singular
+
+end module test_utils_linear_solve
