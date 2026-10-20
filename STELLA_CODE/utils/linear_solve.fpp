@@ -12,6 +12,7 @@ module linear_solve
    private :: plasma_lu_decomposition_complex
    private :: plasma_lu_inverse_complex
    private :: plasma_dense_usable
+   private :: serial_getrs_d
    private :: serial_getrs_z
 #endif
 
@@ -248,6 +249,9 @@ contains
       real :: summ
 
       n = size(lu, 1)
+#ifdef PLASMA_DENSE
+      call serial_getrs_d(lu, idx, n, 1, b, n)
+#else
       ii = 0
       do i = 1, n
          ll = idx(i)
@@ -263,8 +267,55 @@ contains
       do i = n, 1, -1
          b(i) = (b(i) - dot_product(lu(i, i + 1:n), b(i + 1:n))) / lu(i, i)
       end do
+#endif
 
    end subroutine lu_back_substitution_real
+
+#ifdef PLASMA_DENSE
+   !****************************************************************************
+   !               Back substitution with the serial PLASMA kernels
+   !****************************************************************************
+   ! The real version of <serial_getrs_z>, see there.
+   !****************************************************************************
+   subroutine serial_getrs_d(lu, idx, n, nrhs, b, ldb)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: plasma_core_dtrsm
+      use plasma_interface, only: PlasmaLeft, PlasmaLower, PlasmaUpper
+      use plasma_interface, only: PlasmaNoTrans, PlasmaUnit, PlasmaNonUnit
+
+      implicit none
+
+      real, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      integer, intent(in) :: n, nrhs, ldb
+      real, dimension(ldb, nrhs), intent(in out) :: b
+
+      real, dimension(nrhs) :: dum
+      integer(c_int) :: m, k, lda, ldbc
+      integer :: i
+
+      !-------------------------------------------------------------------------
+
+      do i = 1, n
+         if (idx(i) /= i) then
+            dum = b(idx(i), :)
+            b(idx(i), :) = b(i, :)
+            b(i, :) = dum
+         end if
+      end do
+
+      m = int(n, c_int)
+      k = int(nrhs, c_int)
+      lda = int(size(lu, 1), c_int)
+      ldbc = int(ldb, c_int)
+      call plasma_core_dtrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, &
+                             m, k, 1.0, lu, lda, b, ldbc)
+      call plasma_core_dtrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, &
+                             m, k, 1.0, lu, lda, b, ldbc)
+
+   end subroutine serial_getrs_d
+#endif
 
    subroutine lu_back_substitution_real_complex(lu, idx, b)
 

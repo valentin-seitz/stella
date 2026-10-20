@@ -223,6 +223,31 @@ contains
     @assertTrue(abs(d) == 1.0)
   end subroutine test_lu_real_residual
 
+  ! Real version of test_lu_complex_solve_in_omp_loop
+  @test
+  subroutine test_lu_real_solve_in_omp_loop
+    integer, parameter :: nb = 32
+    real, dimension(n, n) :: a, lu
+    real, dimension(n, nb) :: b, x
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i, k
+
+    a = test_matrix_real()
+    do k = 1, nb
+      b(:, k) = [(real(i + k) * sin(real(i * k)), i=1, n)]
+    end do
+    lu = a
+    x = b
+    call lu_decomposition(lu, idx, d)
+    !$omp parallel do
+    do k = 1, nb
+      call lu_back_substitution(lu, idx, x(:, k))
+    end do
+    !$omp end parallel do
+    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
+  end subroutine test_lu_real_solve_in_omp_loop
+
   ! Real version of test_lu_complex_determinant
   @test
   subroutine test_lu_real_determinant
