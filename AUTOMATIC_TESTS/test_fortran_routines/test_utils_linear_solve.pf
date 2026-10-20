@@ -248,6 +248,29 @@ contains
     @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
   end subroutine test_lu_real_solve_in_omp_loop
 
+  ! Real version of test_lu_complex_matrix_nonsquare
+  @test
+  subroutine test_lu_real_matrix_nonsquare
+    real, dimension(n, n) :: a, lu
+    real, dimension(n + 2, 3) :: b, x
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i
+
+    a = test_matrix_real()
+    b = 0.0
+    b(5:n, 1) = [(real(i), i=5, n)]
+    b(1:n, 2) = [(1.0 - real(i), i=1, n)]
+    b(1:n, 3) = [(cos(real(i)), i=1, n)]
+    b(n + 1:, :) = 7.0
+    lu = a
+    x = b
+    call lu_decomposition(lu, idx, d)
+    call lu_back_substitution(lu, idx, x)
+    @assertLessThan(maxval(abs(matmul(a, x(1:n, :)) - b(1:n, :))), 1.0e-10 * maxval(abs(b(1:n, :))))
+    @assertTrue(all(x(n + 1:, :) == b(n + 1:, :)))
+  end subroutine test_lu_real_matrix_nonsquare
+
   ! Real version of test_lu_complex_determinant
   @test
   subroutine test_lu_real_determinant

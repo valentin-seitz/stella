@@ -451,8 +451,11 @@ contains
       real :: summ
 
       n = size(lu, 1)
-      ii = 0
-      do j = 1, n
+#ifdef PLASMA_DENSE
+      call serial_getrs_d(lu, idx, n, size(b, 2), b, size(b, 1))
+#else
+      do j = 1, size(b, 2)
+         ii = 0
          do i = 1, n
             ll = idx(i)
             summ = b(ll, j)
@@ -468,6 +471,7 @@ contains
             b(i, j) = (b(i, j) - dot_product(lu(i, i + 1:n), b(i + 1:n, j))) / lu(i, i)
          end do
       end do
+#endif
 
    end subroutine lu_back_substitution_matrix_real
 
