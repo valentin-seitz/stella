@@ -289,6 +289,26 @@ contains
     @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
   end subroutine test_lu_real_complex_residual
 
+  ! Real version of test_lu_complex_inverse
+  @test
+  subroutine test_lu_real_inverse
+    real, dimension(n, n) :: a, lu, inv, id
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i
+
+    a = test_matrix_real()
+    lu = a
+    call lu_decomposition(lu, idx, d)
+    call lu_inverse(lu, idx, inv)
+    id = 0.0
+    do i = 1, n
+      id(i, i) = 1.0
+    end do
+    @assertLessThan(maxval(abs(matmul(a, inv) - id)), 1.0e-10)
+    @assertLessThan(maxval(abs(matmul(inv, a) - id)), 1.0e-10)
+  end subroutine test_lu_real_inverse
+
   ! Real version of test_lu_complex_determinant
   @test
   subroutine test_lu_real_determinant

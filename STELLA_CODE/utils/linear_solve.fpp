@@ -10,6 +10,7 @@ module linear_solve
 #ifdef PLASMA_DENSE
    private :: plasma_lu_decomposition_real
    private :: plasma_lu_decomposition_complex
+   private :: plasma_lu_inverse_real
    private :: plasma_lu_inverse_complex
    private :: plasma_dense_usable
    private :: serial_getrs_d
@@ -541,6 +542,10 @@ contains
 
       integer :: i, n
 
+#ifdef PLASMA_DENSE
+      if (plasma_lu_inverse_real(lu, idx, inverse)) return
+#endif
+
       n = size(lu, 1)
 
       inverse = 0.0
@@ -553,6 +558,40 @@ contains
       end do
 
    end subroutine lu_inverse_real
+
+#ifdef PLASMA_DENSE
+   !****************************************************************************
+   !                       Matrix inverse with plasma_dgetri
+   !****************************************************************************
+   ! The real version of <plasma_lu_inverse_complex>, see there.
+   !****************************************************************************
+   logical function plasma_lu_inverse_real(lu, idx, inverse) result(success)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: plasma_dgetri
+
+      implicit none
+
+      real, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      real, dimension(:, :), intent(out) :: inverse
+
+      integer(c_int), dimension(size(lu, 1)) :: ipiv
+      integer(c_int) :: n, info
+
+      !-------------------------------------------------------------------------
+
+      success = .false.
+      if (.not. plasma_dense_usable()) return
+
+      n = int(size(lu, 1), c_int)
+      inverse(1:n, 1:n) = lu(1:n, 1:n)
+      ipiv = int(idx(1:n), c_int)
+      info = plasma_dgetri(n, inverse, int(size(inverse, 1), c_int), ipiv)
+      success = (info == 0)
+
+   end function plasma_lu_inverse_real
+#endif
 
    subroutine lu_inverse_complex(lu, idx, inverse)
 
