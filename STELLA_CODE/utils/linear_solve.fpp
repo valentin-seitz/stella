@@ -7,6 +7,11 @@ module linear_solve
    public :: lu_inverse
    public :: imaxloc
 
+#ifdef PLASMA_DENSE
+   private :: plasma_lu_decomposition_complex
+   private :: serial_getrs_z
+#endif
+
    interface lu_decomposition
       module procedure lu_decomposition_real
       module procedure lu_decomposition_complex
@@ -245,6 +250,9 @@ contains
     !! first argument, which we do not want here. Hence the use of conjg to undo this
 
       n = size(lu, 1)
+#ifdef PLASMA_DENSE
+      call serial_getrs_z(lu, idx, n, 1, b)
+#else
       ii = 0
       do i = 1, n
          ll = idx(i)
@@ -260,8 +268,59 @@ contains
       do i = n, 1, -1
          b(i) = (b(i) - dot_product(conjg(lu(i, i + 1:n)), b(i + 1:n))) / lu(i, i)
       end do
+#endif
 
    end subroutine lu_back_substitution_complex
+
+#ifdef PLASMA_DENSE
+   !****************************************************************************
+   !               Back substitution with the serial PLASMA kernels
+   !****************************************************************************
+   ! Solves A x = b for <nrhs> right-hand sides, given the LU factors of A from
+   ! <lu_decomposition> (with or without PLASMA, the storage is the same): the
+   ! row swaps in <idx>, then L y = b (unit diagonal) and U x = y.
+   !
+   ! plasma_core_ztrsm does not use the PLASMA context, so this can be called
+   ! from inside the OpenMP parallel regions of stella.
+   !****************************************************************************
+   subroutine serial_getrs_z(lu, idx, n, nrhs, b)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: plasma_core_ztrsm
+      use plasma_interface, only: PlasmaLeft, PlasmaLower, PlasmaUpper
+      use plasma_interface, only: PlasmaNoTrans, PlasmaUnit, PlasmaNonUnit
+
+      implicit none
+
+      complex, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      integer, intent(in) :: n, nrhs
+      complex, dimension(n, nrhs), intent(in out) :: b
+
+      complex, dimension(nrhs) :: dum
+      integer(c_int) :: m, k, lda
+      integer :: i
+
+      !-------------------------------------------------------------------------
+
+      do i = 1, n
+         if (idx(i) /= i) then
+            dum = b(idx(i), :)
+            b(idx(i), :) = b(i, :)
+            b(i, :) = dum
+         end if
+      end do
+
+      m = int(n, c_int)
+      k = int(nrhs, c_int)
+      lda = int(size(lu, 1), c_int)
+      call plasma_core_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, &
+                             m, k, (1.0, 0.0), lu, lda, b, m)
+      call plasma_core_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, &
+                             m, k, (1.0, 0.0), lu, lda, b, m)
+
+   end subroutine serial_getrs_z
+#endif
 
    subroutine lu_back_substitution_matrix_real(lu, idx, b)
 

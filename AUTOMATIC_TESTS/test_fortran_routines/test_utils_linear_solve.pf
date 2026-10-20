@@ -93,6 +93,32 @@ contains
     @assertLessThan(abs(det - cmplx(-2.0)), 1.0e-12)
   end subroutine test_lu_complex_determinant
 
+  ! Solve with the same factors from several OpenMP threads at once, as stella does inside its
+  ! !$omp loops. Without OpenMP this is a plain loop
+  @test
+  subroutine test_lu_complex_solve_in_omp_loop
+    integer, parameter :: nb = 32
+    complex, dimension(n, n) :: a, lu
+    complex, dimension(n, nb) :: b, x
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i, k
+
+    a = test_matrix()
+    do k = 1, nb
+      b(:, k) = [(cmplx(real(i + k), sin(real(i * k))), i=1, n)]
+    end do
+    lu = a
+    x = b
+    call lu_decomposition(lu, idx, d)
+    !$omp parallel do
+    do k = 1, nb
+      call lu_back_substitution(lu, idx, x(:, k))
+    end do
+    !$omp end parallel do
+    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
+  end subroutine test_lu_complex_solve_in_omp_loop
+
   ! A singular matrix must not give NaNs or Infs (zero pivots are replaced by a small number)
   @test
   subroutine test_lu_complex_singular
@@ -106,5 +132,21 @@ contains
     @assertTrue(abs(d) == 1.0)
     @assertTrue(abs(lu(2, 2)) > 0.0)
   end subroutine test_lu_complex_singular
+
+  ! The factors of a singular matrix come from the stella routine also with PLASMA, and the
+  ! solve with them must not give NaNs either
+  @test
+  subroutine test_lu_complex_singular_solve
+    complex, dimension(2, 2) :: lu
+    complex, dimension(2) :: x
+    integer, dimension(2) :: idx
+    real :: d
+
+    lu = reshape([cmplx(1.0), cmplx(2.0), cmplx(2.0), cmplx(4.0)], [2, 2])
+    x = [cmplx(1.0), cmplx(2.0)]
+    call lu_decomposition(lu, idx, d)
+    call lu_back_substitution(lu, idx, x)
+    @assertFalse(any(x /= x))
+  end subroutine test_lu_complex_singular_solve
 
 end module test_utils_linear_solve
