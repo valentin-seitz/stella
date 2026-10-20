@@ -50,8 +50,7 @@ contains
     @assertTrue(abs(d) == 1.0)
   end subroutine test_lu_complex_residual
 
-  ! Solve for several right-hand sides at once with the same factors. The stella routine loops
-  ! over size(lu, 1) columns of b, so b has to be square
+  ! Solve for several right-hand sides at once with the same factors
   @test
   subroutine test_lu_complex_matrix_residual
     complex, dimension(n, n) :: a, lu
@@ -70,6 +69,30 @@ contains
     call lu_back_substitution(lu, idx, x)
     @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
   end subroutine test_lu_complex_matrix_residual
+
+  ! Several right-hand sides, fewer than size(lu, 1), and in a b with more rows than A. The
+  ! first nonzero of the second column comes before the one of the first column
+  @test
+  subroutine test_lu_complex_matrix_nonsquare
+    complex, dimension(n, n) :: a, lu
+    complex, dimension(n + 2, 3) :: b, x
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i
+
+    a = test_matrix()
+    b = 0.0
+    b(5:n, 1) = [(cmplx(real(i), 1.0), i=5, n)]
+    b(1:n, 2) = [(cmplx(1.0, real(i)), i=1, n)]
+    b(1:n, 3) = [(cmplx(cos(real(i)), 0.0), i=1, n)]
+    b(n + 1:, :) = cmplx(7.0, 7.0)
+    lu = a
+    x = b
+    call lu_decomposition(lu, idx, d)
+    call lu_back_substitution(lu, idx, x)
+    @assertLessThan(maxval(abs(matmul(a, x(1:n, :)) - b(1:n, :))), 1.0e-10 * maxval(abs(b(1:n, :))))
+    @assertTrue(all(x(n + 1:, :) == b(n + 1:, :)))
+  end subroutine test_lu_complex_matrix_nonsquare
 
   ! The determinant d * prod(diag(U)) does not depend on the pivoting, so it also checks the sign d
   @test

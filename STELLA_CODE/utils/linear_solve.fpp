@@ -251,7 +251,7 @@ contains
 
       n = size(lu, 1)
 #ifdef PLASMA_DENSE
-      call serial_getrs_z(lu, idx, n, 1, b)
+      call serial_getrs_z(lu, idx, n, 1, b, n)
 #else
       ii = 0
       do i = 1, n
@@ -276,14 +276,15 @@ contains
    !****************************************************************************
    !               Back substitution with the serial PLASMA kernels
    !****************************************************************************
-   ! Solves A x = b for <nrhs> right-hand sides, given the LU factors of A from
+   ! Solves A x = b for the <nrhs> right-hand sides in the first <n> rows of the
+   ! columns of b (leading dimension <ldb>), given the LU factors of A from
    ! <lu_decomposition> (with or without PLASMA, the storage is the same): the
    ! row swaps in <idx>, then L y = b (unit diagonal) and U x = y.
    !
    ! plasma_core_ztrsm does not use the PLASMA context, so this can be called
    ! from inside the OpenMP parallel regions of stella.
    !****************************************************************************
-   subroutine serial_getrs_z(lu, idx, n, nrhs, b)
+   subroutine serial_getrs_z(lu, idx, n, nrhs, b, ldb)
 
       use, intrinsic :: iso_c_binding, only: c_int
       use plasma_interface, only: plasma_core_ztrsm
@@ -294,11 +295,11 @@ contains
 
       complex, dimension(:, :), intent(in) :: lu
       integer, dimension(:), intent(in) :: idx
-      integer, intent(in) :: n, nrhs
-      complex, dimension(n, nrhs), intent(in out) :: b
+      integer, intent(in) :: n, nrhs, ldb
+      complex, dimension(ldb, nrhs), intent(in out) :: b
 
       complex, dimension(nrhs) :: dum
-      integer(c_int) :: m, k, lda
+      integer(c_int) :: m, k, lda, ldbc
       integer :: i
 
       !-------------------------------------------------------------------------
@@ -314,10 +315,11 @@ contains
       m = int(n, c_int)
       k = int(nrhs, c_int)
       lda = int(size(lu, 1), c_int)
+      ldbc = int(ldb, c_int)
       call plasma_core_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, &
-                             m, k, (1.0, 0.0), lu, lda, b, m)
+                             m, k, (1.0, 0.0), lu, lda, b, ldbc)
       call plasma_core_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, &
-                             m, k, (1.0, 0.0), lu, lda, b, m)
+                             m, k, (1.0, 0.0), lu, lda, b, ldbc)
 
    end subroutine serial_getrs_z
 #endif
@@ -369,8 +371,11 @@ contains
     !! first argument, which we do not want here. Hence the use of conjg to undo this
 
       n = size(lu, 1)
-      ii = 0
-      do j = 1, n
+#ifdef PLASMA_DENSE
+      call serial_getrs_z(lu, idx, n, size(b, 2), b, size(b, 1))
+#else
+      do j = 1, size(b, 2)
+         ii = 0
          do i = 1, n
             ll = idx(i)
             summ = b(ll, j)
@@ -386,6 +391,7 @@ contains
             b(i, j) = (b(i, j) - dot_product(conjg(lu(i, i + 1:n)), b(i + 1:n, j))) / lu(i, i)
          end do
       end do
+#endif
 
    end subroutine lu_back_substitution_matrix_complex
 
