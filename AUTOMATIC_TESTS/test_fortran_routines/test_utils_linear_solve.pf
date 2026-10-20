@@ -31,6 +31,18 @@ contains
     end do
   end function test_matrix
 
+  ! A real matrix that needs pivoting (small diagonal)
+  function test_matrix_real() result(a)
+    real, dimension(n, n) :: a
+    integer :: i, j
+    do j = 1, n
+      do i = 1, n
+        a(i, j) = sin(real(3 * i + 7 * j)) + cos(real(5 * i - 2 * j))
+      end do
+      a(j, j) = 1.0e-3 * a(j, j)
+    end do
+  end function test_matrix_real
+
   ! Factorise A and solve A x = b, the residual |A x - b| should be at round-off level
   @test
   subroutine test_lu_complex_residual
@@ -191,5 +203,57 @@ contains
     call lu_back_substitution(lu, idx, x)
     @assertFalse(any(x /= x))
   end subroutine test_lu_complex_singular_solve
+
+  ! Real version of test_lu_complex_residual
+  @test
+  subroutine test_lu_real_residual
+    real, dimension(n, n) :: a, lu
+    real, dimension(n) :: b, x
+    integer, dimension(n) :: idx
+    real :: d
+    integer :: i
+
+    a = test_matrix_real()
+    b = [(real(i) - 0.3 * real(i * i), i=1, n)]
+    lu = a
+    x = b
+    call lu_decomposition(lu, idx, d)
+    call lu_back_substitution(lu, idx, x)
+    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
+    @assertTrue(abs(d) == 1.0)
+  end subroutine test_lu_real_residual
+
+  ! Real version of test_lu_complex_determinant
+  @test
+  subroutine test_lu_real_determinant
+    real, dimension(3, 3) :: lu
+    integer, dimension(3) :: idx
+    real :: d, det
+    integer :: j
+
+    lu = transpose(reshape([0.0, 1.0, 2.0, &
+                            1.0, 0.0, 3.0, &
+                            4.0, -3.0, 8.0], [3, 3]))
+    call lu_decomposition(lu, idx, d)
+    det = d
+    do j = 1, 3
+      det = det * lu(j, j)
+    end do
+    @assertLessThan(abs(det + 2.0), 1.0e-12)
+  end subroutine test_lu_real_determinant
+
+  ! Real version of test_lu_complex_singular
+  @test
+  subroutine test_lu_real_singular
+    real, dimension(2, 2) :: lu
+    integer, dimension(2) :: idx
+    real :: d
+
+    lu = reshape([1.0, 2.0, 2.0, 4.0], [2, 2])
+    call lu_decomposition(lu, idx, d)
+    @assertTrue(all(abs(lu) < huge(1.0)))
+    @assertTrue(abs(d) == 1.0)
+    @assertTrue(abs(lu(2, 2)) > 0.0)
+  end subroutine test_lu_real_singular
 
 end module test_utils_linear_solve

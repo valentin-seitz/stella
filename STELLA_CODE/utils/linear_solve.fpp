@@ -8,6 +8,7 @@ module linear_solve
    public :: imaxloc
 
 #ifdef PLASMA_DENSE
+   private :: plasma_lu_decomposition_real
    private :: plasma_lu_decomposition_complex
    private :: plasma_lu_inverse_complex
    private :: plasma_dense_usable
@@ -48,6 +49,10 @@ contains
 
       integer :: j, n, imax
 
+#ifdef PLASMA_DENSE
+      if (plasma_lu_decomposition_real(lu, idx, d)) return
+#endif
+
       n = size(lu, 1)
 
       d = 1.0
@@ -72,6 +77,47 @@ contains
       end do
 
    end subroutine lu_decomposition_real
+
+#ifdef PLASMA_DENSE
+   !****************************************************************************
+   !                     LU decomposition with plasma_dgetrf
+   !****************************************************************************
+   ! The real version of <plasma_lu_decomposition_complex>, see there.
+   !****************************************************************************
+   logical function plasma_lu_decomposition_real(lu, idx, d) result(success)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: plasma_dgetrf
+
+      implicit none
+
+      real, dimension(:, :), intent(in out) :: lu
+      integer, dimension(:), intent(out) :: idx
+      real, intent(out) :: d
+
+      integer(c_int), dimension(size(lu, 1)) :: ipiv
+      integer(c_int) :: n, info
+      integer :: j
+
+      !-------------------------------------------------------------------------
+
+      success = .false.
+      if (.not. plasma_dense_usable()) return
+
+      n = int(size(lu, 1), c_int)
+      info = plasma_dgetrf(n, n, lu, n, ipiv)
+      if (info /= 0) return
+
+      ! The sign of the permutation, i.e., -1 for every row swap
+      d = 1.0
+      do j = 1, n
+         idx(j) = ipiv(j)
+         if (ipiv(j) /= j) d = -d
+      end do
+      success = .true.
+
+   end function plasma_lu_decomposition_real
+#endif
 
    subroutine lu_decomposition_complex(lu, idx, d)
 
