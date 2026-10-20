@@ -109,6 +109,7 @@ stella_mod = \
 	 $(OBJ_DIR)/parameters_multibox.o \
 	 $(OBJ_DIR)/parameters_numerical.o \
 	 $(OBJ_DIR)/parameters_physics.o \
+	 $(OBJ_DIR)/plasma_interface.o \
 	 $(OBJ_DIR)/ran.o \
 	 $(OBJ_DIR)/redistribute.o \
 	 $(OBJ_DIR)/response_matrix.o \
@@ -1134,6 +1135,7 @@ $(OBJ_DIR)/init_stella.o: \
 	 $(OBJ_DIR)/parameters_multibox.o \
 	 $(OBJ_DIR)/parameters_numerical.o \
 	 $(OBJ_DIR)/parameters_physics.o \
+	 $(OBJ_DIR)/plasma_interface.o \
 	 $(OBJ_DIR)/response_matrix.o \
 	 $(OBJ_DIR)/save_stella_for_restart.o \
 	 $(OBJ_DIR)/timers.o 
@@ -1333,6 +1335,8 @@ $(OBJ_DIR)/parameters_numerical.o: \
 $(OBJ_DIR)/parameters_physics.o: \
 	 $(OBJ_DIR)/mp.o \
 	 $(OBJ_DIR)/namelist_physics_parameters.o 
+$(OBJ_DIR)/plasma_interface.o: \
+	 $(OBJ_DIR)/mp.o 
 $(OBJ_DIR)/ran.o: 
 $(OBJ_DIR)/redistribute.o: \
 	 $(OBJ_DIR)/job_manage.o \

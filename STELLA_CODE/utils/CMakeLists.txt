@@ -23,6 +23,7 @@ set(STELLA_UTILS_SOURCES_fpp
   job_manage.fpp
   mp.fpp
   mp_lu_decomposition.fpp
+  plasma_interface.fpp
   ran.fpp
   spfunc.fpp
   system_fortran.fpp
@@ -124,6 +125,11 @@ endif()
 
 if (STELLA_ENABLE_OPENMP)
   target_compile_definitions(stella_utils PRIVATE USE_OPENMP)
+endif()
+
+if (STELLA_ENABLE_PLASMA)
+  target_link_libraries(stella_utils PUBLIC ${STELLA_PLASMA_LIBRARIES})
+  target_compile_definitions(stella_utils PRIVATE PLASMA)
 endif()
 
 if (STELLA_ENABLE_RANDOM_MT)

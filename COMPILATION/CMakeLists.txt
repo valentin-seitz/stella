@@ -27,6 +27,7 @@ option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
 option(STELLA_ENABLE_OPENMP "Enable OpenMP" ON)
+option(STELLA_ENABLE_PLASMA "Link to the PLASMA linear algebra library, see COMPILATION/cmake/StellaPlasma.cmake" OFF)
 option(STELLA_ENABLE_NESMIK "Build region_timer against the nesmik profiling library (https://gitlab.pm.bsc.es/beppp/nesmik), found via $NESMIK_HOME" OFF)
 
 # Options for utils internal library
@@ -247,6 +248,12 @@ if (STELLA_ENABLE_LAPACK)
     target_link_libraries(libstella PUBLIC "${LAPACK_LIBRARIES}")
   endif()
   target_compile_definitions(libstella PUBLIC LAPACK)
+endif()
+
+if (STELLA_ENABLE_PLASMA)
+  include(StellaPlasma)
+  target_link_libraries(libstella PUBLIC ${STELLA_PLASMA_LIBRARIES})
+  target_compile_definitions(libstella PUBLIC PLASMA)
 endif()
 
 if (STELLA_ENABLE_FFT)

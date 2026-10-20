@@ -106,6 +106,10 @@ There are a few build options:
 - `STELLA_ENABLE_POSIX`: Enable POSIX functions for command line functionality
   (default: off)
 - `STELLA_ENABLE_F200X`: Enable use of F2003/F2008 functionality (default: on)
+- `STELLA_ENABLE_PLASMA`: Link to the [PLASMA](https://github.com/icl-utk-edu/plasma)
+  linear algebra library, which is compiled from the `EXTERNALS/plasma` submodule
+  unless `PLASMA_DIR` points to an existing installation (default: off).
+  With Make, use `USE_PLASMA=on` (and optionally `PLASMA_DIR`).
 
 You can turn these on or off with `-D<option name>=ON/OFF`. You can
 get a complete list of options by running the following in a build

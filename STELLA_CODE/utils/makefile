@@ -169,6 +169,7 @@ $(OBJ)/mp.o: $(OBJ)/file_utils.o $(OBJ)/constants.o
 $(OBJ)/mp_lu_decomposition.o: $(OBJ)/linear_solve.o
 $(OBJ)/mt19937.o: 
 $(OBJ)/netcdf_utils.o: $(OBJ)/constants.o $(OBJ)/mp.o $(OBJ)/file_utils.o
+$(OBJ)/plasma_interface.o: $(OBJ)/mp.o
 $(OBJ)/ran.o: $(OBJ)/mt19937.o
 $(OBJ)/redistribute.o: $(OBJ)/mp.o $(OBJ)/job_manage.o
 $(OBJ)/spfunc.o: $(OBJ)/constants.o

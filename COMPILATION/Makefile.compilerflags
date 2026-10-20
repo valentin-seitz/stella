@@ -24,6 +24,7 @@ USE_NAGLIB ?=              # Use nag libraray (spfunc,undefined)
 USE_SFINCS ?=              # Link to sfincs library at compilation
 USE_LAPACK ?= on           # Use LAPACK, needed for test particle collisions
 USE_OPENMP ?= on           # Use OpenMP to parallelize the Code
+USE_PLASMA ?=              # Link to the PLASMA library, see Makefile.externals.plasma (bin)
 USE_NESMIK ?=              # Build region_timer against the nesmik profiling library (bin), needs $NESMIK_HOME
 HAS_ISO_C_BINDING ?= on    # Does the compiler support the iso_c_binding features of Fortran? (needed for local parallel LU decomposition)
 SPLIT_BY_NUMA ?=
@@ -80,6 +81,7 @@ PETSC_INC ?=
 LIBSTELL_LIB ?=
 LAPACK_LIB ?=
 LAPACK_INC ?=
+PLASMA_LIB ?=
 
 ####################################################################
 #                        PLATFORM DEPENDENCE                       #
@@ -190,6 +192,12 @@ endif
 ifdef USE_OPENMP
 	F90FLAGS += -fopenmp -DUSE_OPENMP
 	CPPFLAGS += -DUSE_OPENMP
+endif
+ifdef USE_PLASMA
+	ifndef DBLE
+$(error USE_PLASMA requires DBLE, since stella is bound to the double precision PLASMA routines)
+	endif
+	CPPFLAGS += -DPLASMA
 endif
 ifdef USE_HDF5
 	FC = $(H5FC_par)

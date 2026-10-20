@@ -221,6 +221,7 @@ stella: $(external_modules) $(stella_objects) | $(MOD) $(OBJ)
 compile-stella:
 	@echo " "; echo "Compile the stella Fortran program."
 	@$(MAKE) --no-print-directory setup-stella
+	@$(MAKE) --no-print-directory plasma
 	@$(MAKE) --no-print-directory utils
 	@$(MAKE) --no-print-directory mini_libstell
 	@$(MAKE) --no-print-directory region_timer
@@ -389,6 +390,7 @@ clean:
 	@$(MAKE) --no-print-directory -C $(MINILIBSTELL_DIR) clean
 	@$(MAKE) --no-print-directory -C $(UTILS_DIR) clean
 	@$(MAKE) --no-print-directory region_timer_clean
+	@$(MAKE) --no-print-directory plasma_clean
 	@$(MAKE) --no-print-directory clean-pfunit
 	@if [ -d "$(BUILD_DIR)" ]; then rmdir $(BUILD_DIR); fi
 
@@ -410,6 +412,8 @@ clean-submodules:
 	@-rm -rf $(PROJECT_DIR)/EXTERNALS/neasyf
 	@echo "   - remove pFUnit" 
 	@-rm -rf $(PROJECT_DIR)/EXTERNALS/pFUnit
+	@echo "   - remove plasma" 
+	@-rm -rf $(PROJECT_DIR)/EXTERNALS/plasma
 	@-rm -rf $(COMPILATION_DIR)/pFUnit_build
 	@echo "                     "
 
