@@ -269,6 +269,7 @@ $(OBJ_DIR)/collisions_fokkerplanck.o: \
 	 $(OBJ_DIR)/arrays.o \
 	 $(OBJ_DIR)/arrays_distribution_function.o \
 	 $(OBJ_DIR)/arrays_gyro_averages.o \
+	 $(OBJ_DIR)/banded_lu.o \
 	 $(OBJ_DIR)/calculations_finite_differences.o \
 	 $(OBJ_DIR)/calculations_tofrom_ghf.o \
 	 $(OBJ_DIR)/calculations_velocity_integrals.o \
