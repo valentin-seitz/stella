@@ -1,0 +1,100 @@
+module test_utils_banded_lu
+  use funit
+  use banded_lu
+  use plasma_interface, only: stella_plasma_init, stella_plasma_finish
+  implicit none
+
+contains
+
+  ! PLASMA has to be initialised for the PLASMA_BANDED code, without PLASMA these do nothing
+  @before
+  subroutine set_up
+    call stella_plasma_init
+  end subroutine set_up
+
+  @after
+  subroutine tear_down
+    call stella_plasma_finish
+  end subroutine tear_down
+
+  ! Factorise a band matrix with kl sub- and ku super-diagonals, which needs pivoting (small
+  ! diagonal), and solve for nrhs right-hand sides, outside and inside an OpenMP parallel do.
+  ! With PLASMA, the first uses plasma_zgbtrs and the second the serial solver. Returns the
+  ! largest relative residual |A x - b| / |b| of both, and the largest difference between them
+  subroutine band_round_trip(n, kl, ku, residual, difference)
+    integer, intent(in) :: n, kl, ku
+    real, intent(out) :: residual, difference
+    integer, parameter :: nrhs = 8
+    complex, dimension(n, n) :: a
+    complex, dimension(:, :), allocatable :: ab
+    complex, dimension(n, nrhs) :: b, x_serial, x_omp
+    integer, dimension(n) :: ipiv
+    integer :: i, j, k, info
+
+    a = 0.0
+    do j = 1, n
+      do i = max(1, j - ku), min(n, j + kl)
+        a(i, j) = cmplx(sin(real(3 * i + 7 * j)), cos(real(5 * i - 2 * j)))
+      end do
+      a(j, j) = 1.0e-3 * a(j, j)
+    end do
+    allocate (ab(band_ldab(kl, ku), n))
+    ab = 0.0
+    do j = 1, n
+      do i = max(1, j - ku), min(n, j + kl)
+        ab(band_row(i, j, kl, ku), j) = a(i, j)
+      end do
+    end do
+    do k = 1, nrhs
+      b(:, k) = [(cmplx(real(i + k), sin(real(i * k))), i=1, n)]
+    end do
+
+    call band_lu_factorise(n, kl, ku, ab, ipiv, info)
+
+    x_serial = b
+    do k = 1, nrhs
+      call band_lu_solve(n, kl, ku, ab, ipiv, x_serial(:, k))
+    end do
+    x_omp = b
+    !$omp parallel do
+    do k = 1, nrhs
+      call band_lu_solve(n, kl, ku, ab, ipiv, x_omp(:, k))
+    end do
+    !$omp end parallel do
+
+    residual = max(maxval(abs(matmul(a, x_serial) - b)), maxval(abs(matmul(a, x_omp) - b))) / maxval(abs(b))
+    difference = maxval(abs(x_omp - x_serial)) / maxval(abs(x_serial))
+    @assertEqual(0, info)
+  end subroutine band_round_trip
+
+  ! A small band, inside one PLASMA tile (like the gam0 system with few ky)
+  @test
+  subroutine test_band_small
+    real :: residual, difference
+    call band_round_trip(7, 3, 3, residual, difference)
+    @assertLessThan(residual, 1.0e-10)
+    @assertLessThan(difference, 1.0e-12)
+  end subroutine test_band_small
+
+  ! A band of a few diagonals over many tiles (like the Fokker-Planck system)
+  @test
+  subroutine test_band_narrow
+    real :: residual, difference
+    call band_round_trip(100, 5, 5, residual, difference)
+    @assertLessThan(residual, 1.0e-10)
+    @assertLessThan(difference, 1.0e-12)
+  end subroutine test_band_narrow
+
+  ! Bands wider than a PLASMA tile, with kl /= ku
+  @test
+  subroutine test_band_wide
+    real :: residual, difference
+    call band_round_trip(120, 20, 17, residual, difference)
+    @assertLessThan(residual, 1.0e-10)
+    @assertLessThan(difference, 1.0e-12)
+    call band_round_trip(90, 3, 40, residual, difference)
+    @assertLessThan(residual, 1.0e-10)
+    @assertLessThan(difference, 1.0e-12)
+  end subroutine test_band_wide
+
+end module test_utils_banded_lu

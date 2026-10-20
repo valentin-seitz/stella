@@ -73,6 +73,9 @@ There are a few build options:
 - `STELLA_ENABLE_PLASMA_DENSE`: Use PLASMA for the dense LU decompositions in
   `utils/linear_solve`, needs `STELLA_ENABLE_PLASMA` (default: off).
   With Make, use `USE_PLASMA_DENSE=on`.
+- `STELLA_ENABLE_PLASMA_BANDED`: Use PLASMA for the band LU factorisations and
+  solves in `utils/banded_lu`, needs `STELLA_ENABLE_PLASMA` (default: off).
+  With Make, use `USE_PLASMA_BANDED=on`.
 
 You can turn these on or off with `-D<option name>=ON/OFF`. You can
 get a complete list of options by running the following in a build

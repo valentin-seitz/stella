@@ -155,6 +155,7 @@ clean:
 #===================================================================
 
 # Dependencies
+$(OBJ)/banded_lu.o: $(OBJ)/mp.o $(OBJ)/plasma_interface.o
 $(OBJ)/command_line.o: 
 $(OBJ)/constants.o: 
 $(OBJ)/convert.o: 

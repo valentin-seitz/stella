@@ -16,6 +16,7 @@ set(STELLA_UTILS_SOURCES_f90
 
 # Source files that need preprocessing
 set(STELLA_UTILS_SOURCES_fpp
+  banded_lu.fpp
   command_line.fpp
   constants.fpp
   file_utils.fpp
@@ -134,6 +135,10 @@ endif()
 
 if (STELLA_ENABLE_PLASMA_DENSE)
   target_compile_definitions(stella_utils PRIVATE PLASMA_DENSE)
+endif()
+
+if (STELLA_ENABLE_PLASMA_BANDED)
+  target_compile_definitions(stella_utils PRIVATE PLASMA_BANDED)
 endif()
 
 if (STELLA_ENABLE_RANDOM_MT)

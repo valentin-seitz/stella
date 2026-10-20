@@ -12,7 +12,6 @@ module linear_solve
    private :: plasma_lu_decomposition_complex
    private :: plasma_lu_inverse_real
    private :: plasma_lu_inverse_complex
-   private :: plasma_dense_usable
    private :: serial_getrs_d
    private :: serial_getrs_z
 #endif
@@ -89,7 +88,7 @@ contains
    logical function plasma_lu_decomposition_real(lu, idx, d) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_dgetrf
+      use plasma_interface, only: plasma_dgetrf, stella_plasma_usable
 
       implicit none
 
@@ -104,7 +103,7 @@ contains
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. plasma_dense_usable()) return
+      if (.not. stella_plasma_usable()) return
 
       n = int(size(lu, 1), c_int)
       info = plasma_dgetrf(n, n, lu, n, ipiv)
@@ -184,7 +183,7 @@ contains
    logical function plasma_lu_decomposition_complex(lu, idx, d) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_zgetrf
+      use plasma_interface, only: plasma_zgetrf, stella_plasma_usable
 
       implicit none
 
@@ -199,7 +198,7 @@ contains
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. plasma_dense_usable()) return
+      if (.not. stella_plasma_usable()) return
 
       n = int(size(lu, 1), c_int)
       info = plasma_zgetrf(n, n, lu, n, ipiv)
@@ -214,28 +213,6 @@ contains
       success = .true.
 
    end function plasma_lu_decomposition_complex
-
-   !****************************************************************************
-   ! Whether the PLASMA routines that use the PLASMA context (plasma_zgetrf,
-   ! plasma_zgetri, ...) can be called: PLASMA has to be initialised, and we
-   ! can't be inside an OpenMP parallel region, since these routines use the
-   ! shared PLASMA context and open their own parallel region.
-   !****************************************************************************
-   logical function plasma_dense_usable()
-
-      use plasma_interface, only: stella_plasma_initialised
-#ifdef USE_OPENMP
-      use omp_lib, only: omp_in_parallel
-#endif
-
-      implicit none
-
-      plasma_dense_usable = stella_plasma_initialised
-#ifdef USE_OPENMP
-      if (omp_in_parallel()) plasma_dense_usable = .false.
-#endif
-
-   end function plasma_dense_usable
 #endif
 
    subroutine lu_back_substitution_real(lu, idx, b)
@@ -568,7 +545,7 @@ contains
    logical function plasma_lu_inverse_real(lu, idx, inverse) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_dgetri
+      use plasma_interface, only: plasma_dgetri, stella_plasma_usable
 
       implicit none
 
@@ -582,7 +559,7 @@ contains
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. plasma_dense_usable()) return
+      if (.not. stella_plasma_usable()) return
 
       n = int(size(lu, 1), c_int)
       inverse(1:n, 1:n) = lu(1:n, 1:n)
@@ -629,13 +606,13 @@ contains
    !
    ! Returns .false. if PLASMA was not used, in which case <inverse> has to be
    ! computed by the stella routine:
-   !  - if PLASMA can't be used here, see <plasma_dense_usable>;
+   !  - if PLASMA can't be used here, see <stella_plasma_usable> in plasma_interface;
    !  - if U has a zero on the diagonal.
    !****************************************************************************
    logical function plasma_lu_inverse_complex(lu, idx, inverse) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_zgetri
+      use plasma_interface, only: plasma_zgetri, stella_plasma_usable
 
       implicit none
 
@@ -649,7 +626,7 @@ contains
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. plasma_dense_usable()) return
+      if (.not. stella_plasma_usable()) return
 
       n = int(size(lu, 1), c_int)
       inverse(1:n, 1:n) = lu(1:n, 1:n)

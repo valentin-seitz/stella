@@ -51,6 +51,7 @@ module plasma_interface
    ! the PLASMA context can only be called after it
    logical, public, protected :: stella_plasma_initialised = .false.
 
+   public :: stella_plasma_usable
    public :: plasma_init, plasma_finalize, plasma_set, plasma_get
    public :: plasma_zgetrf, plasma_zgetrs, plasma_zgetri
    public :: plasma_dgetrf, plasma_dgetrs, plasma_dgetri
@@ -221,5 +222,28 @@ contains
 #endif
 
    end subroutine stella_plasma_finish
+
+#ifdef PLASMA
+   !****************************************************************************
+   ! Whether the PLASMA routines that use the PLASMA context (plasma_zgetrf,
+   ! plasma_zgbtrs, ...) can be called: PLASMA has to be initialised, and we
+   ! can't be inside an OpenMP parallel region, since these routines use the
+   ! shared PLASMA context and open their own parallel region.
+   !****************************************************************************
+   logical function stella_plasma_usable()
+
+#ifdef USE_OPENMP
+      use omp_lib, only: omp_in_parallel
+#endif
+
+      implicit none
+
+      stella_plasma_usable = stella_plasma_initialised
+#ifdef USE_OPENMP
+      if (omp_in_parallel()) stella_plasma_usable = .false.
+#endif
+
+   end function stella_plasma_usable
+#endif
 
 end module plasma_interface
