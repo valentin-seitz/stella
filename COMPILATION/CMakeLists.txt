@@ -447,7 +447,10 @@ else()
   set(STELLA_PFUNIT_LOCATION "Not used")
 endif()
 
-# Enforce the standard 
+# Enforce the standard (Intel only warns about non-standard code). gfortran
+# doesn't know -std=f08, and the code doesn't build with -std=f2008 or
+# -std=f2018: it uses ES0.d edit descriptors (Fortran 2018) and the GNU
+# extension of an operator followed by a unary minus, e.g. a*-1
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" OR CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std08")
 else()
