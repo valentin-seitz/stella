@@ -573,7 +573,9 @@ contains
          ! upper zed value within a segment. If the mode is periodic, then 
          ! reduce the upper bound by one, as this is a repeated point so it is 
          ! obtained using the periodicity condition. This avoids and double-counting.
-         if (periodic(iky)) then
+         ! Only the last segment ends on the periodic point; the upper end point of the other
+         ! segments is shared with the next segment, which skips it through <izl_offset>
+         if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
             izup = iz_up(iseg) - 1
          else
             izup = iz_up(iseg)
@@ -1247,7 +1249,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1357,7 +1361,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1446,7 +1452,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1557,7 +1565,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1680,7 +1690,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1790,7 +1802,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)

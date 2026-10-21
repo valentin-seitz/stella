@@ -487,8 +487,8 @@ contains
       nupap = spec(is)%vnew(isb) * 2 * (erf(xp / sqrt(massr)) - xp / sqrt(massr) * (2 / sqrt(pi)) * exp(-xp**2 / massr)) / (2 * xp**2 / massr) / xp**3
       gam_mu = 2*(eiediff*nupa(iv,imu,iz,is,isb)*mu(imu)**2+eidefl*deflknob*nuD(iv,imu,iz,is,isb)*vpa(iv)**2/(2*bmag(ia,iz))*mu(imu))*mw(iv,imu,iz,is)
                            gam_mup = 2 * (eiediff * nupap * mup**2 + eidefl * deflknob * nuDp * vpa(iv)**2 / (2 * bmag(ia, iz)) * mup) * mwp
-                   bb_blcs(iv, imu, imu, ikxkyz, isb) = bb_blcs(iv, imu, imu, ikxkyz, isb) - code_dt * (gam_mu*-1 / dmu(imu) * dmu(imu) / 2./mu(imu) &
-                         + (gam_mup*-1 / dmu(imu) - gam_mu*-1 / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu, iz, is) / (dmu(imu) / 2.+mu(imu))
+                   bb_blcs(iv, imu, imu, ikxkyz, isb) = bb_blcs(iv, imu, imu, ikxkyz, isb) - code_dt * (gam_mu*(-1) / dmu(imu) * dmu(imu) / 2./mu(imu) &
+                         + (gam_mup*(-1) / dmu(imu) - gam_mu*(-1) / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu, iz, is) / (dmu(imu) / 2.+mu(imu))
           bb_blcs(iv, imu, imu + 1, ikxkyz, isb) = bb_blcs(iv, imu, imu + 1, ikxkyz, isb) - code_dt * (gam_mu * 1 / dmu(imu) * dmu(imu) / 2./mu(imu) &
                    + (gam_mup * 1 / dmu(imu) - gam_mu * 1 / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu + 1, iz, is) / (dmu(imu) / 2.+mu(imu))
                            ! mixed derivative:
@@ -574,13 +574,13 @@ contains
                               ! where [...]_{nmu+1/2} is a ghost cell at mu = mu_{nmu} + dmu(nmu-1)/2, with [...]_{nmu+1/2} = 0.
         bb_blcs(iv,imu,imu,ikxkyz,isb)  = bb_blcs(iv,imu,imu,ikxkyz,isb) - code_dt*((gam_mu/dmu(imu-1) - gam_mum/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)) &
                                + (-gam_mu / dmu(imu - 1)) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
-bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-gam_mu/dmu(imu-1) - gam_mum * -1/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)) &
-                           - gam_mu*-1 / dmu(imu - 1) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
+bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-gam_mu/dmu(imu-1) - gam_mum * (-1)/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)) &
+                           - gam_mu*(-1) / dmu(imu - 1) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
                            else
      bb_blcs(iv,imu,imu,ikxkyz,isb)  = bb_blcs(iv,imu,imu,ikxkyz,isb) - code_dt*((gam_mu/dmu(imu-1) - gam_mum/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)/2.) &
                                  + (-gam_mu / dmu(imu - 1)) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
-                                     bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-gam_mu/dmu(imu-1) - gam_mum * -1/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)/2.) &
-                             - gam_mu*-1 / dmu(imu - 1) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
+                                     bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-gam_mu/dmu(imu-1) - gam_mum * (-1)/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)/2.) &
+                             - gam_mu*(-1) / dmu(imu - 1) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
                            end if
                            ! mixed derivative:
                            !cc_blcs(iv,imu,imu,iz,is)   = cc_blcs(iv,imu,imu  ,iz,is)  &
@@ -672,8 +672,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
        + (-gam_mu * (dmu(imu) / dmu(imu - 1) - dmu(imu - 1) / dmu(imu)) / (dmu(imu - 1) + dmu(imu)) - gam_mup / dmu(imu)) * dmu(imu - 1) / dmu(imu)) &
                                                                 / mw(iv, imu, iz, is) * 2./(dmu(imu - 1) + dmu(imu))
                            bb_blcs(iv, imu, imu - 1, ikxkyz, isb) = bb_blcs(iv, imu, imu - 1, ikxkyz, isb) &
-                - code_dt * ((gam_mu*-1 * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) - gam_mum*-1 / dmu(imu - 1)) * dmu(imu) / dmu(imu - 1) &
- - gam_mu*-1 * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) * dmu(imu - 1) / dmu(imu)) / mw(iv, imu - 1, iz, is) * 2./(dmu(imu - 1) + dmu(imu))
+                - code_dt * ((gam_mu*(-1) * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) - gam_mum*(-1) / dmu(imu - 1)) * dmu(imu) / dmu(imu - 1) &
+ - gam_mu*(-1) * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) * dmu(imu - 1) / dmu(imu)) / mw(iv, imu - 1, iz, is) * 2./(dmu(imu - 1) + dmu(imu))
                            bb_blcs(iv, imu, imu + 1, ikxkyz, isb) = bb_blcs(iv, imu, imu + 1, ikxkyz, isb) &
                                                  - code_dt * (gam_mu * dmu(imu - 1) / dmu(imu) / (dmu(imu - 1) + dmu(imu)) * dmu(imu) / dmu(imu - 1) &
                                     + (gam_mup / dmu(imu) - gam_mu * dmu(imu - 1) / dmu(imu) / (dmu(imu - 1) + dmu(imu))) * dmu(imu - 1) / dmu(imu)) &
@@ -749,8 +749,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       gam_mu = 2*(eiediff*nupa(iv,imu,iz,is,isb)*mu(imu)**2+eidefl*deflknob*nuD(iv,imu,iz,is,isb)*vpa(iv)**2/(2*bmag(ia,iz))*mu(imu))*mw(iv,imu,iz,is)
                            gam_mup = 2 * (eiediff * nupap * mup**2 + eidefl * deflknob * nuDp * vpa(iv)**2 / (2 * bmag(ia, iz)) * mup) * mwp
 
-                   bb_blcs(iv, imu, imu, ikxkyz, isb) = bb_blcs(iv, imu, imu, ikxkyz, isb) - code_dt * (gam_mu*-1 / dmu(imu) * dmu(imu) / 2./mu(imu) &
-                         + (gam_mup*-1 / dmu(imu) - gam_mu*-1 / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu, iz, is) / (dmu(imu) / 2.+mu(imu))
+                   bb_blcs(iv, imu, imu, ikxkyz, isb) = bb_blcs(iv, imu, imu, ikxkyz, isb) - code_dt * (gam_mu*(-1) / dmu(imu) * dmu(imu) / 2./mu(imu) &
+                         + (gam_mup*(-1) / dmu(imu) - gam_mu*(-1) / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu, iz, is) / (dmu(imu) / 2.+mu(imu))
           bb_blcs(iv, imu, imu + 1, ikxkyz, isb) = bb_blcs(iv, imu, imu + 1, ikxkyz, isb) - code_dt * (gam_mu * 1 / dmu(imu) * dmu(imu) / 2./mu(imu) &
                    + (gam_mup * 1 / dmu(imu) - gam_mu * 1 / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu + 1, iz, is) / (dmu(imu) / 2.+mu(imu))
                            ! mixed derivative:
@@ -841,13 +841,13 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                               ! d/dmu[...]_{nmu} = ([...]_{nmu+1/2} - [...]_{nmu-1/2})/(dmu_{nmu-1}/2+dmu(nmu-1)/2), where [...]_{nmu+1/2} is a ghost cell at mu = mu_{nmu} + dmu(nmu-1)/2, with [...]_{nmu+1/2} = 0.
          bb_blcs(iv,imu,imu,ikxkyz,isb) = bb_blcs(iv,imu,imu,ikxkyz,isb) - code_dt*((gam_mu/dmu(imu-1) - gam_mum/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)) &
                                + (-gam_mu / dmu(imu - 1)) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
-                                     bb_blcs(iv,imu,imu-1,ikxkyz,isb) = bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-gam_mu/dmu(imu-1) - gam_mum * -1/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)) &
-                           - gam_mu*-1 / dmu(imu - 1) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
+                                     bb_blcs(iv,imu,imu-1,ikxkyz,isb) = bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-gam_mu/dmu(imu-1) - gam_mum * (-1)/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)) &
+                           - gam_mu*(-1) / dmu(imu - 1) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
                            else
       bb_blcs(iv,imu,imu,ikxkyz,isb) = bb_blcs(iv,imu,imu,ikxkyz,isb) - code_dt*((gam_mu/dmu(imu-1) - gam_mum/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)/2.) &
                                  + (-gam_mu / dmu(imu - 1)) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
-                                     bb_blcs(iv,imu,imu-1,ikxkyz,isb) = bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-gam_mu/dmu(imu-1) - gam_mum * -1/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)/2.) &
-                             - gam_mu*-1 / dmu(imu - 1) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
+                                     bb_blcs(iv,imu,imu-1,ikxkyz,isb) = bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-gam_mu/dmu(imu-1) - gam_mum * (-1)/dmu(imu-1))*dmu(imu-1)/(dmu(imu-1)/2.) &
+                             - gam_mu*(-1) / dmu(imu - 1) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
                            end if
                            ! mixed derivative:
                            ! 24.02.21, commenting out
@@ -938,8 +938,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
        + (-gam_mu * (dmu(imu) / dmu(imu - 1) - dmu(imu - 1) / dmu(imu)) / (dmu(imu - 1) + dmu(imu)) - gam_mup / dmu(imu)) * dmu(imu - 1) / dmu(imu)) &
                                                                 / mw(iv, imu, iz, is) * 2./(dmu(imu - 1) + dmu(imu))
                            bb_blcs(iv, imu, imu - 1, ikxkyz, isb) = bb_blcs(iv, imu, imu - 1, ikxkyz, isb) &
-                - code_dt * ((gam_mu*-1 * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) - gam_mum*-1 / dmu(imu - 1)) * dmu(imu) / dmu(imu - 1) &
- - gam_mu*-1 * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) * dmu(imu - 1) / dmu(imu)) / mw(iv, imu - 1, iz, is) * 2./(dmu(imu - 1) + dmu(imu))
+                - code_dt * ((gam_mu*(-1) * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) - gam_mum*(-1) / dmu(imu - 1)) * dmu(imu) / dmu(imu - 1) &
+ - gam_mu*(-1) * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) * dmu(imu - 1) / dmu(imu)) / mw(iv, imu - 1, iz, is) * 2./(dmu(imu - 1) + dmu(imu))
                            bb_blcs(iv, imu, imu + 1, ikxkyz, isb) = bb_blcs(iv, imu, imu + 1, ikxkyz, isb) &
                                                  - code_dt * (gam_mu * dmu(imu - 1) / dmu(imu) / (dmu(imu - 1) + dmu(imu)) * dmu(imu) / dmu(imu - 1) &
                                     + (gam_mup / dmu(imu) - gam_mu * dmu(imu - 1) / dmu(imu) / (dmu(imu - 1) + dmu(imu))) * dmu(imu - 1) / dmu(imu)) &
@@ -1035,8 +1035,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       nupap = spec(is)%vnew(isb) * 2 * (erf(xp / sqrt(massr)) - xp / sqrt(massr) * (2 / sqrt(pi)) * exp(-xp**2 / massr)) / (2 * xp**2 / massr) / xp**3
       gam_mu = 2*(eiediff*nupa(iv,imu,iz,is,isb)*mu(imu)**2+eidefl*deflknob*nuD(iv,imu,iz,is,isb)*vpa(iv)**2/(2*bmag(ia,iz))*mu(imu))*mw(iv,imu,iz,is)
                            gam_mup = 2 * (eiediff * nupap * mup**2 + eidefl * deflknob * nuDp * vpa(iv)**2 / (2 * bmag(ia, iz)) * mup) * mwp
-                   bb_blcs(iv, imu, imu, ikxkyz, isb) = bb_blcs(iv, imu, imu, ikxkyz, isb) - code_dt * (gam_mu*-1 / dmu(imu) * dmu(imu) / 2./mu(imu) &
-                         + (gam_mup*-1 / dmu(imu) - gam_mu*-1 / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu, iz, is) / (dmu(imu) / 2.+mu(imu))
+                   bb_blcs(iv, imu, imu, ikxkyz, isb) = bb_blcs(iv, imu, imu, ikxkyz, isb) - code_dt * (gam_mu*(-1) / dmu(imu) * dmu(imu) / 2./mu(imu) &
+                         + (gam_mup*(-1) / dmu(imu) - gam_mu*(-1) / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu, iz, is) / (dmu(imu) / 2.+mu(imu))
           bb_blcs(iv, imu, imu + 1, ikxkyz, isb) = bb_blcs(iv, imu, imu + 1, ikxkyz, isb) - code_dt * (gam_mu * 1 / dmu(imu) * dmu(imu) / 2./mu(imu) &
                    + (gam_mup * 1 / dmu(imu) - gam_mu * 1 / dmu(imu)) * mu(imu) / (dmu(imu) / 2.)) / mw(iv, imu + 1, iz, is) / (dmu(imu) / 2.+mu(imu))
                            ! mixed derivative:
@@ -1126,15 +1126,15 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                                                        - code_dt * ((gam_mu / dmu(imu - 1) - gam_mum / dmu(imu - 1)) * dmu(imu - 1) / (dmu(imu - 1)) &
                                + (-gam_mu / dmu(imu - 1)) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
                               bb_blcs(iv, imu, imu - 1, ikxkyz, isb) = bb_blcs(iv, imu, imu - 1, ikxkyz, isb) &
-                                                   - code_dt * ((-gam_mu / dmu(imu - 1) - gam_mum*-1 / dmu(imu - 1)) * dmu(imu - 1) / (dmu(imu - 1)) &
-                           - gam_mu*-1 / dmu(imu - 1) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
+                                                   - code_dt * ((-gam_mu / dmu(imu - 1) - gam_mum*(-1) / dmu(imu - 1)) * dmu(imu - 1) / (dmu(imu - 1)) &
+                           - gam_mu*(-1) / dmu(imu - 1) * dmu(imu - 1) / dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1) / 2.)
                            else
                               bb_blcs(iv, imu, imu, ikxkyz, isb) = bb_blcs(iv, imu, imu, ikxkyz, isb) &
                                                   - code_dt * ((gam_mu / dmu(imu - 1) - gam_mum / dmu(imu - 1)) * dmu(imu - 1) / (dmu(imu - 1) / 2.) &
                                  + (-gam_mu / dmu(imu - 1)) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
                               bb_blcs(iv, imu, imu - 1, ikxkyz, isb) = bb_blcs(iv, imu, imu - 1, ikxkyz, isb) &
-                                              - code_dt * ((-gam_mu / dmu(imu - 1) - gam_mum*-1 / dmu(imu - 1)) * dmu(imu - 1) / (dmu(imu - 1) / 2.) &
-                             - gam_mu*-1 / dmu(imu - 1) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
+                                              - code_dt * ((-gam_mu / dmu(imu - 1) - gam_mum*(-1) / dmu(imu - 1)) * dmu(imu - 1) / (dmu(imu - 1) / 2.) &
+                             - gam_mu*(-1) / dmu(imu - 1) * dmu(imu - 1) / 2./dmu(imu - 1)) / mw(iv, imu - 1, iz, is) / (dmu(imu - 1) / 2.+dmu(imu - 1))
                            end if
                            ! no distinction here between density_conserving and default
                            if (density_conservation) then
@@ -1229,8 +1229,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                   - code_dt*((gam_mu*(dmu(imu)/dmu(imu-1) - dmu(imu-1)/dmu(imu)) / (dmu(imu-1)+dmu(imu)) - gam_mum / dmu(imu-1))*dmu(imu)/dmu(imu-1) &
                                     +(-gam_mu*(dmu(imu)/dmu(imu-1) - dmu(imu-1)/dmu(imu)) / (dmu(imu-1)+dmu(imu)) - gam_mup / dmu(imu))* dmu(imu-1)/dmu(imu)) / mw(iv,imu,iz,is) * 2./(dmu(imu-1)+dmu(imu))
                            bb_blcs(iv, imu, imu - 1, ikxkyz, isb) = bb_blcs(iv, imu, imu - 1, ikxkyz, isb) &
-                - code_dt * ((gam_mu*-1 * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) - gam_mum*-1 / dmu(imu - 1)) * dmu(imu) / dmu(imu - 1) &
- - gam_mu*-1 * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) * dmu(imu - 1) / dmu(imu)) / mw(iv, imu - 1, iz, is) * 2./(dmu(imu - 1) + dmu(imu))
+                - code_dt * ((gam_mu*(-1) * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) - gam_mum*(-1) / dmu(imu - 1)) * dmu(imu) / dmu(imu - 1) &
+ - gam_mu*(-1) * dmu(imu) / dmu(imu - 1) / (dmu(imu - 1) + dmu(imu)) * dmu(imu - 1) / dmu(imu)) / mw(iv, imu - 1, iz, is) * 2./(dmu(imu - 1) + dmu(imu))
                            bb_blcs(iv, imu, imu + 1, ikxkyz, isb) = bb_blcs(iv, imu, imu + 1, ikxkyz, isb) &
                                                  - code_dt * (gam_mu * dmu(imu - 1) / dmu(imu) / (dmu(imu - 1) + dmu(imu)) * dmu(imu) / dmu(imu - 1) &
        + (gam_mup/dmu(imu) - gam_mu*dmu(imu-1)/dmu(imu) / (dmu(imu-1)+dmu(imu))) * dmu(imu-1)/dmu(imu)) / mw(iv,imu+1,iz,is) * 2/(dmu(imu-1)+dmu(imu))
@@ -4254,7 +4254,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       complex, dimension(:, :, -nzgrid:, :), intent(in out) :: phi, apar, bpar
       complex, dimension(:, :, kxkyz_lo%llim_proc:), intent(in out) :: g
 
-      complex, dimension(:, :, :, :, :), allocatable :: flds
+      complex, dimension(:, :, :, :, :), allocatable :: flds, flds_solved
       complex, dimension(:, :, :), allocatable :: g_in
       complex, dimension(:, :), allocatable :: gvmutr
       complex, dimension(:), allocatable :: ghrs
@@ -4372,6 +4372,11 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       end if
 
       ! AVB: obtain phi^{n+1} and psijlm^{n+1} from response matrix
+      ! The response matrix is only applied on the processor that owns is = 1 for each
+      ! (ky,kx,z,tube) point, so store the solution in <flds_solved>, which is summed over
+      ! all processors below. Note that <flds> contains the inhomogeneous fields on every
+      ! processor, so summing <flds> itself would add these for every other processor.
+      allocate (flds_solved(naky, nakx, -nzgrid:nzgrid, ntubes, nresponse)); flds_solved = 0.
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
          iky = iky_idx(kxkyz_lo, ikxkyz)
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
@@ -4381,11 +4386,16 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
          ! no need to compute multiple times
          is = is_idx(kxkyz_lo, ikxkyz); if (is /= 1) cycle
          call lu_back_substitution(fp_response(:, :, ikxkyz), diff_idx(:, ikxkyz), flds(iky, ikx, iz, it, :))
+         flds_solved(iky, ikx, iz, it, :) = flds(iky, ikx, iz, it, :)
       end do
+
+      ! Collect the solution of the response matrix from all processors
+      call sum_allreduce(flds_solved)
+      flds = flds_solved
+      deallocate (flds_solved)
 
       if (advfield_coll) then
          phi(:, :, :, :) = flds(:, :, :, :, 1)
-         call sum_allreduce(phi)
       end if
 
       g = g_in

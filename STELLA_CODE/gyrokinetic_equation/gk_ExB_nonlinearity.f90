@@ -143,7 +143,8 @@ contains
 
       ! Iterate over velocity space
       !$omp parallel default(none) &
-      !$omp firstprivate(vmu_lo, shift_state, exb_nonlin_fac, cfl_dt_ExB, naky,nakx, ny ,rho_clamped, exb_nonlin_fac_p, ikx_max, code_dt, tmp) &
+      !$omp firstprivate(vmu_lo, shift_state, exb_nonlin_fac, naky,nakx, ny ,rho_clamped, exb_nonlin_fac_p, ikx_max, code_dt, tmp) &
+      !$omp reduction(min: cfl_dt_ExB) &
       !$omp private(g0k, g0xy, g0a, g1xy, bracket, g0xky, g0k_swap, g0kxy, apar_kykx, bpar_kykx) &
       !$omp shared(g, gout, include_apar,phi_gyro, include_bpar, gfac, apar, phi, bpar, aky, ntubes, full_flux_surface, suppress_zonal_interaction,radial_variation, prp_shear_enabled, hammett_flow_shear, g_exb, g_exbfac, prefac, yfirst, akx, fphi, phi_corr_GA, phi_corr_qn, zero, nzgrid)
       !$omp do collapse(3)
