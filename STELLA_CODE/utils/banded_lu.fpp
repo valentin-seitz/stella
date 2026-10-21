@@ -117,7 +117,8 @@ contains
 #ifdef PLASMA_BANDED
       ! The factors from plasma_zgbtrf can't be solved by LAPACK, so we can't fall back to zgbtrf
       if (.not. stella_plasma_usable()) &
-         call mp_abort('band_lu_factorise: PLASMA has to be initialised, and this can not be called inside an OpenMP parallel region')
+         call mp_abort('band_lu_factorise: PLASMA has to be initialised, and this can not be called ' &
+                       //'inside an OpenMP parallel region')
       call set_band_nb(nb_old)
       info = int(plasma_zgbtrf(int(n, c_int), int(n, c_int), int(kl, c_int), int(ku, c_int), &
                                ab, int(size(ab, 1), c_int), ipiv_c))

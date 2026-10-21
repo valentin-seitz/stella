@@ -128,6 +128,11 @@ if (STELLA_ENABLE_OPENMP)
   target_compile_definitions(stella_utils PRIVATE USE_OPENMP)
 endif()
 
+# banded_lu calls LAPACK's zgbtrf and zgbtrs
+if (STELLA_ENABLE_LAPACK AND NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
+  target_link_libraries(stella_utils PUBLIC "${LAPACK_LIBRARIES}")
+endif()
+
 if (STELLA_ENABLE_PLASMA)
   target_link_libraries(stella_utils PUBLIC ${STELLA_PLASMA_LIBRARIES})
   target_compile_definitions(stella_utils PRIVATE PLASMA)
