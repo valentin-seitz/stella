@@ -460,8 +460,7 @@ contains
    subroutine calculate_response_matrix_to_invert(iky, ie)
 
       use mp, only: proc0
-      use job_manage, only: time_message
-      use timers, only: time_response_matrix
+      use timers, only: region_start, region_end
       use parallelisation_layouts, only: mat_gen
       use parameters_physics, only: include_apar, include_bpar
       use grids_extended_zgrid, only: ikxmod
@@ -487,7 +486,7 @@ contains
       !-------------------------------------------------------------------------
       
       ! Start the timer
-      call time_message(.false., time_response_matrix, 'calculate response matrix')
+      call region_start('response_matrix')
 
       ! ------------------------------------------------------------------------
       !              Set up system to compute response of the pdf               
@@ -574,7 +573,9 @@ contains
          ! upper zed value within a segment. If the mode is periodic, then 
          ! reduce the upper bound by one, as this is a repeated point so it is 
          ! obtained using the periodicity condition. This avoids and double-counting.
-         if (periodic(iky)) then
+         ! Only the last segment ends on the periodic point; the upper end point of the other
+         ! segments is shared with the next segment, which skips it through <izl_offset>
+         if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
             izup = iz_up(iseg) - 1
          else
             izup = iz_up(iseg)
@@ -602,7 +603,7 @@ contains
       deallocate (gext, phi_ext, apar_ext, bpar_ext)
 
       ! Stop the timer
-      call time_message(.false., time_response_matrix, 'calculate response matrix') 
+      call region_end('response_matrix')
 
    end subroutine calculate_response_matrix_to_invert
 
@@ -1248,7 +1249,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1358,7 +1361,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1447,7 +1452,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1558,7 +1565,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1681,7 +1690,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1791,7 +1802,9 @@ contains
             ! upper zed value within a segment. If the mode is periodic, then 
             ! reduce the upper bound by one, as this is a repeated point so it is 
             ! obtained using the periodicity condition. This avoids and double-counting.
-            if (periodic(iky)) then
+            ! Only the last segment ends on the periodic point; the upper end point of the other
+            ! segments is shared with the next segment, which skips it through <izl_offset>
+            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
                izup = iz_up(iseg) - 1
             else
                izup = iz_up(iseg)
@@ -1944,8 +1957,7 @@ contains
       use mp, only: sgproc0
 #endif
       use mp, only: mp_abort
-      use job_manage, only: time_message
-      use timers, only: time_lu_decomposition
+      use timers, only: region_start, region_end
       use arrays, only: response_matrix
       use parallelisation_layouts, only: lu_option_switch
       use parallelisation_layouts, only: lu_option_none, lu_option_local, lu_option_global
@@ -1964,7 +1976,7 @@ contains
       ! ------------------------------------------------------------------------
       
       ! Start the timer
-      call time_message(.false., time_lu_decomposition, 'LU decomposition')
+      call region_start('lu_decomposition')
 
       ! Now we have the full response matrix. Finally, perform its LU decomposition
       select case (lu_option_switch)
@@ -1992,7 +2004,7 @@ contains
       end select
       
       ! Stop the timer
-      call time_message(.false., time_lu_decomposition, 'LU decomposition')
+      call region_end('lu_decomposition')
 
    end subroutine lu_decompose_response_matrix
 
