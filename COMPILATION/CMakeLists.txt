@@ -27,9 +27,7 @@ option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
 option(STELLA_ENABLE_OPENMP "Enable OpenMP" ON)
-option(STELLA_ENABLE_PLASMA "Link to the PLASMA linear algebra library, see COMPILATION/cmake/StellaPlasma.cmake" OFF)
-option(STELLA_ENABLE_PLASMA_DENSE "Use PLASMA for the dense LU routines in utils/linear_solve, needs STELLA_ENABLE_PLASMA" OFF)
-option(STELLA_ENABLE_PLASMA_BANDED "Use PLASMA for the band LU routines in utils/banded_lu, needs STELLA_ENABLE_PLASMA" OFF)
+option(STELLA_ENABLE_PLASMA "Use the PLASMA linear algebra library for the LU routines, see COMPILATION/cmake/StellaPlasma.cmake" ON)
 option(STELLA_ENABLE_NESMIK "Build region_timer against the nesmik profiling library (https://gitlab.pm.bsc.es/beppp/nesmik), found via $NESMIK_HOME" OFF)
 
 # Options for utils internal library
@@ -258,14 +256,6 @@ if (STELLA_ENABLE_PLASMA)
   target_compile_definitions(libstella PUBLIC PLASMA)
 endif()
 
-if (STELLA_ENABLE_PLASMA_DENSE AND NOT STELLA_ENABLE_PLASMA)
-  message(FATAL_ERROR "STELLA_ENABLE_PLASMA_DENSE requires STELLA_ENABLE_PLASMA")
-endif()
-
-if (STELLA_ENABLE_PLASMA_BANDED AND NOT STELLA_ENABLE_PLASMA)
-  message(FATAL_ERROR "STELLA_ENABLE_PLASMA_BANDED requires STELLA_ENABLE_PLASMA")
-endif()
-
 if (STELLA_ENABLE_FFT)
   if (STELLA_ENABLE_DOUBLE)
     set(_fftw_component DOUBLE_LIB)
@@ -459,10 +449,7 @@ else()
   set(STELLA_PFUNIT_LOCATION "Not used")
 endif()
 
-# Enforce the standard (Intel only warns about non-standard code). gfortran
-# doesn't know -std=f08, and the code doesn't build with -std=f2008 or
-# -std=f2018: it uses ES0.d edit descriptors (Fortran 2018) and the GNU
-# extension of an operator followed by a unary minus, e.g. a*-1
+# Enforce the standard 
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" OR CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std08")
 else()

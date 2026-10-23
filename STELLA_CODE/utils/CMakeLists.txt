@@ -138,14 +138,6 @@ if (STELLA_ENABLE_PLASMA)
   target_compile_definitions(stella_utils PRIVATE PLASMA)
 endif()
 
-if (STELLA_ENABLE_PLASMA_DENSE)
-  target_compile_definitions(stella_utils PRIVATE PLASMA_DENSE)
-endif()
-
-if (STELLA_ENABLE_PLASMA_BANDED)
-  target_compile_definitions(stella_utils PRIVATE PLASMA_BANDED)
-endif()
-
 if (STELLA_ENABLE_RANDOM_MT)
   target_compile_definitions(stella_utils PRIVATE RANDOM=_RANMT_)
 endif()
