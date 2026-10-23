@@ -55,13 +55,9 @@ jobs:
             echo "NETCDF_LIB_DIR=/opt/homebrew/lib -L${NETCDF_PREFIX}/lib/" >> $GITHUB_ENV
             echo "Set NETCDF_INC_DIR = ${NETCDF_PREFIX}/include/"
             echo "NETCDF_INC_DIR=${NETCDF_PREFIX}/include/" >> $GITHUB_ENV
-            # PLASMA needs a C compiler with OpenMP (gcc instead of Apple clang), and
-            # CBLAS and LAPACKE, which OpenBLAS provides (Accelerate has no LAPACKE)
-            GCC_C=$(ls $(brew --prefix gcc)/bin/gcc-[0-9]* | head -n 1)
-            OPENBLAS_PREFIX=$(brew --prefix openblas)
-            PLASMA_FLAGS="-DCMAKE_C_COMPILER=${GCC_C} -DBLA_VENDOR=OpenBLAS -DCMAKE_PREFIX_PATH=${OPENBLAS_PREFIX}"
-            echo "Set PLASMA_CMAKE_FLAGS = ${PLASMA_FLAGS}"
-            echo "PLASMA_CMAKE_FLAGS=${PLASMA_FLAGS}" >> $GITHUB_ENV
+            # Build without PLASMA on macOS (an empty USE_PLASMA switches it off in Make)
+            echo "USE_PLASMA=" >> $GITHUB_ENV
+            echo "CMAKE_PLASMA_FLAGS=-DSTELLA_ENABLE_PLASMA=OFF" >> $GITHUB_ENV
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
             echo "Set STELLA_SYSTEM = gnu_ubuntu"
             echo "STELLA_SYSTEM=gnu_ubuntu" >> $GITHUB_ENV
@@ -73,7 +69,7 @@ jobs:
           # Install dependencies
           if ${{ contains(matrix.os, 'macos') }}; then   
             if [ ${{ matrix.os }} == 'macos-14' ] || [ ${{ matrix.os }} == 'macos-15' ]; then
-              brew install gcc make openmpi fftw netcdf-fortran gnu-sed openblas
+              brew install gcc make openmpi fftw netcdf-fortran gnu-sed
               gfortran --version
             fi
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
@@ -120,14 +116,13 @@ jobs:
           echo " "; echo "Download submodules:" 
           git submodule update --init --recursive
           
-          # Build stella with Make or CMake (both use PLASMA by default). CMake takes
-          # the extra cmake flags for PLASMA as a list
+          # Build stella with Make or CMake (both use PLASMA by default, except on macOS)
           echo " "; echo "Build stella with ${{ matrix.compiler }}:" 
           if [ ${{ matrix.compiler }} == 'Make' ]; then 
              make -j 4
           fi
           if [ ${{ matrix.compiler }} == 'CMake' ]; then 
-             cmake . -B COMPILATION/build_cmake "-DPLASMA_CMAKE_FLAGS=${PLASMA_CMAKE_FLAGS// /;}"
+             cmake . -B COMPILATION/build_cmake $CMAKE_PLASMA_FLAGS
              cmake --build COMPILATION/build_cmake -j 4
           fi
           
