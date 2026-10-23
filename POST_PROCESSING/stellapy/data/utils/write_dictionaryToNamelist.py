@@ -106,7 +106,7 @@ def sort_knobsInInputFile(path):
         'initialise_distribution_rh', 'restart_options', 'species_options', 'adiabatic_electron_response', 'adiabatic_ion_response',
         'species_parameters_1', 'species_parameters_2', 'species_parameters_3', 'species_parameters_4', 'species_parameters_5', 'euterpe_parameters', 
         'kxky_grid_option', 'kxky_grid_range', 'kxky_grid_box', 'z_grid', 'z_boundary_condition', 'velocity_grids',
-        'time_trace_options', 'time_step', 'numerical_algorithms', 'numerical_upwinding_for_derivatives', 'linear_algebra',
+        'time_trace_options', 'time_step', 'numerical_algorithms', 'numerical_upwinding_for_derivatives', 
         'dissipation_and_collisions_options', 'hyper_dissipation', 'collisions_dougherty', 'collisions_fokker_planck',
         'neoclassical_input', 'sfincs_input', 'multibox_parameters', 'sources', 'flow_shear', 'parallelisation', 'debug_flags']
     input_file_sections_temp = []

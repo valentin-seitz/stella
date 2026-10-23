@@ -7,9 +7,8 @@
 !
 ! By default, LAPACK's zgbtrf and zgbtrs are used. When stella is compiled with
 ! PLASMA (see plasma_interface), PLASMA's plasma_zgbtrf factorises the matrix
-! instead, unless it is switched off with <use_plasma_banded>, or we are inside
-! an OpenMP parallel region, where plasma_zgbtrf can't be called (see
-! <plasma_banded_usable>). Then:
+! instead, unless we are inside an OpenMP parallel region, where plasma_zgbtrf
+! can't be called (see <plasma_usable>). Then:
 !  - PLASMA works on tiles of <band_nb> x <band_nb> elements, and needs more
 !    rows in <ab> than LAPACK, hence <band_ldab>.
 !  - Within every panel of <band_nb> columns, plasma_zgbtrf also applies the row
@@ -83,11 +82,11 @@ contains
    !****************************************************************************
    logical function band_lu_factorise_threaded()
 
-      use plasma_interface, only: plasma_banded_usable
+      use plasma_interface, only: plasma_usable
 
       implicit none
 
-      band_lu_factorise_threaded = plasma_banded_usable()
+      band_lu_factorise_threaded = plasma_usable()
 
    end function band_lu_factorise_threaded
 
@@ -104,7 +103,7 @@ contains
       use mp, only: mp_abort
 #ifdef PLASMA
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_zgbtrf, plasma_banded_usable
+      use plasma_interface, only: plasma_zgbtrf, plasma_usable
 #endif
 
       implicit none
@@ -124,7 +123,7 @@ contains
       if (size(ab, 1) < band_ldab(kl, ku)) call mp_abort('band_lu_factorise: ab has too few rows')
 
 #ifdef PLASMA
-      if (plasma_banded_usable()) then
+      if (plasma_usable()) then
          call set_band_nb(nb_old)
          info = int(plasma_zgbtrf(int(n, c_int), int(n, c_int), int(kl, c_int), int(ku, c_int), &
                                   ab, int(size(ab, 1), c_int), ipiv_c))

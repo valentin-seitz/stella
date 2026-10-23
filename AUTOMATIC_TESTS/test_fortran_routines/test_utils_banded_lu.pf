@@ -4,17 +4,15 @@
 ! stella's code paths are tested, not the libraries themselves: the band storage
 ! (band_ldab, band_row) and, when stella is compiled with PLASMA, that the factors of
 ! plasma_zgbtrf are converted to those of LAPACK's zgbtrf, so that zgbtrs solves them, also
-! inside OpenMP parallel regions. Every band system is factorised in three ways:
-!  - with PLASMA switched off (use_plasma_banded = .false.), i.e. with zgbtrf;
-!  - with PLASMA switched on, outside an OpenMP parallel region, i.e. with plasma_zgbtrf;
-!  - with PLASMA switched on, inside an OpenMP parallel region, i.e. with zgbtrf again.
-! The three solutions must solve A x = b, and agree with each other. Without PLASMA, all three
-! use LAPACK.
+! inside OpenMP parallel regions. Every band system is factorised in two ways:
+!  - outside an OpenMP parallel region, i.e. with plasma_zgbtrf;
+!  - inside an OpenMP parallel region, i.e. with LAPACK's zgbtrf.
+! Both solutions must solve A x = b, and agree with each other. Without PLASMA, both use LAPACK.
+! Note that with OMP_NUM_THREADS=1 the parallel region is inactive, so both use PLASMA.
 module test_utils_banded_lu
   use funit
   use banded_lu
   use plasma_interface, only: stella_linear_algebra_init, stella_linear_algebra_finish
-  use plasma_interface, only: set_linear_algebra_options
   implicit none
 
 contains
@@ -26,7 +24,6 @@ contains
 
   @after
   subroutine tear_down
-    call set_linear_algebra_options(.true., .true.)
     call stella_linear_algebra_finish
   end subroutine tear_down
 
@@ -88,7 +85,7 @@ contains
     !$omp end parallel do
   end subroutine factorise_and_solve
 
-  ! Solve the band system in the three ways (see the top of this file). Returns the largest
+  ! Solve the band system in both ways (see the top of this file). Returns the largest
   ! relative residual |A x - b| / |b|, and the largest relative difference between the solutions
   subroutine band_round_trip(n, kl, ku, residual, difference)
     integer, intent(in) :: n, kl, ku
@@ -96,26 +93,19 @@ contains
     integer, parameter :: nrhs = 8
     complex, dimension(n, n) :: a
     complex, dimension(:, :), allocatable :: ab
-    complex, dimension(n, nrhs) :: b, x_lapack, x_plasma, x_omp
-    integer :: info_lapack, info_plasma, info_omp
+    complex, dimension(n, nrhs) :: b, x_plasma, x_omp
+    integer :: info_plasma, info_omp
 
     allocate (ab(band_ldab(kl, ku), n))
     call band_system(n, kl, ku, a, ab, b)
 
-    call set_linear_algebra_options(.true., .false.)
-    @assertFalse(band_lu_factorise_threaded())
-    call factorise_and_solve(n, kl, ku, ab, b, .false., x_lapack, info_lapack)
-
-    call set_linear_algebra_options(.true., .true.)
     call factorise_and_solve(n, kl, ku, ab, b, .false., x_plasma, info_plasma)
     call factorise_and_solve(n, kl, ku, ab, b, .true., x_omp, info_omp)
 
-    @assertEqual(0, info_lapack)
     @assertEqual(0, info_plasma)
     @assertEqual(0, info_omp)
-    residual = max(maxval(abs(matmul(a, x_lapack) - b)), maxval(abs(matmul(a, x_plasma) - b)), &
-                   maxval(abs(matmul(a, x_omp) - b))) / maxval(abs(b))
-    difference = max(maxval(abs(x_plasma - x_lapack)), maxval(abs(x_omp - x_lapack))) / maxval(abs(x_lapack))
+    residual = max(maxval(abs(matmul(a, x_plasma) - b)), maxval(abs(matmul(a, x_omp) - b))) / maxval(abs(b))
+    difference = maxval(abs(x_omp - x_plasma)) / maxval(abs(x_plasma))
   end subroutine band_round_trip
 
   ! The band storage has the rows that zgbtrf needs (and with PLASMA the rows of its tiles),

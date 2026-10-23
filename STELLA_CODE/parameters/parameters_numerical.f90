@@ -7,7 +7,6 @@
 ! &numerical_algorithms 
 ! &numerical_upwinding_for_derivatives
 ! &flux_annulus - to be changed
-! &linear_algebra
 ! These flags will allow you to toggle the algorithm choices in stella.
 !###############################################################################
 module parameters_numerical
@@ -97,9 +96,6 @@ module parameters_numerical
    ! Extra - need to move
    integer :: nitt
 
-   ! Linear algebra (only used when stella is compiled with PLASMA)
-   logical :: use_plasma_dense, use_plasma_banded
-
    ! Internal
    logical :: initialised = .false.
    
@@ -118,8 +114,6 @@ contains
       use namelist_parameters_numerical, only: read_namelist_numerical_algorithms
       use namelist_parameters_numerical, only: read_namelist_numerical_upwinding_for_derivatives
       use namelist_parameters_numerical, only: read_namelist_flux_annulus
-      use namelist_parameters_numerical, only: read_namelist_linear_algebra
-      use plasma_interface, only: set_linear_algebra_options
 
       implicit none
          
@@ -143,16 +137,12 @@ contains
          use_deltaphi_for_response_matrix, split_parallel_dynamics)
       if (proc0) call read_namelist_numerical_upwinding_for_derivatives(time_upwind, zed_upwind, vpa_upwind)
       if (proc0) call read_namelist_flux_annulus(nitt)
-      if (proc0) call read_namelist_linear_algebra(use_plasma_dense, use_plasma_banded)
       
       ! Check the numerical inputs
       if (proc0) call check_numerical_inputs(fields_kxkyz)
 
       ! Broadcast the input parameters to all processors
       call broadcast_parameters
-
-      ! Pass the linear algebra options to the LU routines of utils
-      call set_linear_algebra_options(use_plasma_dense, use_plasma_banded)
 
    contains
 
@@ -366,10 +356,6 @@ contains
 
          ! Extra - need to move
          call broadcast(nitt)
-
-         ! Linear algebra
-         call broadcast(use_plasma_dense)
-         call broadcast(use_plasma_banded)
          
       end subroutine broadcast_parameters
     

@@ -4,11 +4,10 @@
 ! By default, the LU decomposition, back substitution and inverse are computed
 ! by the stella routines below, which use implicit (scaled) partial pivoting.
 !
-! When stella is compiled with PLASMA (see plasma_interface), and PLASMA is
-! switched on for these routines (<use_plasma_dense>), they call PLASMA's
+! When stella is compiled with PLASMA (see plasma_interface), they call PLASMA's
 ! plasma_?getrf, plasma_?getrs and plasma_?getri instead, or LAPACK's ?getrf,
 ! ?getrs and ?getri inside OpenMP parallel regions, where PLASMA can't be used
-! (see <plasma_dense_usable>). PLASMA and LAPACK use partial pivoting, so the
+! (see <plasma_usable>). PLASMA and LAPACK use partial pivoting, so the
 ! factors can differ from those of the stella routines, but they are stored in
 ! the same way: L (unit diagonal) below and U on and above the diagonal, and
 ! idx(j) is the row that was swapped with row j at step j. Hence the factors
@@ -404,15 +403,14 @@ contains
    !                  LU decomposition with PLASMA or LAPACK
    !****************************************************************************
    ! Factorise <lu> with plasma_?getrf, or with LAPACK's ?getrf inside OpenMP
-   ! parallel regions. Returns .false. if neither was used, in which case <lu>
-   ! is unchanged and has to be factorised by the stella routine:
-   !  - if PLASMA is switched off for the dense routines (<use_plasma_dense>);
-   !  - if the matrix is singular, see the top of this module.
+   ! parallel regions. Returns .false. if the matrix is singular, in which case
+   ! <lu> is unchanged and has to be factorised by the stella routine, see the
+   ! top of this module.
    !****************************************************************************
    logical function library_lu_decomposition_real(lu, idx, d) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_dgetrf
+      use plasma_interface, only: plasma_usable, plasma_dgetrf
 
       implicit none
 
@@ -427,11 +425,9 @@ contains
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. use_plasma_dense) return
-
       n = size(lu, 1)
       a = lu
-      if (plasma_dense_usable()) then
+      if (plasma_usable()) then
          info = plasma_dgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
       else
          call dgetrf(n, n, lu, n, ipiv, info)
@@ -450,7 +446,7 @@ contains
    logical function library_lu_decomposition_complex(lu, idx, d) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_zgetrf
+      use plasma_interface, only: plasma_usable, plasma_zgetrf
 
       implicit none
 
@@ -465,11 +461,9 @@ contains
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. use_plasma_dense) return
-
       n = size(lu, 1)
       a = lu
-      if (plasma_dense_usable()) then
+      if (plasma_usable()) then
          info = plasma_zgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
       else
          call zgetrf(n, n, lu, n, ipiv, info)
@@ -508,13 +502,12 @@ contains
    ! Solves A x = b for the <nrhs> right-hand sides in the first <n> rows of the
    ! columns of b (leading dimension <ldb>), given the LU factors of A from
    ! <lu_decomposition>, with plasma_?getrs, or with LAPACK's ?getrs inside
-   ! OpenMP parallel regions. Returns .false. if PLASMA is switched off for the
-   ! dense routines, in which case the stella routine has to solve it.
+   ! OpenMP parallel regions. Always returns .true.
    !****************************************************************************
    logical function library_getrs_real(lu, idx, n, nrhs, b, ldb) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_dgetrs, PlasmaNoTrans
+      use plasma_interface, only: plasma_usable, plasma_dgetrs, PlasmaNoTrans
 
       implicit none
 
@@ -529,11 +522,9 @@ contains
 
       !-------------------------------------------------------------------------
 
-      success = use_plasma_dense
-      if (.not. success) return
-
+      success = .true.
       ipiv = int(idx(1:n), c_int)
-      if (plasma_dense_usable()) then
+      if (plasma_usable()) then
          ! plasma_dgetrs does not change the factors, but has no const arguments
          a = lu
          info = plasma_dgetrs(PlasmaNoTrans, int(n, c_int), int(nrhs, c_int), a, int(size(lu, 1), c_int), &
@@ -547,7 +538,7 @@ contains
    logical function library_getrs_complex(lu, idx, n, nrhs, b, ldb) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_zgetrs, PlasmaNoTrans
+      use plasma_interface, only: plasma_usable, plasma_zgetrs, PlasmaNoTrans
 
       implicit none
 
@@ -562,11 +553,9 @@ contains
 
       !-------------------------------------------------------------------------
 
-      success = use_plasma_dense
-      if (.not. success) return
-
+      success = .true.
       ipiv = int(idx(1:n), c_int)
-      if (plasma_dense_usable()) then
+      if (plasma_usable()) then
          ! plasma_zgetrs does not change the factors, but has no const arguments
          a = lu
          info = plasma_zgetrs(PlasmaNoTrans, int(n, c_int), int(nrhs, c_int), a, int(size(lu, 1), c_int), &
@@ -582,15 +571,13 @@ contains
    !****************************************************************************
    ! Computes the inverse of A from its LU factors (from <lu_decomposition>)
    ! with plasma_?getri, or with LAPACK's ?getri inside OpenMP parallel regions.
-   ! Returns .false. if neither was used, in which case <inverse> has to be
-   ! computed by the stella routine:
-   !  - if PLASMA is switched off for the dense routines (<use_plasma_dense>);
-   !  - if U has a zero on the diagonal.
+   ! Returns .false. if U has a zero on the diagonal, in which case <inverse>
+   ! has to be computed by the stella routine.
    !****************************************************************************
    logical function library_lu_inverse_real(lu, idx, inverse) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_dgetri
+      use plasma_interface, only: plasma_usable, plasma_dgetri
 
       implicit none
 
@@ -605,12 +592,10 @@ contains
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. use_plasma_dense) return
-
       n = size(lu, 1)
       inverse(1:n, 1:n) = lu(1:n, 1:n)
       ipiv = int(idx(1:n), c_int)
-      if (plasma_dense_usable()) then
+      if (plasma_usable()) then
          info = plasma_dgetri(int(n, c_int), inverse, int(size(inverse, 1), c_int), ipiv)
       else
          call dgetri(n, inverse, size(inverse, 1), ipiv, work, n, info)
@@ -622,7 +607,7 @@ contains
    logical function library_lu_inverse_complex(lu, idx, inverse) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_zgetri
+      use plasma_interface, only: plasma_usable, plasma_zgetri
 
       implicit none
 
@@ -637,12 +622,10 @@ contains
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. use_plasma_dense) return
-
       n = size(lu, 1)
       inverse(1:n, 1:n) = lu(1:n, 1:n)
       ipiv = int(idx(1:n), c_int)
-      if (plasma_dense_usable()) then
+      if (plasma_usable()) then
          info = plasma_zgetri(int(n, c_int), inverse, int(size(inverse, 1), c_int), ipiv)
       else
          call zgetri(n, inverse, size(inverse, 1), ipiv, work, n, info)

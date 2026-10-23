@@ -1338,7 +1338,6 @@ $(OBJ_DIR)/parameters_numerical.o: \
 	 $(OBJ_DIR)/mp.o \
 	 $(OBJ_DIR)/namelist_numerical_parameters.o \
 	 $(OBJ_DIR)/parameters_physics.o \
-	 $(OBJ_DIR)/plasma_interface.o \
 	 $(OBJ_DIR)/text_options.o 
 $(OBJ_DIR)/parameters_physics.o: \
 	 $(OBJ_DIR)/mp.o \

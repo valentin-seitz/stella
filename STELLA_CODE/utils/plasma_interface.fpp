@@ -15,19 +15,15 @@
 !     plasma/include/plasma_context.h
 !     plasma/include/plasma_z.h, plasma_d.h
 !
-! Whether PLASMA is used is decided at runtime:
-!  - <use_plasma_dense> and <use_plasma_banded> switch PLASMA on or off for the
-!    dense (utils/linear_solve) and band (utils/banded_lu) LU routines, they are
-!    set through <set_linear_algebra_options>, i.e., the <linear_algebra>
-!    namelist of the input file;
-!  - PLASMA's own routines use a shared context and open their own OpenMP
-!    parallel region, so they are never called from inside an OpenMP parallel
-!    region. There, the LU routines call LAPACK instead.
-! See <plasma_dense_usable> and <plasma_banded_usable>.
+! When stella is compiled with PLASMA, the dense (utils/linear_solve) and band
+! (utils/banded_lu) LU routines always use it, except inside OpenMP parallel
+! regions: PLASMA's routines use a shared context and open their own OpenMP
+! parallel region, so there the LU routines call LAPACK instead. See
+! <plasma_usable>.
 !
-! The routines <stella_linear_algebra_init>, <stella_linear_algebra_finish> and
-! <set_linear_algebra_options> always exist, so that they can be called from
-! files that are not preprocessed. Without the PLASMA flag they do nothing.
+! The routines <stella_linear_algebra_init> and <stella_linear_algebra_finish>
+! always exist, so that they can be called from files that are not
+! preprocessed. Without the PLASMA flag they do nothing.
 !###############################################################################
 module plasma_interface
 
@@ -41,13 +37,7 @@ module plasma_interface
 
    public :: stella_linear_algebra_init
    public :: stella_linear_algebra_finish
-   public :: set_linear_algebra_options
-   public :: plasma_dense_usable
-   public :: plasma_banded_usable
-
-   ! Runtime switches, see <set_linear_algebra_options>
-   logical, public, protected :: use_plasma_dense = .true.
-   logical, public, protected :: use_plasma_banded = .true.
+   public :: plasma_usable
 
    ! Whether <stella_linear_algebra_init> has initialised PLASMA, the PLASMA
    ! routines that use the PLASMA context can only be called after it
@@ -215,43 +205,10 @@ contains
    end subroutine stella_linear_algebra_finish
 
    !****************************************************************************
-   !                       Runtime linear algebra options
+   ! Whether the LU routines should call PLASMA here: stella is compiled with
+   ! PLASMA, PLASMA is initialised, and we are not inside an OpenMP parallel
+   ! region.
    !****************************************************************************
-   ! Switch PLASMA on or off for the dense and band LU routines. Without PLASMA,
-   ! these options have no effect.
-   !****************************************************************************
-   subroutine set_linear_algebra_options(use_plasma_dense_in, use_plasma_banded_in)
-
-      implicit none
-
-      logical, intent(in) :: use_plasma_dense_in, use_plasma_banded_in
-
-      use_plasma_dense = use_plasma_dense_in
-      use_plasma_banded = use_plasma_banded_in
-
-   end subroutine set_linear_algebra_options
-
-   !****************************************************************************
-   ! Whether the dense (band) LU routines should call PLASMA here: stella is
-   ! compiled with PLASMA, PLASMA is initialised, it is switched on for them,
-   ! and we are not inside an OpenMP parallel region.
-   !****************************************************************************
-   logical function plasma_dense_usable()
-
-      implicit none
-
-      plasma_dense_usable = use_plasma_dense .and. plasma_usable()
-
-   end function plasma_dense_usable
-
-   logical function plasma_banded_usable()
-
-      implicit none
-
-      plasma_banded_usable = use_plasma_banded .and. plasma_usable()
-
-   end function plasma_banded_usable
-
    logical function plasma_usable()
 
 #ifdef USE_OPENMP
