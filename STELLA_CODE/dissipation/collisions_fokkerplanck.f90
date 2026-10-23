@@ -349,13 +349,14 @@ contains
       use grids_kxky, only: naky, nakx
       use spfunc, only: erf => erf_ext
       use file_utils, only: open_output_file, close_output_file
-      use banded_lu, only: band_ldab, band_row, band_lu_factorise, band_lu_parallel_inside
+      use banded_lu, only: band_ldab, band_row, band_lu_factorise, band_lu_factorise_threaded
 
       implicit none
 
       integer :: ikxkyz, iky, ikx, iz, is, isb
       integer :: imu, ia, iv, ivv, imm, imu2
       integer :: nc, nb, bm_colind, bm_rowind
+      logical :: factorise_threaded
       real :: vpap, vpam, vfac, mum, mup
       real :: xpv, xmv, nupapv, nupamv, nuDpv, nuDmv, mwpv, mwmv, gam_mu, gam_mum, gam_mup
       real :: mwm, mwp, nuDm, nuDp, nupam, nupap, xm, xp
@@ -1484,10 +1485,12 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       !end do
 
       ! AVB: LU factorise cdiffmat, using the band LU routines of utils/banded_lu (LAPACK's zgbtrf, or PLASMA,
-      ! which parallelises each factorisation itself, so then the loop is serial)
+      ! which parallelises each factorisation itself, so then the loop is serial; inside the parallel loop
+      ! every factorisation uses zgbtrf)
       nc = nvpa * nmu
       nb = nmu + 1
-      !$omp parallel do default(none) if(.not. band_lu_parallel_inside) &
+      factorise_threaded = band_lu_factorise_threaded()
+      !$omp parallel do default(none) if(.not. factorise_threaded) &
       !$omp   firstprivate(kxkyz_lo, nc, nb) &
       !$omp   private(ikxkyz, iky, ikx, iz, is, info) &
       !$omp   shared(cdiffmat_band, ipiv)

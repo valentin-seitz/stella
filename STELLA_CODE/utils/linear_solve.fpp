@@ -1,3 +1,22 @@
+!###############################################################################
+!                      LU decomposition of dense matrices
+!###############################################################################
+! By default, the LU decomposition, back substitution and inverse are computed
+! by the stella routines below, which use implicit (scaled) partial pivoting.
+!
+! When stella is compiled with PLASMA (see plasma_interface), and PLASMA is
+! switched on for these routines (<use_plasma_dense>), they call PLASMA's
+! plasma_?getrf, plasma_?getrs and plasma_?getri instead, or LAPACK's ?getrf,
+! ?getrs and ?getri inside OpenMP parallel regions, where PLASMA can't be used
+! (see <plasma_dense_usable>). PLASMA and LAPACK use partial pivoting, so the
+! factors can differ from those of the stella routines, but they are stored in
+! the same way: L (unit diagonal) below and U on and above the diagonal, and
+! idx(j) is the row that was swapped with row j at step j. Hence the factors
+! can be used by every <lu_back_substitution> and <lu_inverse>.
+!
+! The factors of a singular matrix are always computed by the stella routine,
+! which replaces zero pivots by a small number, whereas PLASMA and LAPACK stop.
+!###############################################################################
 module linear_solve
 
    implicit none
@@ -7,14 +26,7 @@ module linear_solve
    public :: lu_inverse
    public :: imaxloc
 
-#ifdef PLASMA_DENSE
-   private :: plasma_lu_decomposition_real
-   private :: plasma_lu_decomposition_complex
-   private :: plasma_lu_inverse_real
-   private :: plasma_lu_inverse_complex
-   private :: serial_getrs_d
-   private :: serial_getrs_z
-#endif
+   private
 
    interface lu_decomposition
       module procedure lu_decomposition_real
@@ -50,8 +62,8 @@ contains
 
       integer :: j, n, imax
 
-#ifdef PLASMA_DENSE
-      if (plasma_lu_decomposition_real(lu, idx, d)) return
+#ifdef PLASMA
+      if (library_lu_decomposition_real(lu, idx, d)) return
 #endif
 
       n = size(lu, 1)
@@ -79,47 +91,6 @@ contains
 
    end subroutine lu_decomposition_real
 
-#ifdef PLASMA_DENSE
-   !****************************************************************************
-   !                     LU decomposition with plasma_dgetrf
-   !****************************************************************************
-   ! The real version of <plasma_lu_decomposition_complex>, see there.
-   !****************************************************************************
-   logical function plasma_lu_decomposition_real(lu, idx, d) result(success)
-
-      use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_dgetrf, stella_plasma_usable
-
-      implicit none
-
-      real, dimension(:, :), intent(in out) :: lu
-      integer, dimension(:), intent(out) :: idx
-      real, intent(out) :: d
-
-      integer(c_int), dimension(size(lu, 1)) :: ipiv
-      integer(c_int) :: n, info
-      integer :: j
-
-      !-------------------------------------------------------------------------
-
-      success = .false.
-      if (.not. stella_plasma_usable()) return
-
-      n = int(size(lu, 1), c_int)
-      info = plasma_dgetrf(n, n, lu, n, ipiv)
-      if (info /= 0) return
-
-      ! The sign of the permutation, i.e., -1 for every row swap
-      d = 1.0
-      do j = 1, n
-         idx(j) = ipiv(j)
-         if (ipiv(j) /= j) d = -d
-      end do
-      success = .true.
-
-   end function plasma_lu_decomposition_real
-#endif
-
    subroutine lu_decomposition_complex(lu, idx, d)
 
       implicit none
@@ -134,8 +105,8 @@ contains
 
       integer :: j, n, imax
 
-#ifdef PLASMA_DENSE
-      if (plasma_lu_decomposition_complex(lu, idx, d)) return
+#ifdef PLASMA
+      if (library_lu_decomposition_complex(lu, idx, d)) return
 #endif
 
       n = size(lu, 1)
@@ -163,58 +134,6 @@ contains
 
    end subroutine lu_decomposition_complex
 
-#ifdef PLASMA_DENSE
-   !****************************************************************************
-   !                     LU decomposition with plasma_zgetrf
-   !****************************************************************************
-   ! PLASMA uses partial pivoting, instead of the implicit (scaled) partial
-   ! pivoting of <lu_decomposition_complex>, so the factors can differ, but they
-   ! are stored in the same way: L (unit diagonal) below and U on and above the
-   ! diagonal, and idx(j) is the row that was swapped with row j at step j.
-   ! Hence the factors can be used by <lu_back_substitution>.
-   !
-   ! Returns .false. if PLASMA was not used, in which case <lu> is unchanged:
-   !  - if PLASMA is not initialised;
-   !  - inside an OpenMP parallel region, since plasma_zgetrf uses the shared
-   !    PLASMA context and opens its own parallel region;
-   !  - if the matrix is singular, since then plasma_zgetrf does not return the
-   !    factors. The stella routine replaces zero pivots by a small number instead.
-   !****************************************************************************
-   logical function plasma_lu_decomposition_complex(lu, idx, d) result(success)
-
-      use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_zgetrf, stella_plasma_usable
-
-      implicit none
-
-      complex, dimension(:, :), intent(in out) :: lu
-      integer, dimension(:), intent(out) :: idx
-      real, intent(out) :: d
-
-      integer(c_int), dimension(size(lu, 1)) :: ipiv
-      integer(c_int) :: n, info
-      integer :: j
-
-      !-------------------------------------------------------------------------
-
-      success = .false.
-      if (.not. stella_plasma_usable()) return
-
-      n = int(size(lu, 1), c_int)
-      info = plasma_zgetrf(n, n, lu, n, ipiv)
-      if (info /= 0) return
-
-      ! The sign of the permutation, i.e., -1 for every row swap
-      d = 1.0
-      do j = 1, n
-         idx(j) = ipiv(j)
-         if (ipiv(j) /= j) d = -d
-      end do
-      success = .true.
-
-   end function plasma_lu_decomposition_complex
-#endif
-
    subroutine lu_back_substitution_real(lu, idx, b)
 
       implicit none
@@ -227,9 +146,11 @@ contains
       real :: summ
 
       n = size(lu, 1)
-#ifdef PLASMA_DENSE
-      call serial_getrs_d(lu, idx, n, 1, b, n)
-#else
+
+#ifdef PLASMA
+      if (library_getrs_real(lu, idx, n, 1, b, n)) return
+#endif
+
       ii = 0
       do i = 1, n
          ll = idx(i)
@@ -245,55 +166,8 @@ contains
       do i = n, 1, -1
          b(i) = (b(i) - dot_product(lu(i, i + 1:n), b(i + 1:n))) / lu(i, i)
       end do
-#endif
 
    end subroutine lu_back_substitution_real
-
-#ifdef PLASMA_DENSE
-   !****************************************************************************
-   !               Back substitution with the serial PLASMA kernels
-   !****************************************************************************
-   ! The real version of <serial_getrs_z>, see there.
-   !****************************************************************************
-   subroutine serial_getrs_d(lu, idx, n, nrhs, b, ldb)
-
-      use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_core_dtrsm
-      use plasma_interface, only: PlasmaLeft, PlasmaLower, PlasmaUpper
-      use plasma_interface, only: PlasmaNoTrans, PlasmaUnit, PlasmaNonUnit
-
-      implicit none
-
-      real, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      integer, intent(in) :: n, nrhs, ldb
-      real, dimension(ldb, nrhs), intent(in out) :: b
-
-      real, dimension(nrhs) :: dum
-      integer(c_int) :: m, k, lda, ldbc
-      integer :: i
-
-      !-------------------------------------------------------------------------
-
-      do i = 1, n
-         if (idx(i) /= i) then
-            dum = b(idx(i), :)
-            b(idx(i), :) = b(i, :)
-            b(i, :) = dum
-         end if
-      end do
-
-      m = int(n, c_int)
-      k = int(nrhs, c_int)
-      lda = int(size(lu, 1), c_int)
-      ldbc = int(ldb, c_int)
-      call plasma_core_dtrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, &
-                             m, k, 1.0, lu, lda, b, ldbc)
-      call plasma_core_dtrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, &
-                             m, k, 1.0, lu, lda, b, ldbc)
-
-   end subroutine serial_getrs_d
-#endif
 
    subroutine lu_back_substitution_real_complex(lu, idx, b)
 
@@ -305,7 +179,7 @@ contains
 
       integer :: i, n, ii, ll
       complex :: summ
-#ifdef PLASMA_DENSE
+#ifdef PLASMA
       real, dimension(size(lu, 1), 2) :: br
 #endif
 
@@ -313,13 +187,17 @@ contains
     !! first argument, which we do not want here. Hence the use of conjg to undo this
 
       n = size(lu, 1)
-#ifdef PLASMA_DENSE
+
+#ifdef PLASMA
       ! Solve for the real and imaginary parts as two right-hand sides
       br(:, 1) = real(b(1:n))
       br(:, 2) = aimag(b(1:n))
-      call serial_getrs_d(lu, idx, n, 2, br, n)
-      b(1:n) = cmplx(br(:, 1), br(:, 2))
-#else
+      if (library_getrs_real(lu, idx, n, 2, br, n)) then
+         b(1:n) = cmplx(br(:, 1), br(:, 2))
+         return
+      end if
+#endif
+
       ii = 0
       do i = 1, n
          ll = idx(i)
@@ -335,7 +213,6 @@ contains
       do i = n, 1, -1
          b(i) = (b(i) - dot_product(lu(i, i + 1:n), b(i + 1:n))) / lu(i, i)
       end do
-#endif
 
    end subroutine lu_back_substitution_real_complex
 
@@ -354,9 +231,11 @@ contains
     !! first argument, which we do not want here. Hence the use of conjg to undo this
 
       n = size(lu, 1)
-#ifdef PLASMA_DENSE
-      call serial_getrs_z(lu, idx, n, 1, b, n)
-#else
+
+#ifdef PLASMA
+      if (library_getrs_complex(lu, idx, n, 1, b, n)) return
+#endif
+
       ii = 0
       do i = 1, n
          ll = idx(i)
@@ -372,61 +251,8 @@ contains
       do i = n, 1, -1
          b(i) = (b(i) - dot_product(conjg(lu(i, i + 1:n)), b(i + 1:n))) / lu(i, i)
       end do
-#endif
 
    end subroutine lu_back_substitution_complex
-
-#ifdef PLASMA_DENSE
-   !****************************************************************************
-   !               Back substitution with the serial PLASMA kernels
-   !****************************************************************************
-   ! Solves A x = b for the <nrhs> right-hand sides in the first <n> rows of the
-   ! columns of b (leading dimension <ldb>), given the LU factors of A from
-   ! <lu_decomposition> (with or without PLASMA, the storage is the same): the
-   ! row swaps in <idx>, then L y = b (unit diagonal) and U x = y.
-   !
-   ! plasma_core_ztrsm does not use the PLASMA context, so this can be called
-   ! from inside the OpenMP parallel regions of stella.
-   !****************************************************************************
-   subroutine serial_getrs_z(lu, idx, n, nrhs, b, ldb)
-
-      use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_core_ztrsm
-      use plasma_interface, only: PlasmaLeft, PlasmaLower, PlasmaUpper
-      use plasma_interface, only: PlasmaNoTrans, PlasmaUnit, PlasmaNonUnit
-
-      implicit none
-
-      complex, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      integer, intent(in) :: n, nrhs, ldb
-      complex, dimension(ldb, nrhs), intent(in out) :: b
-
-      complex, dimension(nrhs) :: dum
-      integer(c_int) :: m, k, lda, ldbc
-      integer :: i
-
-      !-------------------------------------------------------------------------
-
-      do i = 1, n
-         if (idx(i) /= i) then
-            dum = b(idx(i), :)
-            b(idx(i), :) = b(i, :)
-            b(i, :) = dum
-         end if
-      end do
-
-      m = int(n, c_int)
-      k = int(nrhs, c_int)
-      lda = int(size(lu, 1), c_int)
-      ldbc = int(ldb, c_int)
-      call plasma_core_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, &
-                             m, k, (1.0, 0.0), lu, lda, b, ldbc)
-      call plasma_core_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, &
-                             m, k, (1.0, 0.0), lu, lda, b, ldbc)
-
-   end subroutine serial_getrs_z
-#endif
 
    subroutine lu_back_substitution_matrix_real(lu, idx, b)
 
@@ -440,9 +266,11 @@ contains
       real :: summ
 
       n = size(lu, 1)
-#ifdef PLASMA_DENSE
-      call serial_getrs_d(lu, idx, n, size(b, 2), b, size(b, 1))
-#else
+
+#ifdef PLASMA
+      if (library_getrs_real(lu, idx, n, size(b, 2), b, size(b, 1))) return
+#endif
+
       do j = 1, size(b, 2)
          ii = 0
          do i = 1, n
@@ -460,7 +288,6 @@ contains
             b(i, j) = (b(i, j) - dot_product(lu(i, i + 1:n), b(i + 1:n, j))) / lu(i, i)
          end do
       end do
-#endif
 
    end subroutine lu_back_substitution_matrix_real
 
@@ -479,9 +306,11 @@ contains
     !! first argument, which we do not want here. Hence the use of conjg to undo this
 
       n = size(lu, 1)
-#ifdef PLASMA_DENSE
-      call serial_getrs_z(lu, idx, n, size(b, 2), b, size(b, 1))
-#else
+
+#ifdef PLASMA
+      if (library_getrs_complex(lu, idx, n, size(b, 2), b, size(b, 1))) return
+#endif
+
       do j = 1, size(b, 2)
          ii = 0
          do i = 1, n
@@ -499,7 +328,6 @@ contains
             b(i, j) = (b(i, j) - dot_product(conjg(lu(i, i + 1:n)), b(i + 1:n, j))) / lu(i, i)
          end do
       end do
-#endif
 
    end subroutine lu_back_substitution_matrix_complex
 
@@ -519,8 +347,8 @@ contains
 
       integer :: i, n
 
-#ifdef PLASMA_DENSE
-      if (plasma_lu_inverse_real(lu, idx, inverse)) return
+#ifdef PLASMA
+      if (library_lu_inverse_real(lu, idx, inverse)) return
 #endif
 
       n = size(lu, 1)
@@ -536,40 +364,6 @@ contains
 
    end subroutine lu_inverse_real
 
-#ifdef PLASMA_DENSE
-   !****************************************************************************
-   !                       Matrix inverse with plasma_dgetri
-   !****************************************************************************
-   ! The real version of <plasma_lu_inverse_complex>, see there.
-   !****************************************************************************
-   logical function plasma_lu_inverse_real(lu, idx, inverse) result(success)
-
-      use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_dgetri, stella_plasma_usable
-
-      implicit none
-
-      real, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      real, dimension(:, :), intent(out) :: inverse
-
-      integer(c_int), dimension(size(lu, 1)) :: ipiv
-      integer(c_int) :: n, info
-
-      !-------------------------------------------------------------------------
-
-      success = .false.
-      if (.not. stella_plasma_usable()) return
-
-      n = int(size(lu, 1), c_int)
-      inverse(1:n, 1:n) = lu(1:n, 1:n)
-      ipiv = int(idx(1:n), c_int)
-      info = plasma_dgetri(n, inverse, int(size(inverse, 1), c_int), ipiv)
-      success = (info == 0)
-
-   end function plasma_lu_inverse_real
-#endif
-
    subroutine lu_inverse_complex(lu, idx, inverse)
 
       implicit none
@@ -580,8 +374,8 @@ contains
 
       integer :: i, n
 
-#ifdef PLASMA_DENSE
-      if (plasma_lu_inverse_complex(lu, idx, inverse)) return
+#ifdef PLASMA
+      if (library_lu_inverse_complex(lu, idx, inverse)) return
 #endif
 
       n = size(lu, 1)
@@ -597,22 +391,238 @@ contains
 
    end subroutine lu_inverse_complex
 
-#ifdef PLASMA_DENSE
+   function imaxloc(array)
+      real, dimension(:), intent(in) :: array
+      integer :: imaxloc
+      integer, dimension(1) :: imax
+      imax = maxloc(array)
+      imaxloc = imax(1)
+   end function imaxloc
+
+#ifdef PLASMA
    !****************************************************************************
-   !                       Matrix inverse with plasma_zgetri
+   !                  LU decomposition with PLASMA or LAPACK
    !****************************************************************************
-   ! Computes the inverse of A from its LU factors (from <lu_decomposition>, with
-   ! or without PLASMA, the storage is the same as in LAPACK).
-   !
-   ! Returns .false. if PLASMA was not used, in which case <inverse> has to be
-   ! computed by the stella routine:
-   !  - if PLASMA can't be used here, see <stella_plasma_usable> in plasma_interface;
-   !  - if U has a zero on the diagonal.
+   ! Factorise <lu> with plasma_?getrf, or with LAPACK's ?getrf inside OpenMP
+   ! parallel regions. Returns .false. if neither was used, in which case <lu>
+   ! is unchanged and has to be factorised by the stella routine:
+   !  - if PLASMA is switched off for the dense routines (<use_plasma_dense>);
+   !  - if the matrix is singular, see the top of this module.
    !****************************************************************************
-   logical function plasma_lu_inverse_complex(lu, idx, inverse) result(success)
+   logical function library_lu_decomposition_real(lu, idx, d) result(success)
 
       use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_zgetri, stella_plasma_usable
+      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_dgetrf
+
+      implicit none
+
+      real, dimension(:, :), intent(in out) :: lu
+      integer, dimension(:), intent(out) :: idx
+      real, intent(out) :: d
+
+      real, dimension(size(lu, 1), size(lu, 2)) :: a
+      integer(c_int), dimension(size(lu, 1)) :: ipiv
+      integer :: n, info
+
+      !-------------------------------------------------------------------------
+
+      success = .false.
+      if (.not. use_plasma_dense) return
+
+      n = size(lu, 1)
+      a = lu
+      if (plasma_dense_usable()) then
+         info = plasma_dgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
+      else
+         call dgetrf(n, n, lu, n, ipiv, info)
+      end if
+      if (info /= 0) then
+         lu = a
+         return
+      end if
+
+      idx(1:n) = ipiv
+      d = permutation_sign(idx, n)
+      success = .true.
+
+   end function library_lu_decomposition_real
+
+   logical function library_lu_decomposition_complex(lu, idx, d) result(success)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_zgetrf
+
+      implicit none
+
+      complex, dimension(:, :), intent(in out) :: lu
+      integer, dimension(:), intent(out) :: idx
+      real, intent(out) :: d
+
+      complex, dimension(size(lu, 1), size(lu, 2)) :: a
+      integer(c_int), dimension(size(lu, 1)) :: ipiv
+      integer :: n, info
+
+      !-------------------------------------------------------------------------
+
+      success = .false.
+      if (.not. use_plasma_dense) return
+
+      n = size(lu, 1)
+      a = lu
+      if (plasma_dense_usable()) then
+         info = plasma_zgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
+      else
+         call zgetrf(n, n, lu, n, ipiv, info)
+      end if
+      if (info /= 0) then
+         lu = a
+         return
+      end if
+
+      idx(1:n) = ipiv
+      d = permutation_sign(idx, n)
+      success = .true.
+
+   end function library_lu_decomposition_complex
+
+   ! The sign of the permutation of the LU decomposition, i.e., -1 for every row swap
+   pure real function permutation_sign(idx, n)
+
+      implicit none
+
+      integer, dimension(:), intent(in) :: idx
+      integer, intent(in) :: n
+
+      integer :: j
+
+      permutation_sign = 1.0
+      do j = 1, n
+         if (idx(j) /= j) permutation_sign = -permutation_sign
+      end do
+
+   end function permutation_sign
+
+   !****************************************************************************
+   !                  Back substitution with PLASMA or LAPACK
+   !****************************************************************************
+   ! Solves A x = b for the <nrhs> right-hand sides in the first <n> rows of the
+   ! columns of b (leading dimension <ldb>), given the LU factors of A from
+   ! <lu_decomposition>, with plasma_?getrs, or with LAPACK's ?getrs inside
+   ! OpenMP parallel regions. Returns .false. if PLASMA is switched off for the
+   ! dense routines, in which case the stella routine has to solve it.
+   !****************************************************************************
+   logical function library_getrs_real(lu, idx, n, nrhs, b, ldb) result(success)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_dgetrs, PlasmaNoTrans
+
+      implicit none
+
+      real, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      integer, intent(in) :: n, nrhs, ldb
+      real, dimension(ldb, nrhs), intent(in out) :: b
+
+      real, dimension(size(lu, 1), size(lu, 2)) :: a
+      integer(c_int), dimension(n) :: ipiv
+      integer :: info
+
+      !-------------------------------------------------------------------------
+
+      success = use_plasma_dense
+      if (.not. success) return
+
+      ipiv = int(idx(1:n), c_int)
+      if (plasma_dense_usable()) then
+         ! plasma_dgetrs does not change the factors, but has no const arguments
+         a = lu
+         info = plasma_dgetrs(PlasmaNoTrans, int(n, c_int), int(nrhs, c_int), a, int(size(lu, 1), c_int), &
+                              ipiv, b, int(ldb, c_int))
+      else
+         call dgetrs('N', n, nrhs, lu, size(lu, 1), ipiv, b, ldb, info)
+      end if
+
+   end function library_getrs_real
+
+   logical function library_getrs_complex(lu, idx, n, nrhs, b, ldb) result(success)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_zgetrs, PlasmaNoTrans
+
+      implicit none
+
+      complex, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      integer, intent(in) :: n, nrhs, ldb
+      complex, dimension(ldb, nrhs), intent(in out) :: b
+
+      complex, dimension(size(lu, 1), size(lu, 2)) :: a
+      integer(c_int), dimension(n) :: ipiv
+      integer :: info
+
+      !-------------------------------------------------------------------------
+
+      success = use_plasma_dense
+      if (.not. success) return
+
+      ipiv = int(idx(1:n), c_int)
+      if (plasma_dense_usable()) then
+         ! plasma_zgetrs does not change the factors, but has no const arguments
+         a = lu
+         info = plasma_zgetrs(PlasmaNoTrans, int(n, c_int), int(nrhs, c_int), a, int(size(lu, 1), c_int), &
+                              ipiv, b, int(ldb, c_int))
+      else
+         call zgetrs('N', n, nrhs, lu, size(lu, 1), ipiv, b, ldb, info)
+      end if
+
+   end function library_getrs_complex
+
+   !****************************************************************************
+   !                     Matrix inverse with PLASMA or LAPACK
+   !****************************************************************************
+   ! Computes the inverse of A from its LU factors (from <lu_decomposition>)
+   ! with plasma_?getri, or with LAPACK's ?getri inside OpenMP parallel regions.
+   ! Returns .false. if neither was used, in which case <inverse> has to be
+   ! computed by the stella routine:
+   !  - if PLASMA is switched off for the dense routines (<use_plasma_dense>);
+   !  - if U has a zero on the diagonal.
+   !****************************************************************************
+   logical function library_lu_inverse_real(lu, idx, inverse) result(success)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_dgetri
+
+      implicit none
+
+      real, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      real, dimension(:, :), intent(out) :: inverse
+
+      integer(c_int), dimension(size(lu, 1)) :: ipiv
+      real, dimension(size(lu, 1)) :: work
+      integer :: n, info
+
+      !-------------------------------------------------------------------------
+
+      success = .false.
+      if (.not. use_plasma_dense) return
+
+      n = size(lu, 1)
+      inverse(1:n, 1:n) = lu(1:n, 1:n)
+      ipiv = int(idx(1:n), c_int)
+      if (plasma_dense_usable()) then
+         info = plasma_dgetri(int(n, c_int), inverse, int(size(inverse, 1), c_int), ipiv)
+      else
+         call dgetri(n, inverse, size(inverse, 1), ipiv, work, n, info)
+      end if
+      success = (info == 0)
+
+   end function library_lu_inverse_real
+
+   logical function library_lu_inverse_complex(lu, idx, inverse) result(success)
+
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: use_plasma_dense, plasma_dense_usable, plasma_zgetri
 
       implicit none
 
@@ -621,28 +631,25 @@ contains
       complex, dimension(:, :), intent(out) :: inverse
 
       integer(c_int), dimension(size(lu, 1)) :: ipiv
-      integer(c_int) :: n, info
+      complex, dimension(size(lu, 1)) :: work
+      integer :: n, info
 
       !-------------------------------------------------------------------------
 
       success = .false.
-      if (.not. stella_plasma_usable()) return
+      if (.not. use_plasma_dense) return
 
-      n = int(size(lu, 1), c_int)
+      n = size(lu, 1)
       inverse(1:n, 1:n) = lu(1:n, 1:n)
       ipiv = int(idx(1:n), c_int)
-      info = plasma_zgetri(n, inverse, int(size(inverse, 1), c_int), ipiv)
+      if (plasma_dense_usable()) then
+         info = plasma_zgetri(int(n, c_int), inverse, int(size(inverse, 1), c_int), ipiv)
+      else
+         call zgetri(n, inverse, size(inverse, 1), ipiv, work, n, info)
+      end if
       success = (info == 0)
 
-   end function plasma_lu_inverse_complex
+   end function library_lu_inverse_complex
 #endif
-
-   function imaxloc(array)
-      real, dimension(:), intent(in) :: array
-      integer :: imaxloc
-      integer, dimension(1) :: imax
-      imax = maxloc(array)
-      imaxloc = imax(1)
-   end function imaxloc
 
 end module linear_solve

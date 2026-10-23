@@ -44,6 +44,10 @@
 !   flux_annulus
 !     nitt = 1
 ! 
+!   linear_algebra
+!     use_plasma_dense = .true.
+!     use_plasma_banded = .true.
+! 
 ! Text options for <delt_option>:
 !    - Automatic: {check_restart, default}
 !    - Manual: {set_by_hand}
@@ -74,6 +78,7 @@ module namelist_parameters_numerical
    public :: read_namelist_numerical_algorithms
    public :: read_namelist_numerical_upwinding_for_derivatives
    public :: read_namelist_flux_annulus
+   public :: read_namelist_linear_algebra
 
    ! Parameters need to be public (delt_option)
    public :: delt_option_hand, delt_option_auto
@@ -516,5 +521,72 @@ contains
       end subroutine write_parameters_to_input_file
 
    end subroutine read_namelist_flux_annulus
+
+   !****************************************************************************
+   !                               LINEAR ALGEBRA                              !
+   !****************************************************************************
+   ! Switch the PLASMA library on or off for the dense (utils/linear_solve) and
+   ! band (utils/banded_lu) LU routines. These only have an effect when stella is
+   ! compiled with PLASMA, see utils/plasma_interface.
+   !****************************************************************************
+   subroutine read_namelist_linear_algebra(use_plasma_dense, use_plasma_banded)
+
+      use mp, only: proc0
+
+      implicit none
+
+      ! Variables that are read from the input file
+      logical, intent (out) :: use_plasma_dense, use_plasma_banded
+      
+      !-------------------------------------------------------------------------
+
+      if (.not. proc0) return
+      call set_default_parameters_linear_algebra
+      call read_input_file_linear_algebra
+      call write_parameters_to_input_file
+
+   contains
+
+      !------------------------ Default input parameters -----------------------
+      subroutine set_default_parameters_linear_algebra
+
+         implicit none
+
+         use_plasma_dense = .true.
+         use_plasma_banded = .true.
+
+      end subroutine set_default_parameters_linear_algebra
+
+      !---------------------------- Read input file ----------------------------
+      subroutine read_input_file_linear_algebra
+
+         use file_utils, only: input_unit_exist
+
+         implicit none
+
+         namelist /linear_algebra/ use_plasma_dense, use_plasma_banded
+         in_file = input_unit_exist('linear_algebra', dexist)
+         if (dexist) read (unit=in_file, nml=linear_algebra)
+
+      end subroutine read_input_file_linear_algebra
+
+      !------------------------- Write input parameters ------------------------
+      subroutine write_parameters_to_input_file
+
+         use file_units, only: unit => unit_input_file_with_defaults
+
+         implicit none
+
+         !-------------------------------------------------------------------------
+
+         write (unit, '(A)') '&linear_algebra'
+         write (unit, '(A, L1)') '  use_plasma_dense = ', use_plasma_dense
+         write (unit, '(A, L1)') '  use_plasma_banded = ', use_plasma_banded
+         write (unit, '(A)') '/'
+         write (unit, '(A)') ''
+
+      end subroutine write_parameters_to_input_file
+
+   end subroutine read_namelist_linear_algebra
 
 end module namelist_parameters_numerical
