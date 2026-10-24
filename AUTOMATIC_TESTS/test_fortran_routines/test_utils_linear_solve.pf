@@ -1,13 +1,13 @@
 ! Tests of utils/linear_solve, the LU decomposition, back substitution and inverse of the dense
 ! matrices of stella (e.g. the response matrix).
 !
-! These run with the default runtime options. Without PLASMA, they test stella's own LU routines.
+! Without PLASMA, they test that stella calls LAPACK (?getrf, ?getrs, ?getri) correctly.
 ! When stella is compiled with PLASMA, the factorisations and solves outside OpenMP parallel
 ! regions call PLASMA (plasma_?getrf, plasma_?getrs, plasma_?getri) and those inside the
 ! !$omp loops below call LAPACK (?getrs), so that they test that stella calls these correctly
 ! and that their factors are compatible with each other. test_lu_*_backends compares PLASMA
-! and LAPACK (inside an OpenMP parallel region) explicitly. The singular tests check the
-! fallback to stella's own routines.
+! and LAPACK (inside an OpenMP parallel region) explicitly. The singular tests check that the
+! zero pivots of a singular matrix are replaced by a small number.
 module test_utils_linear_solve
   use funit
   use linear_solve
@@ -79,7 +79,7 @@ contains
   end subroutine factorise_and_solve_real
 
   ! PLASMA (outside) and LAPACK (inside an OpenMP parallel region) give the same solution, see
-  ! the top of this file. Without PLASMA, both are stella's own routines
+  ! the top of this file. Without PLASMA, both are LAPACK
   @test
   subroutine test_lu_complex_backends
     complex, dimension(n, n) :: a
@@ -279,8 +279,8 @@ contains
     @assertTrue(abs(lu(2, 2)) > 0.0)
   end subroutine test_lu_complex_singular
 
-  ! The factors of a singular matrix come from the stella routine also with PLASMA (which stops
-  ! at a zero pivot), and the solve with them, by PLASMA, must not give NaNs either
+  ! The factors of a singular matrix come from LAPACK also with PLASMA (which stops at a zero
+  ! pivot), and the solve with them, by PLASMA, must not give NaNs either
   @test
   subroutine test_lu_complex_singular_solve
     complex, dimension(2, 2) :: lu

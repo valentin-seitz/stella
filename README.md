@@ -96,7 +96,8 @@ cmake . -B build \
 
 There are a few build options:
 
-- `STELLA_ENABLE_LAPACK`: Enable LAPACK (default: on)
+- `STELLA_ENABLE_LAPACK`: Enable LAPACK (default: on). LAPACK is required, since
+  the LU routines of stella call it
 - `STELLA_ENABLE_FFT`: Enable FFTs (default: on)
 - `STELLA_ENABLE_NETCDF`: Enable NetCDF (default: on)
 - `STELLA_ENABLE_DOUBLE`: Promotes precisions of real and complex to double
@@ -277,6 +278,7 @@ It is the responsibility of the respective authors to list their contributions t
 - The $\texttt{stella}$ code has been reorganized and cleaned up by H. Thienpondt and G. Acton in October 2025.
 - The shared-memory domains for the response matrix can now be parallelized over NUMA domains rather than over nodes. This is particularly useful on supercomputers with multiple sockets per node, where inter-socket communication can be relatively slow. To enable this feature, set `SPLIT_BY_NUMA = on` in the makefile and ensure that `--ntasks-per-socket` is specified in the sbatch script. This has been implemented by H. Thienpondt in December 2025.
 - More automatic tests have been added by H. Thienpondt in October 2026 to test the full numerical reproducibility of the code
+- The response matrix is now LU decomposed with PLASMA (or LAPACK) by every MPI process, which replaces the local and global parallel LU decompositions (`lu_option`) and the MPI shared-memory windows of the response matrix and of the radial variation. `SPLIT_BY_NUMA` has been removed with them, as have stella's own dense LU routines: LAPACK is now required (October 2026).
 
 ### Diagnostics
 

@@ -56,7 +56,8 @@ cmake . -B build \
 
 There are a few build options:
 
-- `STELLA_ENABLE_LAPACK`: Enable LAPACK (default: on)
+- `STELLA_ENABLE_LAPACK`: Enable LAPACK (default: on). LAPACK is required, since
+  the LU routines of stella call it
 - `STELLA_ENABLE_FFT`: Enable FFTs (default: on)
 - `STELLA_ENABLE_NETCDF`: Enable NetCDF (default: on)
 - `STELLA_ENABLE_DOUBLE`: Promotes precisions of real and complex to double
