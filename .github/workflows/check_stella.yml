@@ -20,8 +20,6 @@ jobs:
     # Set environment variables
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      # One OpenMP thread per MPI rank, OpenMP reductions are not bit-reproducible
-      OMP_NUM_THREADS: 1
       MPIRUN: mpiexec -np
     
     # Run the same set-up multiple times
@@ -225,8 +223,6 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      # One OpenMP thread per MPI rank, OpenMP reductions are not bit-reproducible
-      OMP_NUM_THREADS: 1
       MPIRUN: mpiexec -np
       STELLA_SYSTEM: gnu_ubuntu
 
@@ -287,8 +283,6 @@ jobs:
     needs: build-stella-quick
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      # One OpenMP thread per MPI rank, OpenMP reductions are not bit-reproducible
-      OMP_NUM_THREADS: 1
       MPIRUN: mpiexec -np
       STELLA_SYSTEM: gnu_ubuntu
     
@@ -354,8 +348,6 @@ jobs:
     needs: build-stella-quick
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      # One OpenMP thread per MPI rank, OpenMP reductions are not bit-reproducible
-      OMP_NUM_THREADS: 1
       MPIRUN: mpiexec -np
       STELLA_SYSTEM: gnu_ubuntu
 
@@ -430,8 +422,6 @@ jobs:
     name: "Build stella in debug mode"
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
-      # One OpenMP thread per MPI rank, OpenMP reductions are not bit-reproducible
-      OMP_NUM_THREADS: 1
       MPIRUN: mpiexec -np 
       STELLA_SYSTEM: gnu_ubuntu_debug
 
