@@ -31,9 +31,6 @@ option(STELLA_PLASMA_FROM_SUBMODULE "Compile PLASMA from the EXTERNALS/plasma su
 if (NOT STELLA_ENABLE_DOUBLE)
   message(FATAL_ERROR "STELLA_ENABLE_PLASMA requires STELLA_ENABLE_DOUBLE, since stella is bound to the double precision PLASMA routines")
 endif()
-if (NOT STELLA_ENABLE_LAPACK)
-  message(FATAL_ERROR "STELLA_ENABLE_PLASMA requires STELLA_ENABLE_LAPACK, since LAPACK is used inside OpenMP parallel regions")
-endif()
 
 if (NOT PLASMA_DIR AND DEFINED ENV{PLASMA_DIR})
   set(PLASMA_DIR "$ENV{PLASMA_DIR}")
