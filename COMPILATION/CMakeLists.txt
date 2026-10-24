@@ -27,6 +27,7 @@ option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
 option(STELLA_ENABLE_OPENMP "Enable OpenMP" ON)
+option(STELLA_ENABLE_PLASMA "Use the PLASMA linear algebra library for the LU routines, see COMPILATION/cmake/StellaPlasma.cmake" ON)
 option(STELLA_ENABLE_NESMIK "Build region_timer against the nesmik profiling library (https://gitlab.pm.bsc.es/beppp/nesmik), found via $NESMIK_HOME" OFF)
 
 # Options for utils internal library
@@ -249,6 +250,12 @@ if (STELLA_ENABLE_LAPACK)
   target_compile_definitions(libstella PUBLIC LAPACK)
 endif()
 
+if (STELLA_ENABLE_PLASMA)
+  include(StellaPlasma)
+  target_link_libraries(libstella PUBLIC ${STELLA_PLASMA_LIBRARIES})
+  target_compile_definitions(libstella PUBLIC PLASMA)
+endif()
+
 if (STELLA_ENABLE_FFT)
   if (STELLA_ENABLE_DOUBLE)
     set(_fftw_component DOUBLE_LIB)
@@ -425,6 +432,8 @@ if (STELLA_ENABLE_TESTS)
   stella_add_standard_tests(TEST_NAMES
     simple
     utils_convert
+    utils_linear_solve
+    utils_banded_lu
     )
   add_custom_target(run-automated-fortran-tests-with-cmake
     COMMAND ctest --output-on-failure -R unit
