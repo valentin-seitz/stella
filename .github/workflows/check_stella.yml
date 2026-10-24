@@ -1,7 +1,8 @@
-# Run these tests automatically on Github on every push and pull request.
+# Run these tests automatically on Github on every push and pull request,
+# or by hand from the Actions tab (workflow_dispatch).
 # Use the macOS operating system, which has 4 cores.
 name: Check stella
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 # We always run in a bash shell
 defaults:
