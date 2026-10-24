@@ -1,13 +1,13 @@
-! Tests of utils/linear_solve, the LU decomposition, back substitution and inverse of the dense
-! matrices of stella (e.g. the response matrix).
-!
-! Without PLASMA, they test that stella calls LAPACK (?getrf, ?getrs, ?getri) correctly.
-! When stella is compiled with PLASMA, the factorisations and solves outside OpenMP parallel
-! regions call PLASMA (plasma_?getrf, plasma_?getrs, plasma_?getri) and those inside the
-! !$omp loops below call LAPACK (?getrs), so that they test that stella calls these correctly
-! and that their factors are compatible with each other. test_lu_*_backends compares PLASMA
-! and LAPACK (inside an OpenMP parallel region) explicitly. The singular tests check that the
-! zero pivots of a singular matrix are replaced by a small number.
+! Tests of utils/linear_solve, the LU decomposition and back substitution of the dense matrices
+! of stella (e.g. the response matrix). LAPACK and PLASMA themselves are not tested, only the
+! code of stella around them:
+!  - test_lu_*_backends and *_in_omp_loop: the factors of PLASMA (outside OpenMP parallel
+!    regions) are solved by LAPACK (inside them), so both must store them in the same way;
+!  - *_singular*: the zero pivots of a singular matrix are replaced by a small number;
+!  - *_matrix_nonsquare and real_complex: the shapes of the right-hand sides (ldb, nrhs) and
+!    the complex right-hand side of a real matrix;
+!  - *_determinant: the sign of the permutation.
+! Without PLASMA, both sides of these tests call LAPACK.
 module test_utils_linear_solve
   use funit
   use linear_solve
@@ -134,45 +134,6 @@ contains
     end do
   end function test_matrix_real
 
-  ! Factorise A and solve A x = b, the residual |A x - b| should be at round-off level
-  @test
-  subroutine test_lu_complex_residual
-    complex, dimension(n, n) :: a, lu
-    complex, dimension(n) :: b, x
-    integer, dimension(n) :: idx
-    real :: d
-    integer :: i
-
-    a = test_matrix()
-    b = [(cmplx(real(i), -0.5 * real(i)), i=1, n)]
-    lu = a
-    x = b
-    call lu_decomposition(lu, idx, d)
-    call lu_back_substitution(lu, idx, x)
-    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
-    @assertTrue(abs(d) == 1.0)
-  end subroutine test_lu_complex_residual
-
-  ! Solve for several right-hand sides at once with the same factors
-  @test
-  subroutine test_lu_complex_matrix_residual
-    complex, dimension(n, n) :: a, lu
-    complex, dimension(n, n) :: b, x
-    integer, dimension(n) :: idx
-    real :: d
-    integer :: i, k
-
-    a = test_matrix()
-    do k = 1, n
-      b(:, k) = [(cmplx(real(i * k), 1.0 / real(i + k)), i=1, n)]
-    end do
-    lu = a
-    x = b
-    call lu_decomposition(lu, idx, d)
-    call lu_back_substitution(lu, idx, x)
-    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
-  end subroutine test_lu_complex_matrix_residual
-
   ! Several right-hand sides, fewer than size(lu, 1), and in a b with more rows than A. The
   ! first nonzero of the second column comes before the one of the first column
   @test
@@ -196,26 +157,6 @@ contains
     @assertLessThan(maxval(abs(matmul(a, x(1:n, :)) - b(1:n, :))), 1.0e-10 * maxval(abs(b(1:n, :))))
     @assertTrue(all(x(n + 1:, :) == b(n + 1:, :)))
   end subroutine test_lu_complex_matrix_nonsquare
-
-  ! A A^-1 should be the identity at round-off level
-  @test
-  subroutine test_lu_complex_inverse
-    complex, dimension(n, n) :: a, lu, inv, id
-    integer, dimension(n) :: idx
-    real :: d
-    integer :: i
-
-    a = test_matrix()
-    lu = a
-    call lu_decomposition(lu, idx, d)
-    call lu_inverse(lu, idx, inv)
-    id = 0.0
-    do i = 1, n
-      id(i, i) = 1.0
-    end do
-    @assertLessThan(maxval(abs(matmul(a, inv) - id)), 1.0e-10)
-    @assertLessThan(maxval(abs(matmul(inv, a) - id)), 1.0e-10)
-  end subroutine test_lu_complex_inverse
 
   ! The determinant d * prod(diag(U)) does not depend on the pivoting, so it also checks the sign d
   @test
@@ -295,25 +236,6 @@ contains
     @assertFalse(any(x /= x))
   end subroutine test_lu_complex_singular_solve
 
-  ! Real version of test_lu_complex_residual
-  @test
-  subroutine test_lu_real_residual
-    real, dimension(n, n) :: a, lu
-    real, dimension(n) :: b, x
-    integer, dimension(n) :: idx
-    real :: d
-    integer :: i
-
-    a = test_matrix_real()
-    b = [(real(i) - 0.3 * real(i * i), i=1, n)]
-    lu = a
-    x = b
-    call lu_decomposition(lu, idx, d)
-    call lu_back_substitution(lu, idx, x)
-    @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
-    @assertTrue(abs(d) == 1.0)
-  end subroutine test_lu_real_residual
-
   ! Real version of test_lu_complex_solve_in_omp_loop
   @test
   subroutine test_lu_real_solve_in_omp_loop
@@ -379,26 +301,6 @@ contains
     call lu_back_substitution(lu, idx, x)
     @assertLessThan(maxval(abs(matmul(a, x) - b)), 1.0e-10 * maxval(abs(b)))
   end subroutine test_lu_real_complex_residual
-
-  ! Real version of test_lu_complex_inverse
-  @test
-  subroutine test_lu_real_inverse
-    real, dimension(n, n) :: a, lu, inv, id
-    integer, dimension(n) :: idx
-    real :: d
-    integer :: i
-
-    a = test_matrix_real()
-    lu = a
-    call lu_decomposition(lu, idx, d)
-    call lu_inverse(lu, idx, inv)
-    id = 0.0
-    do i = 1, n
-      id(i, i) = 1.0
-    end do
-    @assertLessThan(maxval(abs(matmul(a, inv) - id)), 1.0e-10)
-    @assertLessThan(maxval(abs(matmul(inv, a) - id)), 1.0e-10)
-  end subroutine test_lu_real_inverse
 
   ! Real version of test_lu_complex_determinant
   @test
