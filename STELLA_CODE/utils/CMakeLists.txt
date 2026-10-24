@@ -23,7 +23,6 @@ set(STELLA_UTILS_SOURCES_fpp
   job_manage.fpp
   linear_solve.fpp
   mp.fpp
-  mp_lu_decomposition.fpp
   plasma_interface.fpp
   ran.fpp
   spfunc.fpp
