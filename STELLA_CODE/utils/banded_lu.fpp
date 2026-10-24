@@ -5,7 +5,8 @@
 ! kl sub-diagonals and ku super-diagonals, stored as in LAPACK: A(i,j) is
 ! ab(band_row(i, j, kl, ku), j), and the array has band_ldab(kl, ku) rows.
 !
-! By default, LAPACK's zgbtrf and zgbtrs are used. When stella is compiled with
+! By default, LAPACK's zgbtrf and zgbtrs are used (cgbtrf and cgbtrs in single
+! precision). When stella is compiled with
 ! PLASMA (see plasma_interface), PLASMA's plasma_zgbtrf factorises the matrix
 ! instead, unless we are inside an OpenMP parallel region, where plasma_zgbtrf
 ! can't be called (see <plasma_usable>). Then:
@@ -133,7 +134,11 @@ contains
          return
       end if
 #endif
-      call zgbtrf(n, n, kl, ku, ab, size(ab, 1), ipiv, info)
+      if (kind(ab) == kind((1.0d0, 0.0d0))) then
+         call zgbtrf(n, n, kl, ku, ab, size(ab, 1), ipiv, info)
+      else
+         call cgbtrf(n, n, kl, ku, ab, size(ab, 1), ipiv, info)
+      end if
 
    end subroutine band_lu_factorise
 
@@ -157,7 +162,11 @@ contains
 
       !-------------------------------------------------------------------------
 
-      call zgbtrs('N', n, kl, ku, 1, ab, size(ab, 1), ipiv, b, size(b), info)
+      if (kind(ab) == kind((1.0d0, 0.0d0))) then
+         call zgbtrs('N', n, kl, ku, 1, ab, size(ab, 1), ipiv, b, size(b), info)
+      else
+         call cgbtrs('N', n, kl, ku, 1, ab, size(ab, 1), ipiv, b, size(b), info)
+      end if
 
    end subroutine band_lu_solve
 

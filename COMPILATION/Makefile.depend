@@ -85,7 +85,6 @@ stella_mod = \
 	 $(OBJ_DIR)/job_manage.o \
 	 $(OBJ_DIR)/linear_solve.o \
 	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/mp_lu_decomposition.o \
 	 $(OBJ_DIR)/multibox.o \
 	 $(OBJ_DIR)/namelist_debug.o \
 	 $(OBJ_DIR)/namelist_diagnostics.o \
@@ -665,7 +664,6 @@ $(OBJ_DIR)/field_equations_radialvariation.o: \
 	 $(OBJ_DIR)/job_manage.o \
 	 $(OBJ_DIR)/linear_solve.o \
 	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/mp_lu_decomposition.o \
 	 $(OBJ_DIR)/multibox.o \
 	 $(OBJ_DIR)/parallelisation_layouts.o \
 	 $(OBJ_DIR)/parameters_multibox.o \
@@ -976,7 +974,6 @@ $(OBJ_DIR)/gk_sources.o: \
 	 $(OBJ_DIR)/job_manage.o \
 	 $(OBJ_DIR)/linear_solve.o \
 	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/mp_lu_decomposition.o \
 	 $(OBJ_DIR)/namelist_radial_variation.o \
 	 $(OBJ_DIR)/parallelisation_layouts.o \
 	 $(OBJ_DIR)/parameters_multibox.o \
@@ -1202,8 +1199,6 @@ $(OBJ_DIR)/linear_solve.o: \
 $(OBJ_DIR)/mp.o: \
 	 $(OBJ_DIR)/constants.o \
 	 $(OBJ_DIR)/file_utils.o 
-$(OBJ_DIR)/mp_lu_decomposition.o: \
-	 $(OBJ_DIR)/linear_solve.o 
 $(OBJ_DIR)/multibox.o: \
 	 $(OBJ_DIR)/arrays.o \
 	 $(OBJ_DIR)/arrays_fields.o \
@@ -1368,7 +1363,6 @@ $(OBJ_DIR)/response_matrix.o: \
 	 $(OBJ_DIR)/job_manage.o \
 	 $(OBJ_DIR)/linear_solve.o \
 	 $(OBJ_DIR)/mp.o \
-	 $(OBJ_DIR)/mp_lu_decomposition.o \
 	 $(OBJ_DIR)/parallelisation_layouts.o \
 	 $(OBJ_DIR)/parameters_numerical.o \
 	 $(OBJ_DIR)/parameters_physics.o \

@@ -21,7 +21,6 @@ include(BuildType)
 ############################################################
 
 # Build options
-option(STELLA_ENABLE_LAPACK "Enable LAPACK wrappers" ON)
 option(STELLA_ENABLE_FFT "Enable FFTs" ON)
 option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
@@ -241,14 +240,13 @@ target_compile_definitions(libstella PUBLIC MPI)
 # Toggle the options defined at the start of this script
 ############################################################
 
-if (STELLA_ENABLE_LAPACK)
-  if (NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
-    # Cray wrappers sort this out for us
-    find_package(LAPACK REQUIRED)
-    target_link_libraries(libstella PUBLIC "${LAPACK_LIBRARIES}")
-  endif()
-  target_compile_definitions(libstella PUBLIC LAPACK)
+# LAPACK is always needed, for the LU routines (utils/linear_solve and utils/banded_lu)
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
+  # Cray wrappers sort this out for us
+  find_package(LAPACK REQUIRED)
+  target_link_libraries(libstella PUBLIC "${LAPACK_LIBRARIES}")
 endif()
+target_compile_definitions(libstella PUBLIC LAPACK)
 
 if (STELLA_ENABLE_PLASMA)
   include(StellaPlasma)
@@ -480,7 +478,6 @@ message("
      stella Configuration Summary
    ---------------------------------
 
-   LAPACK support           : ${STELLA_ENABLE_LAPACK}
    FFTW support             : ${STELLA_ENABLE_FFT}
    NetCDF support           : ${STELLA_ENABLE_NETCDF}
    Default real kind        : ${STELLA_DEFAULT_REAL_KIND}

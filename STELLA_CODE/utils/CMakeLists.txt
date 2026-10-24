@@ -23,7 +23,6 @@ set(STELLA_UTILS_SOURCES_fpp
   job_manage.fpp
   linear_solve.fpp
   mp.fpp
-  mp_lu_decomposition.fpp
   plasma_interface.fpp
   ran.fpp
   spfunc.fpp
@@ -128,8 +127,8 @@ if (STELLA_ENABLE_OPENMP)
   target_compile_definitions(stella_utils PRIVATE USE_OPENMP)
 endif()
 
-# banded_lu calls LAPACK's zgbtrf and zgbtrs
-if (STELLA_ENABLE_LAPACK AND NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
+# linear_solve and banded_lu call LAPACK
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
   target_link_libraries(stella_utils PUBLIC "${LAPACK_LIBRARIES}")
 endif()
 
