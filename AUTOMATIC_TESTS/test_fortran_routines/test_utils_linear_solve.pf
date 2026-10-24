@@ -1,23 +1,114 @@
+! Tests of utils/linear_solve, the LU decomposition, back substitution and inverse of the dense
+! matrices of stella (e.g. the response matrix).
+!
+! These run with the default runtime options. Without PLASMA, they test stella's own LU routines.
+! When stella is compiled with PLASMA, the factorisations and solves outside OpenMP parallel
+! regions call PLASMA (plasma_?getrf, plasma_?getrs, plasma_?getri) and those inside the
+! !$omp loops below call LAPACK (?getrs), so that they test that stella calls these correctly
+! and that their factors are compatible with each other. test_lu_*_backends compares PLASMA
+! and LAPACK (inside an OpenMP parallel region) explicitly. The singular tests check the
+! fallback to stella's own routines.
 module test_utils_linear_solve
   use funit
   use linear_solve
-  use plasma_interface, only: stella_plasma_init, stella_plasma_finish
+  use plasma_interface, only: stella_linear_algebra_init, stella_linear_algebra_finish
   implicit none
 
   integer, parameter :: n = 12
 
 contains
 
-  ! PLASMA has to be initialised for the PLASMA_DENSE code, without PLASMA these do nothing
+  ! PLASMA has to be initialised to be used, without PLASMA these do nothing
   @before
   subroutine set_up
-    call stella_plasma_init
+    call stella_linear_algebra_init
   end subroutine set_up
 
   @after
   subroutine tear_down
-    call stella_plasma_finish
+    call stella_linear_algebra_finish
   end subroutine tear_down
+
+  ! Factorise A and solve A x = b, either outside or inside an OpenMP parallel region
+  subroutine factorise_and_solve_complex(a, b, in_omp, x)
+    complex, dimension(:, :), intent(in) :: a
+    complex, dimension(:), intent(in) :: b
+    logical, intent(in) :: in_omp
+    complex, dimension(:), intent(out) :: x
+    complex, dimension(size(a, 1), size(a, 2)) :: lu
+    integer, dimension(size(a, 1)) :: idx
+    real :: d
+
+    lu = a
+    x = b
+    if (in_omp) then
+      !$omp parallel
+      !$omp single
+      call lu_decomposition(lu, idx, d)
+      call lu_back_substitution(lu, idx, x)
+      !$omp end single
+      !$omp end parallel
+    else
+      call lu_decomposition(lu, idx, d)
+      call lu_back_substitution(lu, idx, x)
+    end if
+  end subroutine factorise_and_solve_complex
+
+  subroutine factorise_and_solve_real(a, b, in_omp, x)
+    real, dimension(:, :), intent(in) :: a
+    real, dimension(:), intent(in) :: b
+    logical, intent(in) :: in_omp
+    real, dimension(:), intent(out) :: x
+    real, dimension(size(a, 1), size(a, 2)) :: lu
+    integer, dimension(size(a, 1)) :: idx
+    real :: d
+
+    lu = a
+    x = b
+    if (in_omp) then
+      !$omp parallel
+      !$omp single
+      call lu_decomposition(lu, idx, d)
+      call lu_back_substitution(lu, idx, x)
+      !$omp end single
+      !$omp end parallel
+    else
+      call lu_decomposition(lu, idx, d)
+      call lu_back_substitution(lu, idx, x)
+    end if
+  end subroutine factorise_and_solve_real
+
+  ! PLASMA (outside) and LAPACK (inside an OpenMP parallel region) give the same solution, see
+  ! the top of this file. Without PLASMA, both are stella's own routines
+  @test
+  subroutine test_lu_complex_backends
+    complex, dimension(n, n) :: a
+    complex, dimension(n) :: b, x_plasma, x_lapack
+    integer :: i
+
+    a = test_matrix()
+    b = [(cmplx(real(i), -0.5 * real(i)), i=1, n)]
+    call factorise_and_solve_complex(a, b, .false., x_plasma)
+    call factorise_and_solve_complex(a, b, .true., x_lapack)
+    @assertLessThan(maxval(abs(matmul(a, x_plasma) - b)), 1.0e-10 * maxval(abs(b)))
+    @assertLessThan(maxval(abs(matmul(a, x_lapack) - b)), 1.0e-10 * maxval(abs(b)))
+    @assertLessThan(maxval(abs(x_lapack - x_plasma)), 1.0e-10 * maxval(abs(x_plasma)))
+  end subroutine test_lu_complex_backends
+
+  @test
+  subroutine test_lu_real_backends
+    real, dimension(n, n) :: a
+    real, dimension(n) :: b, x_plasma, x_lapack
+    integer :: i
+
+    a = test_matrix_real()
+    b = [(real(i) - 0.3 * real(i * i), i=1, n)]
+    call factorise_and_solve_real(a, b, .false., x_plasma)
+    call factorise_and_solve_real(a, b, .true., x_lapack)
+    @assertLessThan(maxval(abs(matmul(a, x_plasma) - b)), 1.0e-10 * maxval(abs(b)))
+    @assertLessThan(maxval(abs(matmul(a, x_lapack) - b)), 1.0e-10 * maxval(abs(b)))
+    @assertLessThan(maxval(abs(x_lapack - x_plasma)), 1.0e-10 * maxval(abs(x_plasma)))
+  end subroutine test_lu_real_backends
 
   ! A complex matrix that needs pivoting (small diagonal)
   function test_matrix() result(a)
@@ -188,8 +279,8 @@ contains
     @assertTrue(abs(lu(2, 2)) > 0.0)
   end subroutine test_lu_complex_singular
 
-  ! The factors of a singular matrix come from the stella routine also with PLASMA, and the
-  ! solve with them must not give NaNs either
+  ! The factors of a singular matrix come from the stella routine also with PLASMA (which stops
+  ! at a zero pivot), and the solve with them, by PLASMA, must not give NaNs either
   @test
   subroutine test_lu_complex_singular_solve
     complex, dimension(2, 2) :: lu

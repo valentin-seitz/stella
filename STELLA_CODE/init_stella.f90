@@ -195,8 +195,8 @@ contains
       ! Initialise the random number generator
       use interface_random_number_generator, only: init_random_number_generator
       
-      ! Initialise the PLASMA linear algebra library (does nothing without PLASMA)
-      use plasma_interface, only: stella_plasma_init
+      ! Initialise the linear algebra libraries (PLASMA, does nothing without PLASMA)
+      use plasma_interface, only: stella_linear_algebra_init
       
       implicit none
       
@@ -210,8 +210,8 @@ contains
       ! computations over the <nproc> available processors. It will assign a <proc0>.
       if (.not. mpi_initialised) then
          call init_mp
-         ! Initialise PLASMA once per MPI process, outside of any OpenMP region
-         call stella_plasma_init
+         ! Initialise the linear algebra libraries once per MPI process, outside of any OpenMP region
+         call stella_linear_algebra_init
       end if
       mpi_initialised = .true.
 
@@ -804,7 +804,7 @@ contains
       ! Parallelisation
       use mp, only: finish_mp
       use mp, only: proc0
-      use plasma_interface, only: stella_plasma_finish
+      use plasma_interface, only: stella_linear_algebra_finish
       
       ! Time routines
       use timers, only: region_end, region_total_time
@@ -1054,7 +1054,7 @@ contains
       ! Finish (clean up) mpi message passing
       if (debug) write (*, *) 'stella::finish_stella::finish_mp'
       if (present(last_call)) then
-         call stella_plasma_finish
+         call stella_linear_algebra_finish
          call finish_mp
          mpi_initialised = .false.
       end if

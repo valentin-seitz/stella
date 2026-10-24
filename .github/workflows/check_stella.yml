@@ -31,14 +31,6 @@ jobs:
       matrix:
         os: [macos-14, macos-15, ubuntu-22.04, ubuntu-24.04]
         compiler: [Make, CMake]
-        plasma: ['off']
-        include:
-          - os: ubuntu-24.04
-            compiler: Make
-            plasma: 'on'
-          - os: ubuntu-24.04
-            compiler: CMake
-            plasma: 'on'
     
     # Operating system
     runs-on: ${{ matrix.os }}
@@ -63,6 +55,9 @@ jobs:
             echo "NETCDF_LIB_DIR=/opt/homebrew/lib -L${NETCDF_PREFIX}/lib/" >> $GITHUB_ENV
             echo "Set NETCDF_INC_DIR = ${NETCDF_PREFIX}/include/"
             echo "NETCDF_INC_DIR=${NETCDF_PREFIX}/include/" >> $GITHUB_ENV
+            # Build without PLASMA on macOS (an empty USE_PLASMA switches it off in Make)
+            echo "USE_PLASMA=" >> $GITHUB_ENV
+            echo "CMAKE_PLASMA_FLAGS=-DSTELLA_ENABLE_PLASMA=OFF" >> $GITHUB_ENV
           elif ${{ contains(matrix.os, 'ubuntu') }}; then  
             echo "Set STELLA_SYSTEM = gnu_ubuntu"
             echo "STELLA_SYSTEM=gnu_ubuntu" >> $GITHUB_ENV
@@ -81,8 +76,7 @@ jobs:
             sudo apt update
             sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
             sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev 
-            if [ ${{ matrix.os }} == 'ubuntu-24.04' ]; then sudo apt install -y libblas-dev liblapack-dev; fi
-            if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libblas-dev liblapack-dev liblapacke-dev; fi
+            sudo apt install -y libblas-dev liblapack-dev liblapacke-dev
           fi
 
       # Check-out repository under $GITHUB_WORKSPACE
@@ -122,17 +116,10 @@ jobs:
           echo " "; echo "Download submodules:" 
           git submodule update --init --recursive
           
-          # Link stella to the PLASMA library if plasma = on
-          MAKE_PLASMA_FLAGS=""; CMAKE_PLASMA_FLAGS=""
-          if [ ${{ matrix.plasma }} == 'on' ]; then
-             MAKE_PLASMA_FLAGS="USE_PLASMA=on USE_PLASMA_DENSE=on USE_PLASMA_BANDED=on"
-             CMAKE_PLASMA_FLAGS="-DSTELLA_ENABLE_PLASMA=ON -DSTELLA_ENABLE_PLASMA_DENSE=ON -DSTELLA_ENABLE_PLASMA_BANDED=ON"
-          fi
-          
-          # Build stella with Make or CMake
-          echo " "; echo "Build stella with ${{ matrix.compiler }} (plasma = ${{ matrix.plasma }}):" 
+          # Build stella with Make or CMake (both use PLASMA by default, except on macOS)
+          echo " "; echo "Build stella with ${{ matrix.compiler }}:" 
           if [ ${{ matrix.compiler }} == 'Make' ]; then 
-             make -j 4 $MAKE_PLASMA_FLAGS
+             make -j 4
           fi
           if [ ${{ matrix.compiler }} == 'CMake' ]; then 
              cmake . -B COMPILATION/build_cmake $CMAKE_PLASMA_FLAGS
@@ -233,7 +220,7 @@ jobs:
 
   # Build stella to perform python and fortran tests
   build-stella-quick: 
-    name: Build stella quickly (plasma = ${{ matrix.plasma }})
+    name: Build stella quickly
     runs-on: ubuntu-22.04
     env:
       OMPI_MCA_rmaps_base_oversubscribe: yes
@@ -241,12 +228,6 @@ jobs:
       OMP_NUM_THREADS: 1
       MPIRUN: mpiexec -np
       STELLA_SYSTEM: gnu_ubuntu
-    
-    # Build stella without and with the PLASMA library
-    strategy:
-      fail-fast: false
-      matrix:
-        plasma: ['off', 'on']
 
     steps:
 
@@ -260,16 +241,14 @@ jobs:
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
           sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libblas-dev liblapack-dev liblapacke-dev; fi
+          sudo apt install -y libblas-dev liblapack-dev liblapacke-dev
 
       # The PLASMA library only changes when its submodule changes
       - name: Get the PLASMA submodule commit
-        if: matrix.plasma == 'on'
         id: plasma-commit
         run: echo "sha=$(git rev-parse HEAD:EXTERNALS/plasma)" >> $GITHUB_OUTPUT
         
       - name: Cache PLASMA
-        if: matrix.plasma == 'on'
         uses: actions/cache@v4
         with:
           path: COMPILATION/build_make/plasma/install
@@ -279,11 +258,7 @@ jobs:
       - name: Build stella
         run: |
           git submodule update --init --recursive
-          if [ ${{ matrix.plasma }} == 'on' ]; then
-            make -j 12 USE_PLASMA=on USE_PLASMA_DENSE=on USE_PLASMA_BANDED=on
-          else
-            make -j 12
-          fi
+          make -j 12
           
           # Stella is bugged when compiling without the flag debug = on
           # So the python tests will break when compiling with CMake
@@ -295,7 +270,7 @@ jobs:
       - name: Upload stella  
         uses: actions/upload-artifact@v4
         with:
-          name: stella-executable-plasma-${{ matrix.plasma }}
+          name: stella-executable
           path: |
             stella
             COMPILATION/build_make/plasma/install/lib/*.so*
@@ -330,7 +305,6 @@ jobs:
           - name: "7 - Full Flux Surface"
           - name: "8 - Electromagnetic effects"
           - name: "9 - Restart simulations"
-        plasma: ['off', 'on']
 
     steps:
 
@@ -344,7 +318,7 @@ jobs:
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
           sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libblas-dev liblapack-dev liblapacke-dev; fi
+          sudo apt install -y libblas-dev liblapack-dev liblapacke-dev
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
           sed -i 's/nproc = 16/nproc = 4/g' AUTOMATIC_TESTS/config.ini 
 
@@ -352,7 +326,7 @@ jobs:
       - name: Download stella 
         uses: actions/download-artifact@v4
         with:
-           name: stella-executable-plasma-${{ matrix.plasma }}
+           name: stella-executable
     
       # Perform python tests  
       - name: Numerical python tests
@@ -374,7 +348,7 @@ jobs:
 
   # Perform python on 1 processor.
   python-tests-nproc1: 
-    name: Python tests on 1 processor (plasma = ${{ matrix.plasma }})
+    name: Python tests on 1 processor
     runs-on: ubuntu-22.04
     needs: build-stella-quick
     env:
@@ -383,12 +357,6 @@ jobs:
       OMP_NUM_THREADS: 1
       MPIRUN: mpiexec -np
       STELLA_SYSTEM: gnu_ubuntu
-    
-    # Run the tests without and with the PLASMA library
-    strategy:
-      fail-fast: false
-      matrix:
-        plasma: ['off', 'on']
 
     steps:
 
@@ -402,7 +370,7 @@ jobs:
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev 
           sudo apt install -y netcdf-bin python3 python3-pip openmpi-bin libopenmpi-dev
-          if [ ${{ matrix.plasma }} == 'on' ]; then sudo apt install -y libblas-dev liblapack-dev liblapacke-dev; fi
+          sudo apt install -y libblas-dev liblapack-dev liblapacke-dev
           pip3 install --user -r AUTOMATIC_TESTS/requirements.txt
           sed -i 's/nproc = 16/nproc = 1/g' AUTOMATIC_TESTS/config.ini 
 
@@ -410,7 +378,7 @@ jobs:
       - name: Download stella 
         uses: actions/download-artifact@v4
         with:
-           name: stella-executable-plasma-${{ matrix.plasma }}
+           name: stella-executable
     
       # Make stella executable  
       - name: Make stella executable
@@ -477,7 +445,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y gfortran make libfftw3-dev libnetcdf-dev libnetcdff-dev netcdf-bin 
-          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev 
+          sudo apt install -y python3 python3-pip openmpi-bin libopenmpi-dev libblas-dev liblapack-dev liblapacke-dev
            
       # Build stella executable
       - name: Build stella in debug mode

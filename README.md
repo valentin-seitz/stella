@@ -106,16 +106,14 @@ There are a few build options:
 - `STELLA_ENABLE_POSIX`: Enable POSIX functions for command line functionality
   (default: off)
 - `STELLA_ENABLE_F200X`: Enable use of F2003/F2008 functionality (default: on)
-- `STELLA_ENABLE_PLASMA`: Link to the [PLASMA](https://github.com/icl-utk-edu/plasma)
-  linear algebra library, which is compiled from the `EXTERNALS/plasma` submodule
-  unless `PLASMA_DIR` points to an existing installation (default: off).
-  With Make, use `USE_PLASMA=on` (and optionally `PLASMA_DIR`).
-- `STELLA_ENABLE_PLASMA_DENSE`: Use PLASMA for the dense LU decompositions in
-  `utils/linear_solve`, needs `STELLA_ENABLE_PLASMA` (default: off).
-  With Make, use `USE_PLASMA_DENSE=on`.
-- `STELLA_ENABLE_PLASMA_BANDED`: Use PLASMA for the band LU factorisations and
-  solves in `utils/banded_lu`, needs `STELLA_ENABLE_PLASMA` (default: off).
-  With Make, use `USE_PLASMA_BANDED=on`.
+- `STELLA_ENABLE_PLASMA`: Use the [PLASMA](https://github.com/icl-utk-edu/plasma)
+  linear algebra library for the dense and band LU routines (default: on). An
+  installed PLASMA is used if CMake finds one (through `PLASMA_DIR`, `plasma_ROOT`,
+  `CMAKE_PREFIX_PATH` or pkg-config), otherwise it is compiled from the
+  `EXTERNALS/plasma` submodule, which needs the CBLAS and LAPACKE libraries.
+  With Make, use `USE_PLASMA=` to build without PLASMA (and optionally `PLASMA_DIR`).
+  When compiled in, PLASMA is always used, except inside OpenMP parallel
+  regions, where LAPACK is called instead.
 
 You can turn these on or off with `-D<option name>=ON/OFF`. You can
 get a complete list of options by running the following in a build
