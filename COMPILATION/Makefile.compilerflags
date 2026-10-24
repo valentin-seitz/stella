@@ -22,7 +22,7 @@ USE_LOCAL_RAN ?=           # Use local random number generator (mt,undefined) (s
 USE_LOCAL_SPFUNC ?=        # Use local special functions (bin)
 USE_NAGLIB ?=              # Use nag libraray (spfunc,undefined)
 USE_SFINCS ?=              # Link to sfincs library at compilation
-USE_LAPACK ?= on           # Use LAPACK, needed for test particle collisions
+USE_LAPACK ?= on           # Use LAPACK, needed for the LU routines of stella (required)
 USE_OPENMP ?= on           # Use OpenMP to parallelize the Code
 USE_PLASMA ?= on           # Use the PLASMA library for the LU routines, see Makefile.externals.plasma (bin), needs USE_LAPACK
 USE_NESMIK ?=              # Build region_timer against the nesmik profiling library (bin), needs $NESMIK_HOME
@@ -176,6 +176,9 @@ ifdef USE_NETCDF
 		NETCDF_LIB = -lnetcdf
 	endif
 	CPPFLAGS += -DNETCDF
+endif
+ifndef USE_LAPACK
+$(error stella needs LAPACK for its LU routines (utils/linear_solve and utils/banded_lu), set USE_LAPACK=on)
 endif
 ifdef USE_LAPACK
 	ifeq ($(LAPACK_LIB),)

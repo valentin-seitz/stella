@@ -241,6 +241,11 @@ target_compile_definitions(libstella PUBLIC MPI)
 # Toggle the options defined at the start of this script
 ############################################################
 
+# The LU routines of stella (utils/linear_solve and utils/banded_lu) call LAPACK
+if (NOT STELLA_ENABLE_LAPACK)
+  message(FATAL_ERROR "stella needs LAPACK for its LU routines, set STELLA_ENABLE_LAPACK=ON")
+endif()
+
 if (STELLA_ENABLE_LAPACK)
   if (NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
     # Cray wrappers sort this out for us

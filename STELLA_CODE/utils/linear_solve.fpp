@@ -1,20 +1,24 @@
 !###############################################################################
 !                      LU decomposition of dense matrices
 !###############################################################################
-! By default, the LU decomposition, back substitution and inverse are computed
-! by the stella routines below, which use implicit (scaled) partial pivoting.
+! The LU decomposition, back substitution and inverse of dense matrices are
+! computed by LAPACK (?getrf, ?getrs and ?getri). When stella is compiled with
+! PLASMA (see plasma_interface), PLASMA's plasma_?getrf, plasma_?getrs and
+! plasma_?getri are used instead, except inside OpenMP parallel regions, where
+! PLASMA can't be called (see <plasma_usable>).
 !
-! When stella is compiled with PLASMA (see plasma_interface), they call PLASMA's
-! plasma_?getrf, plasma_?getrs and plasma_?getri instead, or LAPACK's ?getrf,
-! ?getrs and ?getri inside OpenMP parallel regions, where PLASMA can't be used
-! (see <plasma_usable>). PLASMA and LAPACK use partial pivoting, so the
-! factors can differ from those of the stella routines, but they are stored in
-! the same way: L (unit diagonal) below and U on and above the diagonal, and
-! idx(j) is the row that was swapped with row j at step j. Hence the factors
-! can be used by every <lu_back_substitution> and <lu_inverse>.
+! The factors are stored as by LAPACK: L (unit diagonal) below and U on and
+! above the diagonal, and idx(j) is the row that was swapped with row j at
+! step j. They are the same for both libraries, so the factors of one can be
+! solved by the other.
 !
-! The factors of a singular matrix are always computed by the stella routine,
-! which replaces zero pivots by a small number, whereas PLASMA and LAPACK stop.
+! The LAPACK routines of the precision of stella are called: d/z with double
+! precision (the default), s/c otherwise. PLASMA needs double precision.
+!
+! A singular matrix is still factorised: its zero pivots, i.e., zeros on the
+! diagonal of U, are replaced by a small number, so that the solves do not give
+! NaNs or Infs. This is the factorisation of a nearby matrix, since LAPACK
+! leaves the column of L below a zero pivot zero.
 !###############################################################################
 module linear_solve
 
@@ -23,7 +27,6 @@ module linear_solve
    public :: lu_decomposition
    public :: lu_back_substitution
    public :: lu_inverse
-   public :: imaxloc
 
    private
 
@@ -45,9 +48,24 @@ module linear_solve
       module procedure lu_inverse_complex
    end interface
 
+   ! The value of the zero pivots of a singular matrix
+   real, parameter :: zero_pivot = 1.0e-20
+
 contains
 
+   !****************************************************************************
+   !                              LU decomposition
+   !****************************************************************************
+   ! On exit, <lu> contains the LU factors of the square matrix <lu>, <idx> the
+   ! row swaps and <d> the sign of the permutation (+1 or -1), so that the
+   ! determinant is d * product(diagonal of lu).
+   !****************************************************************************
    subroutine lu_decomposition_real(lu, idx, d)
+
+#ifdef PLASMA
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: plasma_usable, plasma_dgetrf
+#endif
 
       implicit none
 
@@ -55,429 +73,124 @@ contains
       integer, dimension(:), intent(out) :: idx
       real, intent(out) :: d
 
-      real, parameter :: zero = 1.0e-20
-      real, dimension(size(lu, 1)) :: vv
-      real, dimension(size(lu, 2)) :: dum
-
-      integer :: j, n, imax
-
+      integer :: n, info
 #ifdef PLASMA
-      if (library_lu_decomposition_real(lu, idx, d)) return
+      real, dimension(:, :), allocatable :: a
+      integer(c_int), dimension(size(lu, 1)) :: ipiv
 #endif
+
+      !-------------------------------------------------------------------------
 
       n = size(lu, 1)
 
-      d = 1.0
-      vv = maxval(abs(lu), dim=2)
-      if (any(vv == 0.0)) &
-         write (*, *) 'singular matrix in lu_decomposition'
-      vv = 1.0 / vv
-      do j = 1, n
-         imax = (j - 1) + imaxloc(vv(j:n) * abs(lu(j:n, j)))
-         if (j /= imax) then
-            dum = lu(imax, :)
-            lu(imax, :) = lu(j, :)
-            lu(j, :) = dum
-            d = -d
-            vv(imax) = vv(j)
+#ifdef PLASMA
+      if (plasma_usable()) then
+         ! plasma_dgetrf does not return the factors of a singular matrix, which
+         ! are then computed by LAPACK
+         a = lu
+         info = plasma_dgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
+         if (info == 0) then
+            idx(1:n) = ipiv
+            d = permutation_sign(idx, n)
+            return
          end if
-         idx(j) = imax
-         if (lu(j, j) == 0.0) lu(j, j) = zero
-         lu(j + 1:n, j) = lu(j + 1:n, j) / lu(j, j)
-         lu(j + 1:n, j + 1:n) = lu(j + 1:n, j + 1:n) - spread(lu(j + 1:n, j), 2, n - j) &
-                                * spread(lu(j, j + 1:n), 1, n - j)
-      end do
+         lu = a
+      end if
+#endif
+
+      if (kind(lu) == kind(1.0d0)) then
+         call dgetrf(n, n, lu, size(lu, 1), idx, info)
+      else
+         call sgetrf(n, n, lu, size(lu, 1), idx, info)
+      end if
+      if (info > 0) call replace_zero_pivots_real(lu, n)
+      d = permutation_sign(idx, n)
 
    end subroutine lu_decomposition_real
 
    subroutine lu_decomposition_complex(lu, idx, d)
 
+#ifdef PLASMA
+      use, intrinsic :: iso_c_binding, only: c_int
+      use plasma_interface, only: plasma_usable, plasma_zgetrf
+#endif
+
       implicit none
 
       complex, dimension(:, :), intent(in out) :: lu
       integer, dimension(:), intent(out) :: idx
       real, intent(out) :: d
 
-      real, parameter :: zero = 1.0e-20
-      real, dimension(size(lu, 1)) :: vv
-      complex, dimension(size(lu, 2)) :: dum
-
-      integer :: j, n, imax
-
+      integer :: n, info
 #ifdef PLASMA
-      if (library_lu_decomposition_complex(lu, idx, d)) return
+      complex, dimension(:, :), allocatable :: a
+      integer(c_int), dimension(size(lu, 1)) :: ipiv
 #endif
+
+      !-------------------------------------------------------------------------
 
       n = size(lu, 1)
 
-      d = 1.0
-      vv = maxval(cabs(lu), dim=2)
-      if (any(vv == 0.0)) &
-         write (*, *) 'singular matrix in lu_decomposition'
-      vv = 1.0 / vv
-      do j = 1, n
-         imax = (j - 1) + imaxloc(vv(j:n) * cabs(lu(j:n, j)))
-         if (j /= imax) then
-            dum = lu(imax, :)
-            lu(imax, :) = lu(j, :)
-            lu(j, :) = dum
-            d = -d
-            vv(imax) = vv(j)
+#ifdef PLASMA
+      if (plasma_usable()) then
+         ! plasma_zgetrf does not return the factors of a singular matrix, which
+         ! are then computed by LAPACK
+         a = lu
+         info = plasma_zgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
+         if (info == 0) then
+            idx(1:n) = ipiv
+            d = permutation_sign(idx, n)
+            return
          end if
-         idx(j) = imax
-         if (lu(j, j) == 0.0) lu(j, j) = zero
-         lu(j + 1:n, j) = lu(j + 1:n, j) / lu(j, j)
-         lu(j + 1:n, j + 1:n) = lu(j + 1:n, j + 1:n) - spread(lu(j + 1:n, j), 2, n - j) &
-                                * spread(lu(j, j + 1:n), 1, n - j)
-      end do
-
-   end subroutine lu_decomposition_complex
-
-   subroutine lu_back_substitution_real(lu, idx, b)
-
-      implicit none
-
-      real, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      real, dimension(:), intent(in out) :: b
-
-      integer :: i, n, ii, ll
-      real :: summ
-
-      n = size(lu, 1)
-
-#ifdef PLASMA
-      if (library_getrs_real(lu, idx, n, 1, b, n)) return
-#endif
-
-      ii = 0
-      do i = 1, n
-         ll = idx(i)
-         summ = b(ll)
-         b(ll) = b(i)
-         if (ii /= 0) then
-            summ = summ - dot_product(lu(i, ii:i - 1), b(ii:i - 1))
-         else if (summ /= 0.0) then
-            ii = i
-         end if
-         b(i) = summ
-      end do
-      do i = n, 1, -1
-         b(i) = (b(i) - dot_product(lu(i, i + 1:n), b(i + 1:n))) / lu(i, i)
-      end do
-
-   end subroutine lu_back_substitution_real
-
-   subroutine lu_back_substitution_real_complex(lu, idx, b)
-
-      implicit none
-
-      real, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      complex, dimension(:), intent(in out) :: b
-
-      integer :: i, n, ii, ll
-      complex :: summ
-#ifdef PLASMA
-      real, dimension(size(lu, 1), 2) :: br
-#endif
-
-    !! The dot products we use below automatically take the complex conjugate of its
-    !! first argument, which we do not want here. Hence the use of conjg to undo this
-
-      n = size(lu, 1)
-
-#ifdef PLASMA
-      ! Solve for the real and imaginary parts as two right-hand sides
-      br(:, 1) = real(b(1:n))
-      br(:, 2) = aimag(b(1:n))
-      if (library_getrs_real(lu, idx, n, 2, br, n)) then
-         b(1:n) = cmplx(br(:, 1), br(:, 2))
-         return
+         lu = a
       end if
 #endif
 
-      ii = 0
-      do i = 1, n
-         ll = idx(i)
-         summ = b(ll)
-         b(ll) = b(i)
-         if (ii /= 0) then
-            summ = summ - dot_product(lu(i, ii:i - 1), b(ii:i - 1))
-         else if (summ /= 0.0) then
-            ii = i
-         end if
-         b(i) = summ
-      end do
-      do i = n, 1, -1
-         b(i) = (b(i) - dot_product(lu(i, i + 1:n), b(i + 1:n))) / lu(i, i)
-      end do
+      if (kind(lu) == kind((1.0d0, 0.0d0))) then
+         call zgetrf(n, n, lu, size(lu, 1), idx, info)
+      else
+         call cgetrf(n, n, lu, size(lu, 1), idx, info)
+      end if
+      if (info > 0) call replace_zero_pivots_complex(lu, n)
+      d = permutation_sign(idx, n)
 
-   end subroutine lu_back_substitution_real_complex
+   end subroutine lu_decomposition_complex
 
-   subroutine lu_back_substitution_complex(lu, idx, b)
-
-      implicit none
-
-      complex, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      complex, dimension(:), intent(in out) :: b
-
-      integer :: i, n, ii, ll
-      complex :: summ
-
-    !! The dot products we use below automatically take the complex conjugate of its
-    !! first argument, which we do not want here. Hence the use of conjg to undo this
-
-      n = size(lu, 1)
-
-#ifdef PLASMA
-      if (library_getrs_complex(lu, idx, n, 1, b, n)) return
-#endif
-
-      ii = 0
-      do i = 1, n
-         ll = idx(i)
-         summ = b(ll)
-         b(ll) = b(i)
-         if (ii /= 0) then
-            summ = summ - dot_product(conjg(lu(i, ii:i - 1)), b(ii:i - 1))
-         else if (summ /= 0.0) then
-            ii = i
-         end if
-         b(i) = summ
-      end do
-      do i = n, 1, -1
-         b(i) = (b(i) - dot_product(conjg(lu(i, i + 1:n)), b(i + 1:n))) / lu(i, i)
-      end do
-
-   end subroutine lu_back_substitution_complex
-
-   subroutine lu_back_substitution_matrix_real(lu, idx, b)
-
-      implicit none
-
-      real, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      real, dimension(:, :), intent(in out) :: b
-
-      integer :: i, j, n, ii, ll
-      real :: summ
-
-      n = size(lu, 1)
-
-#ifdef PLASMA
-      if (library_getrs_real(lu, idx, n, size(b, 2), b, size(b, 1))) return
-#endif
-
-      do j = 1, size(b, 2)
-         ii = 0
-         do i = 1, n
-            ll = idx(i)
-            summ = b(ll, j)
-            b(ll, j) = b(i, j)
-            if (ii /= 0) then
-               summ = summ - dot_product(lu(i, ii:i - 1), b(ii:i - 1, j))
-            else if (summ /= 0.0) then
-               ii = i
-            end if
-            b(i, j) = summ
-         end do
-         do i = n, 1, -1
-            b(i, j) = (b(i, j) - dot_product(lu(i, i + 1:n), b(i + 1:n, j))) / lu(i, i)
-         end do
-      end do
-
-   end subroutine lu_back_substitution_matrix_real
-
-   subroutine lu_back_substitution_matrix_complex(lu, idx, b)
-
-      implicit none
-
-      complex, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      complex, dimension(:, :), intent(in out) :: b
-
-      integer :: i, j, n, ii, ll
-      complex :: summ
-
-    !! The dot products we use below automatically take the complex conjugate of its
-    !! first argument, which we do not want here. Hence the use of conjg to undo this
-
-      n = size(lu, 1)
-
-#ifdef PLASMA
-      if (library_getrs_complex(lu, idx, n, size(b, 2), b, size(b, 1))) return
-#endif
-
-      do j = 1, size(b, 2)
-         ii = 0
-         do i = 1, n
-            ll = idx(i)
-            summ = b(ll, j)
-            b(ll, j) = b(i, j)
-            if (ii /= 0) then
-               summ = summ - dot_product(conjg(lu(i, ii:i - 1)), b(ii:i - 1, j))
-            else if (summ /= 0.0) then
-               ii = i
-            end if
-            b(i, j) = summ
-         end do
-         do i = n, 1, -1
-            b(i, j) = (b(i, j) - dot_product(conjg(lu(i, i + 1:n)), b(i + 1:n, j))) / lu(i, i)
-         end do
-      end do
-
-   end subroutine lu_back_substitution_matrix_complex
-
-  !!
-  !! One shouldn't need to compute the inverse of a matrix if solving the linear equation A.x = y;
-  !! a simple back substitution should suffice.
-  !!
-  !! Only compute the inverse of A when absolutely necessary!
-  !!
-   subroutine lu_inverse_real(lu, idx, inverse)
-
-      implicit none
-
-      real, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      real, dimension(:, :), intent(out) :: inverse
-
-      integer :: i, n
-
-#ifdef PLASMA
-      if (library_lu_inverse_real(lu, idx, inverse)) return
-#endif
-
-      n = size(lu, 1)
-
-      inverse = 0.0
-      do i = 1, n
-         inverse(i, i) = 1.0
-      end do
-
-      do i = 1, n
-         call lu_back_substitution(lu, idx, inverse(:, i))
-      end do
-
-   end subroutine lu_inverse_real
-
-   subroutine lu_inverse_complex(lu, idx, inverse)
-
-      implicit none
-
-      complex, dimension(:, :), intent(in) :: lu
-      integer, dimension(:), intent(in) :: idx
-      complex, dimension(:, :), intent(out) :: inverse
-
-      integer :: i, n
-
-#ifdef PLASMA
-      if (library_lu_inverse_complex(lu, idx, inverse)) return
-#endif
-
-      n = size(lu, 1)
-
-      inverse = 0.0
-      do i = 1, n
-         inverse(i, i) = 1.0
-      end do
-
-      do i = 1, n
-         call lu_back_substitution(lu, idx, inverse(:, i))
-      end do
-
-   end subroutine lu_inverse_complex
-
-   function imaxloc(array)
-      real, dimension(:), intent(in) :: array
-      integer :: imaxloc
-      integer, dimension(1) :: imax
-      imax = maxloc(array)
-      imaxloc = imax(1)
-   end function imaxloc
-
-#ifdef PLASMA
    !****************************************************************************
-   !                  LU decomposition with PLASMA or LAPACK
+   ! Replace the zeros on the diagonal of U of a singular matrix, see the top of
+   ! this module
    !****************************************************************************
-   ! Factorise <lu> with plasma_?getrf, or with LAPACK's ?getrf inside OpenMP
-   ! parallel regions. Returns .false. if the matrix is singular, in which case
-   ! <lu> is unchanged and has to be factorised by the stella routine, see the
-   ! top of this module.
-   !****************************************************************************
-   logical function library_lu_decomposition_real(lu, idx, d) result(success)
-
-      use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_usable, plasma_dgetrf
+   subroutine replace_zero_pivots_real(lu, n)
 
       implicit none
 
       real, dimension(:, :), intent(in out) :: lu
-      integer, dimension(:), intent(out) :: idx
-      real, intent(out) :: d
+      integer, intent(in) :: n
 
-      real, dimension(size(lu, 1), size(lu, 2)) :: a
-      integer(c_int), dimension(size(lu, 1)) :: ipiv
-      integer :: n, info
+      integer :: j
 
-      !-------------------------------------------------------------------------
+      write (*, *) 'singular matrix in lu_decomposition'
+      do j = 1, n
+         if (lu(j, j) == 0.0) lu(j, j) = zero_pivot
+      end do
 
-      success = .false.
-      n = size(lu, 1)
-      a = lu
-      if (plasma_usable()) then
-         info = plasma_dgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
-      else
-         call dgetrf(n, n, lu, n, ipiv, info)
-      end if
-      if (info /= 0) then
-         lu = a
-         return
-      end if
+   end subroutine replace_zero_pivots_real
 
-      idx(1:n) = ipiv
-      d = permutation_sign(idx, n)
-      success = .true.
-
-   end function library_lu_decomposition_real
-
-   logical function library_lu_decomposition_complex(lu, idx, d) result(success)
-
-      use, intrinsic :: iso_c_binding, only: c_int
-      use plasma_interface, only: plasma_usable, plasma_zgetrf
+   subroutine replace_zero_pivots_complex(lu, n)
 
       implicit none
 
       complex, dimension(:, :), intent(in out) :: lu
-      integer, dimension(:), intent(out) :: idx
-      real, intent(out) :: d
+      integer, intent(in) :: n
 
-      complex, dimension(size(lu, 1), size(lu, 2)) :: a
-      integer(c_int), dimension(size(lu, 1)) :: ipiv
-      integer :: n, info
+      integer :: j
 
-      !-------------------------------------------------------------------------
+      write (*, *) 'singular matrix in lu_decomposition'
+      do j = 1, n
+         if (lu(j, j) == 0.0) lu(j, j) = zero_pivot
+      end do
 
-      success = .false.
-      n = size(lu, 1)
-      a = lu
-      if (plasma_usable()) then
-         info = plasma_zgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
-      else
-         call zgetrf(n, n, lu, n, ipiv, info)
-      end if
-      if (info /= 0) then
-         lu = a
-         return
-      end if
-
-      idx(1:n) = ipiv
-      d = permutation_sign(idx, n)
-      success = .true.
-
-   end function library_lu_decomposition_complex
+   end subroutine replace_zero_pivots_complex
 
    ! The sign of the permutation of the LU decomposition, i.e., -1 for every row swap
    pure real function permutation_sign(idx, n)
@@ -497,17 +210,90 @@ contains
    end function permutation_sign
 
    !****************************************************************************
-   !                  Back substitution with PLASMA or LAPACK
+   !                             Back substitution
+   !****************************************************************************
+   ! Solves A x = b, given the LU factors <lu> and <idx> of A from
+   ! <lu_decomposition>. On exit, <b> contains x. <b> can be a vector or a
+   ! matrix with a right-hand side in every column.
+   !****************************************************************************
+   subroutine lu_back_substitution_real(lu, idx, b)
+
+      implicit none
+
+      real, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      real, dimension(:), intent(in out) :: b
+
+      call getrs_real(lu, idx, size(lu, 1), 1, b, size(b))
+
+   end subroutine lu_back_substitution_real
+
+   subroutine lu_back_substitution_real_complex(lu, idx, b)
+
+      implicit none
+
+      real, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      complex, dimension(:), intent(in out) :: b
+
+      real, dimension(size(lu, 1), 2) :: br
+      integer :: n
+
+      ! Solve for the real and imaginary parts as two right-hand sides
+      n = size(lu, 1)
+      br(:, 1) = real(b(1:n))
+      br(:, 2) = aimag(b(1:n))
+      call getrs_real(lu, idx, n, 2, br, n)
+      b(1:n) = cmplx(br(:, 1), br(:, 2))
+
+   end subroutine lu_back_substitution_real_complex
+
+   subroutine lu_back_substitution_complex(lu, idx, b)
+
+      implicit none
+
+      complex, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      complex, dimension(:), intent(in out) :: b
+
+      call getrs_complex(lu, idx, size(lu, 1), 1, b, size(b))
+
+   end subroutine lu_back_substitution_complex
+
+   subroutine lu_back_substitution_matrix_real(lu, idx, b)
+
+      implicit none
+
+      real, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      real, dimension(:, :), intent(in out) :: b
+
+      call getrs_real(lu, idx, size(lu, 1), size(b, 2), b, size(b, 1))
+
+   end subroutine lu_back_substitution_matrix_real
+
+   subroutine lu_back_substitution_matrix_complex(lu, idx, b)
+
+      implicit none
+
+      complex, dimension(:, :), intent(in) :: lu
+      integer, dimension(:), intent(in) :: idx
+      complex, dimension(:, :), intent(in out) :: b
+
+      call getrs_complex(lu, idx, size(lu, 1), size(b, 2), b, size(b, 1))
+
+   end subroutine lu_back_substitution_matrix_complex
+
    !****************************************************************************
    ! Solves A x = b for the <nrhs> right-hand sides in the first <n> rows of the
-   ! columns of b (leading dimension <ldb>), given the LU factors of A from
-   ! <lu_decomposition>, with plasma_?getrs, or with LAPACK's ?getrs inside
-   ! OpenMP parallel regions. Always returns .true.
+   ! columns of b (leading dimension <ldb>), given the LU factors of A.
    !****************************************************************************
-   logical function library_getrs_real(lu, idx, n, nrhs, b, ldb) result(success)
+   subroutine getrs_real(lu, idx, n, nrhs, b, ldb)
 
+#ifdef PLASMA
       use, intrinsic :: iso_c_binding, only: c_int
       use plasma_interface, only: plasma_usable, plasma_dgetrs, PlasmaNoTrans
+#endif
 
       implicit none
 
@@ -516,29 +302,37 @@ contains
       integer, intent(in) :: n, nrhs, ldb
       real, dimension(ldb, nrhs), intent(in out) :: b
 
-      real, dimension(size(lu, 1), size(lu, 2)) :: a
-      integer(c_int), dimension(n) :: ipiv
       integer :: info
+#ifdef PLASMA
+      real, dimension(:, :), allocatable :: a
+#endif
 
       !-------------------------------------------------------------------------
 
-      success = .true.
-      ipiv = int(idx(1:n), c_int)
+#ifdef PLASMA
       if (plasma_usable()) then
          ! plasma_dgetrs does not change the factors, but has no const arguments
          a = lu
          info = plasma_dgetrs(PlasmaNoTrans, int(n, c_int), int(nrhs, c_int), a, int(size(lu, 1), c_int), &
-                              ipiv, b, int(ldb, c_int))
+                              int(idx(1:n), c_int), b, int(ldb, c_int))
+         return
+      end if
+#endif
+
+      if (kind(lu) == kind(1.0d0)) then
+         call dgetrs('N', n, nrhs, lu, size(lu, 1), idx, b, ldb, info)
       else
-         call dgetrs('N', n, nrhs, lu, size(lu, 1), ipiv, b, ldb, info)
+         call sgetrs('N', n, nrhs, lu, size(lu, 1), idx, b, ldb, info)
       end if
 
-   end function library_getrs_real
+   end subroutine getrs_real
 
-   logical function library_getrs_complex(lu, idx, n, nrhs, b, ldb) result(success)
+   subroutine getrs_complex(lu, idx, n, nrhs, b, ldb)
 
+#ifdef PLASMA
       use, intrinsic :: iso_c_binding, only: c_int
       use plasma_interface, only: plasma_usable, plasma_zgetrs, PlasmaNoTrans
+#endif
 
       implicit none
 
@@ -547,37 +341,47 @@ contains
       integer, intent(in) :: n, nrhs, ldb
       complex, dimension(ldb, nrhs), intent(in out) :: b
 
-      complex, dimension(size(lu, 1), size(lu, 2)) :: a
-      integer(c_int), dimension(n) :: ipiv
       integer :: info
+#ifdef PLASMA
+      complex, dimension(:, :), allocatable :: a
+#endif
 
       !-------------------------------------------------------------------------
 
-      success = .true.
-      ipiv = int(idx(1:n), c_int)
+#ifdef PLASMA
       if (plasma_usable()) then
          ! plasma_zgetrs does not change the factors, but has no const arguments
          a = lu
          info = plasma_zgetrs(PlasmaNoTrans, int(n, c_int), int(nrhs, c_int), a, int(size(lu, 1), c_int), &
-                              ipiv, b, int(ldb, c_int))
+                              int(idx(1:n), c_int), b, int(ldb, c_int))
+         return
+      end if
+#endif
+
+      if (kind(lu) == kind((1.0d0, 0.0d0))) then
+         call zgetrs('N', n, nrhs, lu, size(lu, 1), idx, b, ldb, info)
       else
-         call zgetrs('N', n, nrhs, lu, size(lu, 1), ipiv, b, ldb, info)
+         call cgetrs('N', n, nrhs, lu, size(lu, 1), idx, b, ldb, info)
       end if
 
-   end function library_getrs_complex
+   end subroutine getrs_complex
 
    !****************************************************************************
-   !                     Matrix inverse with PLASMA or LAPACK
+   !                               Matrix inverse
    !****************************************************************************
-   ! Computes the inverse of A from its LU factors (from <lu_decomposition>)
-   ! with plasma_?getri, or with LAPACK's ?getri inside OpenMP parallel regions.
-   ! Returns .false. if U has a zero on the diagonal, in which case <inverse>
-   ! has to be computed by the stella routine.
+   ! One shouldn't need to compute the inverse of a matrix if solving the linear
+   ! equation A.x = y; a simple back substitution should suffice. Only compute
+   ! the inverse of A when absolutely necessary!
+   !
+   ! Computes the inverse of A from its LU factors <lu> and <idx> (from
+   ! <lu_decomposition>).
    !****************************************************************************
-   logical function library_lu_inverse_real(lu, idx, inverse) result(success)
+   subroutine lu_inverse_real(lu, idx, inverse)
 
+#ifdef PLASMA
       use, intrinsic :: iso_c_binding, only: c_int
       use plasma_interface, only: plasma_usable, plasma_dgetri
+#endif
 
       implicit none
 
@@ -585,29 +389,35 @@ contains
       integer, dimension(:), intent(in) :: idx
       real, dimension(:, :), intent(out) :: inverse
 
-      integer(c_int), dimension(size(lu, 1)) :: ipiv
       real, dimension(size(lu, 1)) :: work
       integer :: n, info
 
       !-------------------------------------------------------------------------
 
-      success = .false.
       n = size(lu, 1)
       inverse(1:n, 1:n) = lu(1:n, 1:n)
-      ipiv = int(idx(1:n), c_int)
+
+#ifdef PLASMA
       if (plasma_usable()) then
-         info = plasma_dgetri(int(n, c_int), inverse, int(size(inverse, 1), c_int), ipiv)
-      else
-         call dgetri(n, inverse, size(inverse, 1), ipiv, work, n, info)
+         info = plasma_dgetri(int(n, c_int), inverse, int(size(inverse, 1), c_int), int(idx(1:n), c_int))
+         return
       end if
-      success = (info == 0)
+#endif
 
-   end function library_lu_inverse_real
+      if (kind(lu) == kind(1.0d0)) then
+         call dgetri(n, inverse, size(inverse, 1), idx, work, n, info)
+      else
+         call sgetri(n, inverse, size(inverse, 1), idx, work, n, info)
+      end if
 
-   logical function library_lu_inverse_complex(lu, idx, inverse) result(success)
+   end subroutine lu_inverse_real
 
+   subroutine lu_inverse_complex(lu, idx, inverse)
+
+#ifdef PLASMA
       use, intrinsic :: iso_c_binding, only: c_int
       use plasma_interface, only: plasma_usable, plasma_zgetri
+#endif
 
       implicit none
 
@@ -615,24 +425,27 @@ contains
       integer, dimension(:), intent(in) :: idx
       complex, dimension(:, :), intent(out) :: inverse
 
-      integer(c_int), dimension(size(lu, 1)) :: ipiv
       complex, dimension(size(lu, 1)) :: work
       integer :: n, info
 
       !-------------------------------------------------------------------------
 
-      success = .false.
       n = size(lu, 1)
       inverse(1:n, 1:n) = lu(1:n, 1:n)
-      ipiv = int(idx(1:n), c_int)
-      if (plasma_usable()) then
-         info = plasma_zgetri(int(n, c_int), inverse, int(size(inverse, 1), c_int), ipiv)
-      else
-         call zgetri(n, inverse, size(inverse, 1), ipiv, work, n, info)
-      end if
-      success = (info == 0)
 
-   end function library_lu_inverse_complex
+#ifdef PLASMA
+      if (plasma_usable()) then
+         info = plasma_zgetri(int(n, c_int), inverse, int(size(inverse, 1), c_int), int(idx(1:n), c_int))
+         return
+      end if
 #endif
+
+      if (kind(lu) == kind((1.0d0, 0.0d0))) then
+         call zgetri(n, inverse, size(inverse, 1), idx, work, n, info)
+      else
+         call cgetri(n, inverse, size(inverse, 1), idx, work, n, info)
+      end if
+
+   end subroutine lu_inverse_complex
 
 end module linear_solve
