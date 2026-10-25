@@ -236,9 +236,11 @@ contains
          ! connected modes. The response matrix for each ky has neigen(ky).
          if (.not. associated(response_matrix(iky)%eigen)) allocate (response_matrix(iky)%eigen(neigen(iky)))
 
-         !> TO VALENTIN: This part could be parallelised over iky and ie as these 
-         !> are all computed independently. It is not until the LU decomposition
-         !> that they are needed together
+         ! The unit impulses (columns of the response matrix) of each (iky, ie) are
+         ! independent and are computed in parallel over OpenMP threads inside
+         ! calculate_response_matrix_to_invert. The (iky, ie) themselves could
+         ! also be computed independently, as they are not needed together until
+         ! the LU decomposition.
 
          ! Loop over the independent chains of modes for a given ky value. Note
          ! that <neigen> is an integer that depends on ky, as different ky modes
@@ -281,25 +283,54 @@ contains
    end subroutine construct_response_matrix
 
    !============================================================================
-   !                Step 1) Find distribution function response                 
+   !                Step 1) Find distribution function response
    !============================================================================
-   ! This subroutine computes the matrix we need to invert. The exact routines 
+   ! This subroutine computes the matrix we need to invert. The exact routines
    ! called will depend on which fields are included in the simulation
    ! (phi, apar, bpar).
+   !
+   ! Each column <icol> of the matrix to invert is the response to a unit impulse
+   ! in one field (phi, apar or bpar) at one point <idx> of the extended zed domain:
+   !        icol = offset_field + idx,    idx = 1, ..., nresponse_per_field
+   ! with offset_field = 0 for phi, offset_apar for apar and offset_bpar for bpar.
+   ! All columns are independent of each other, apart from the sum over the
+   ! velocity space points of the different MPI ranks in the field solve.
+   !
+   ! Parallelisation:
+   ! ----------------
+   !     a) For each column (in parallel over OpenMP threads, each thread with
+   !        its own work arrays), apply the unit impulse, solve the homogeneous
+   !        gyrokinetic equation for the local velocity points (1.A and 1.B) and
+   !        integrate the response of the pdf over the local velocity points (1.C.I).
+   !        The (rank-local) velocity integrals are stored directly in the column
+   !        of <zloc>, whose rows are ordered in the same way (phi, apar, bpar),
+   !        so no extra buffer is needed and the pdf itself is never stored.
+   !     b) Sum <zloc> over the MPI ranks with ONE sum_allreduce per (iky, ie)
+   !        (outside the OpenMP parallel region), instead of one per unit impulse.
+   !     c) For each column (in parallel), divide by the prefactors of the field
+   !        equations (1.C.II) and turn it into the column of the matrix to
+   !        invert (1.D), in place.
+   ! The velocity integrals are summed in the same order as in the original
+   ! one-impulse-at-a-time implementation, so the matrix only changes by the
+   ! round-off of the (larger) MPI reduction.
    !============================================================================
    subroutine calculate_response_matrix_to_invert(iky, ie)
 
-      use mp, only: proc0
+      use mp, only: proc0, sum_allreduce, mp_abort
       use timers, only: region_start, region_end
       use parallelisation_layouts, only: mat_gen
       use parameters_physics, only: include_apar, include_bpar
-      use grids_extended_zgrid, only: ikxmod
+      use parameters_physics, only: beta
       use grids_extended_zgrid, only: nsegments, nzed_segment
       use grids_extended_zgrid, only: periodic
-      use grids_extended_zgrid, only: iz_low, iz_up
-      use parallelisation_layouts, only: vmu_lo
+      use grids_extended_zgrid, only: map_to_iz_ikx_from_izext
+      use grids_species, only: nspec, spec
+      use grids_species, only: has_electron_species
+      use grids_species, only: adiabatic_option_switch
+      use grids_species, only: adiabatic_option_fieldlineavg
       use field_equations, only: nfields
       use file_units, only: unit_response_matrix
+      use arrays, only: response_matrix
 
       implicit none
 
@@ -307,31 +338,31 @@ contains
       integer, intent(in) :: iky, ie
 
       ! Local variables
-      integer :: idx, ikx, iseg
-      integer :: iz, izl_offset, izup
       integer :: nz_ext, nresponse, nresponse_per_field
-      complex, dimension(:, :), allocatable :: gext
-      complex, dimension(:), allocatable :: phi_ext, apar_ext, bpar_ext
-      
+      integer :: offset_apar, offset_bpar
+      integer :: icol
+      integer, dimension(:), allocatable :: iz_from_izext, ikx_from_izext
+      real, dimension(:, :), allocatable :: wgts_fields
+
       !-------------------------------------------------------------------------
-      
+
       ! Start the timer
       call region_start('response_matrix')
 
       ! ------------------------------------------------------------------------
-      !              Set up system to compute response of the pdf               
+      !              Set up system to compute response of the pdf
       ! ------------------------------------------------------------------------
       ! <nz_ext> is the dimension of the extended zed domain, <nzed_segment> is
-      ! the number of of unique zed values in all segments except the first. The 
-      ! first segment has one extra unique zed value (all others have one grid 
+      ! the number of of unique zed values in all segments except the first. The
+      ! first segment has one extra unique zed value (all others have one grid
       ! point in common with the previous segment due to periodicity). Finally,
-      ! <nsegments> is the number of segments on the extended zed domain, in 
+      ! <nsegments> is the number of segments on the extended zed domain, in
       ! other words, it is the number of 2π segments in z that are linked together.
       !     <nz_ext> = (number of zeds) x (number of segments on extended zed domain)
       !     <nzed_segment> = (number of zeds)
       !     <nsegments> = (Nkx -1)/neigen = (number of segments on extended zed domain)
       ! ------------------------------------------------------------------------
-      
+
       ! Calculate the number of z-points on the extended z-domain
       nz_ext = nsegments(ie, iky) * nzed_segment + 1
 
@@ -348,7 +379,7 @@ contains
       end if
 
       ! If electromagnetic, we need to consider the response of phi, apar, and bpar.
-      ! If we have more fields we need to apply more unit impulses -> one for each 
+      ! If we have more fields we need to apply more unit impulses -> one for each
       ! of the fields phi, apar, and bpar.
       nresponse = nresponse_per_field * nfields
 
@@ -361,76 +392,60 @@ contains
       ! Allocate response_matrix%idx = pivot index needed for LU decomposition
       call setup_response_matrix_zloc_idx(iky, ie, nresponse)
 
-      ! Allocate arrays on the extended zed domain
-      ! Fields only have 1 index, as we are looping over ky modes, and kx and 
-      ! zed are connected via the extended zed domain, while the distribution 
-      ! function, gext, has 2 dimensions: the extended zed dimension, and velocity.
-      allocate (phi_ext(nz_ext)); phi_ext = 0.0
-      allocate (apar_ext(nz_ext)); apar_ext = 0.0
-      allocate (bpar_ext(nz_ext)); bpar_ext = 0.0
-      allocate (gext(nz_ext, vmu_lo%llim_proc:vmu_lo%ulim_alloc)); gext = 0.0
+      ! Offsets of the apar and bpar blocks in the matrix to invert (rows and columns)
+      offset_apar = 0; offset_bpar = 0
+      if (include_apar) offset_apar = nresponse_per_field
+      if (include_bpar) offset_bpar = offset_apar + nresponse_per_field
+
+      ! This combination is not supported, abort here (outside of the OpenMP
+      ! parallel region) rather than inside the field solve of every column
+      if (include_bpar .and. .not. has_electron_species(spec) .and. &
+          adiabatic_option_switch == adiabatic_option_fieldlineavg) then
+         call mp_abort('adiabatic electrons not yet supported for include_bpar = T. aborting.')
+      end if
+
+      ! Map from the extended zed domain to (iz, ikx); shared by all threads
+      allocate (iz_from_izext(nz_ext), ikx_from_izext(nz_ext))
+      call map_to_iz_ikx_from_izext(iky, ie, iz_from_izext, ikx_from_izext)
+
+      ! Species weights of the velocity integrals for phi, apar and bpar
+      allocate (wgts_fields(nspec, 3))
+      wgts_fields(:, 1) = spec%z * spec%dens_psi0
+      wgts_fields(:, 2) = spec%z * spec%dens_psi0 * spec%stm_psi0 * beta
+      wgts_fields(:, 3) = -2.0 * beta * spec%temp_psi0 * spec%dens_psi0
 
       ! ------------------------------------------------------------------------
-      !    Get the matrix we need to invert depending on the fields included    
+      !    Get the matrix we need to invert depending on the fields included
       ! ------------------------------------------------------------------------
-      
-      ! <idx> here is the index in the extended zed domain that we are giving
-      ! a unit impulse to.
-      idx = 0
 
-      ! Loop over segments, and idex this with <iseg>. 
-      ! The first segment is special because it has one more unique
-      ! zed value than all the other segments since the domain
-      ! is [z0-pi:z0+pi], and we are including both endpoints.
-      ! For iseg > 1 one endpoint is shared with the previous segment.
-      izl_offset = 0
-
-      ! Here, we apply a unit impulse at every value of zed in this segment, and find the 
-      ! response of gext to this unit impulse. The impulse is provided at the <idx> value.
-      ! Note - No need to obtain response to impulses at negative kx values
-      ! Loop over all segments
-      do iseg = 1, nsegments(ie, iky)
-      
-         ! Compute the index of kx that is connected in the given eigen chain in this segment.
-         ! <ikxmod> gives the kx corresponding to (iseg,ie,iky)
-         ! i.e. given a ky (iky), which chain are we in (ie), and within that chain
-         !      which segment of 2π are we considering -> this is associated with a specific
-         !      kx value. 
-         ikx = ikxmod(iseg, ie, iky)
-
-         ! Make sure the boundary points are being treated correctly depending
-         ! on whether the mode is periodic or not. Here, define <izup> as the 
-         ! upper zed value within a segment. If the mode is periodic, then 
-         ! reduce the upper bound by one, as this is a repeated point so it is 
-         ! obtained using the periodicity condition. This avoids and double-counting.
-         ! Only the last segment ends on the periodic point; the upper end point of the other
-         ! segments is shared with the next segment, which skips it through <izl_offset>
-         if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
-            izup = iz_up(iseg) - 1
-         else
-            izup = iz_up(iseg)
-         end if
-         
-         ! Now apply a unit impulse at each zed location. To do this loop over the zed index, but
-         ! recall that there is one less zed grid point in these connected segments as they share
-         ! a grid point with the previous segment. 
-         ! The <idx> index keeps track of the location on the extended zed grid, whereas the 
-         ! iz is only cycling through the zed location within a given segment. 
-         do iz = iz_low(iseg) + izl_offset, izup
-            idx = idx + 1
-            call get_response_matrix_for_phi(iky, ie, idx, nz_ext, nresponse_per_field, phi_ext, apar_ext, bpar_ext, gext)
-            if (include_apar) call get_response_matrix_for_apar(iky, ie, idx, nz_ext, nresponse_per_field, phi_ext, apar_ext, bpar_ext, gext)
-            if (include_bpar) call get_response_matrix_for_bpar(iky, ie, idx, nz_ext, nresponse_per_field, phi_ext, apar_ext, bpar_ext, gext)
-         end do
-
-         ! Set the offset to 1 - all other connected segments need to start one point
-         ! displaced as they share a point with the previous segment. 
-         if (izl_offset == 0) izl_offset = 1
-         
+      ! a) Response of the pdf to the unit impulses, integrated over the
+      !    velocity points of this rank (1.A, 1.B and 1.C.I)
+      !$omp parallel do default(none) schedule(dynamic, 1) &
+      !$omp private(icol) &
+      !$omp shared(nresponse, iky, ie, nz_ext, nresponse_per_field, nfields, iz_from_izext, ikx_from_izext, wgts_fields, response_matrix)
+      do icol = 1, nresponse
+         call get_velocity_integrated_pdf_response(iky, ie, icol, nz_ext, nresponse_per_field, nfields, &
+            iz_from_izext, ikx_from_izext, wgts_fields, response_matrix(iky)%eigen(ie)%zloc(:, icol))
       end do
+      !$omp end parallel do
+
+      ! b) Sum over the velocity points on all MPI ranks. This ends the
+      !    parallelisation over velocity space, so every rank has the
+      !    velocity integrals of all columns.
+      call sum_allreduce(response_matrix(iky)%eigen(ie)%zloc)
+
+      ! c) Divide by the field equations prefactors and turn the columns into
+      !    the columns of the matrix to invert (1.C.II and 1.D)
+      !$omp parallel do default(none) schedule(static) &
+      !$omp private(icol) &
+      !$omp shared(nresponse, iky, ie, nz_ext, nresponse_per_field, offset_apar, offset_bpar)
+      do icol = 1, nresponse
+         call fill_response_matrix_column(iky, ie, icol, nz_ext, nresponse_per_field, offset_apar, offset_bpar)
+      end do
+      !$omp end parallel do
 
       ! Deallocate temporary arrays
-      deallocate (gext, phi_ext, apar_ext, bpar_ext)
+      deallocate (wgts_fields, iz_from_izext, ikx_from_izext)
 
       ! Stop the timer
       call region_end('response_matrix')
@@ -438,319 +453,247 @@ contains
    end subroutine calculate_response_matrix_to_invert
 
    !============================================================================
-   !                      Get response matrix column for phi
+   !          Velocity-integrated response of the pdf to a unit impulse
    !============================================================================
-   ! Here, we apply a unit impulse to phi at a given point on the extended zed
-   ! domain. This location is indicated via <idx>
-   ! 
+   ! Here, we apply a unit impulse to phi, apar or bpar at a given point on the
+   ! extended zed domain, solve for the response of the distribution function
+   ! for each velocity point of this MPI rank, and integrate it over the local
+   ! velocity points. This routine is called inside an OpenMP parallel region,
+   ! with one column <icol> per thread, so all work arrays are local.
+   !
    ! Variables:
    ! ----------
    ! <iky> = which ky value (these are all independent, but determines the number
    !                         of eigen chains, and the spacings within each eigen chain)
-   ! <ie>  = identifies which eigen chain we are looking at. Only modes which are in 
+   ! <ie>  = identifies which eigen chain we are looking at. Only modes which are in
    !         the same eigen chain can communicate with eachother
-   ! <idx> = location of unit impulse within the segment 
-   ! <nz_ext>   = length of extended zed domain for the given eigen chain 
-   ! <phi_ext>  = phi on the extended zed domain
-   ! <apar_ext> = apar on the extended zed domain
-   ! <bpar_ext> = bpar on the extended zed domain
-   ! <pdf_ext>  = distribution function on the extended zed domain
-   ! 
-   ! What is being done: 
+   ! <icol> = column of the response matrix, which determines the field <ifield>
+   !          (1 = phi, then apar and bpar if included) and the location <idx>
+   !          of the unit impulse on the extended zed domain
+   ! <nz_ext>   = length of extended zed domain for the given eigen chain
+   ! <nfields>  = number of fields (phi, apar, bpar) included
+   ! <moments>  = velocity integrals of the pdf response for each field
+   !              (local to this MPI rank, i.e. not yet summed over ranks),
+   !              laid out like a column of the response matrix
+   !
+   ! What is being done:
    ! -------------------
-   ! 1.A) First initialise (real) unit impulse phi^{n+1} (or Delta phi^{n+1})
-   !      at each grid point in the extended zed domain for a given connected chain.
-   !      This unit impulse is supplied at the index <idx>.
+   ! 1.A) First initialise (real) unit impulse phi^{n+1} (or apar^{n+1}, bpar^{n+1})
+   !      at the grid point <idx> in the extended zed domain for a given connected chain.
    !      If using periodic boundary conditions/or treating the zonal mode, then
-   !      we need to make sure phi is also periodic in zed - so apply phase shift 
-   !      to opposite mode. This is only important when the unit impulse is applied 
-   !      at the boundary, otherwise both end points are automatically zero. 
+   !      we need to make sure the field is also periodic in zed - so apply phase shift
+   !      to opposite mode. This is only important when the unit impulse is applied
+   !      at the boundary, otherwise both end points are automatically zero.
    ! 1.B) Then solve the homogeneous parallel streaming equation for the response of
    !      the distribution function given a field with a unit impulse.
-   ! 1.C) Then integrate over velocities to get the appropriate field operator that acts
-   !      on the distibution function:
-   !           For phi:     2B/sqrt(π) int dvpa int dmu J_0 * g
-   !           For apar:    β sum_s Z_s n_s vth 2*B0/sqrt{π} int d^2v vpar J_0 g
-   !           For bpar:    - 2β sum_s n_s T_s 2*B0/sqrt{π} int d^2v mu J_1/a_s g 
-   !      Then we need to divide by the appropriate prefactor from the fields equations
-   ! 1.D) Take into account identity matricies that appear in the 
-   !      response equation. (see stella manual - to come!)
-   !============================================================================
-   subroutine get_response_matrix_for_phi(iky, ie, idx, nz_ext, nresponse, phi_ext, apar_ext, bpar_ext, pdf_ext)
-   
-
-      use parallelisation_layouts, only: vmu_lo
-      use parameters_numerical, only: time_upwind_plus
-      use parameters_physics, only: include_apar, include_bpar
-      use gk_implicit_terms, only: get_gke_rhs, sweep_g_zext
-      use arrays, only: response_matrix
-      use grids_extended_zgrid, only: periodic, phase_shift
-
-      implicit none
-
-      ! Arguments
-      integer, intent(in) :: iky, ie, idx, nz_ext, nresponse
-      complex, dimension(:), intent(out) :: phi_ext, apar_ext, bpar_ext
-      complex, dimension(:, vmu_lo%llim_proc:), intent(out) :: pdf_ext
-
-      ! Local variables
-      complex, dimension(:), allocatable :: dum
-      integer :: ivmu, it
-      integer :: offset_apar, offset_bpar
-
-      ! ------------------------------------------------------------------------
-      !                    1.A) Initialise a unit impulse in phi
-      ! ------------------------------------------------------------------------
-      ! Provide a unit impulse to phi^{n+1} (or Delta phi^{n+1}) at the location
-      ! in the extended zed domain corresponding to index 'idx'
-      ! note that it is sufficient to give a unit real impulse (as opposed to
-      ! separately giving real and imaginary impulse) for the following reason:
-      ! split homogeneous GKE, L[f] = R[phi], into L[f1] = R[phir] and L[f2] = i*R[phii],
-      ! with f = f1 + f2; then phi = df1/dphir * phir + df2/dphii * phii.
-      ! however, we see that if phir = phii = 1, L[f1] = R[1] = L[-i*f2],
-      ! and thus f2 = i * f1.  This gives phi = df1/dphir * (phir + i * phii) = df1/dphir * phi
-      ! ------------------------------------------------------------------------
-      
-      ! Initialise
-      phi_ext = 0.0
-      apar_ext = 0.0
-      bpar_ext = 0.0
-      
-      ! How phi^{n+1} enters the GKE depends on whether we are solving for the
-      ! non-Boltzmann pdf, h, or the guiding center pdf, 'g'
-      phi_ext(idx) = time_upwind_plus
-      
-      ! Need to make sure that if the mode is periodic, then the boundaries match up to
-      ! a phase factor. In practice this only matters if the unit impulse is at the 
-      ! boundary (i.e. <idx ==1 ) otherwise phi = 0.0 at both boundary points anyway. 
-      ! TOGO-GA: check division rather than multiplication -- kept division for now to 
-      ! be consistent with parallel_streaming phase shift 
-      if (periodic(iky) .and. idx == 1) phi_ext(nz_ext) = phi_ext(1) / phase_shift(iky)
-
-      ! <dum> is a scratch array that takes the place of the pdf and phi
-      ! at the previous time level. It also replaces the other fields (apar and bpar).
-      ! This is set to zero for the response matrix approach because there is no sources
-      ! coming from the previous time step in the response matrix equation.
-      allocate (dum(nz_ext)); dum = 0.0
-
-      ! ------------------------------------------------------------------------
-      !      1.B) Get distribution function response to unit impulse in phi
-      ! ------------------------------------------------------------------------
-
-      ! Set the flux tube index to one - eed to check, but think this is okay as 
-      ! the homogeneous equation solved here for the response matrix construction 
-      ! is the same for all flux tubes in the flux tube train
-      it = 1
-
-      ! Solve for the response of the distribution function given this unit impulse in <phi>
-      do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-      
-         ! Calculate the RHS of the GK equation (using dum=0 as the pdf at the previous 
-         ! time level, and phi_ext as the input potential) and store it in pdf_ext
-         call get_gke_rhs(ivmu, iky, ie, dum, phi_ext, dum, dum, dum, dum, pdf_ext(:, ivmu))
-         
-         ! Given the RHS of the GK equation (pdf_ext), solve for the pdf at the
-         ! new time level by sweeping in zed on the extended domain; the RHS is
-         ! input as 'pdf_ext' and over-written with the updated solution for the pdf
-         call sweep_g_zext(iky, ie, it, ivmu, pdf_ext(:, ivmu))
-         
-      end do
-
-      deallocate (dum)
-
-      ! ------------------------------------------------------------------------
-      !          1.C) Integrate over velocity to get the matrix to invert
-      ! ------------------------------------------------------------------------
-      ! We now have the pdf on the extended zed domain at this ky and set of 
-      ! connected kx values corresponding to a unit impulse in phi at this 
-      ! location now integrate over velocities to get a square response matrix.
-      ! 
-      ! solve_field_equations_using_pdf_response is the operator that acts on the pdf in 
-      ! quasineutrality. e.g. if using g for the pdf: 
-      ! 
-      !        sum_s Z_s n_s [ (2B/sqrt(pi)) int dvpa int dmu J_0 * g ]
-      ! 
-      ! and divide by the appropriate factors to get the field. 
-      ! 
-      ! This ends the parallelisation over velocity space, so every core 
-      ! should have a copy of phi_ext.
-      ! ------------------------------------------------------------------------
-      call solve_field_equations_using_pdf_response(pdf_ext, phi_ext, apar_ext, bpar_ext, iky, ie, nz_ext)
-
-      ! ------------------------------------------------------------------------
-      !                      1.D) Compute the matrix to invert                
-      ! ------------------------------------------------------------------------
-      ! The response matrix is the output from <get_fields_for_response_matrix>.
-      ! We then just need to compute the matrix that is to be inverted in parallel streaming. 
-      ! ------------------------------------------------------------------------
-
-      offset_apar = 0
-      if (include_apar) offset_apar = nresponse
-      if (include_bpar) offset_bpar = offset_apar + nresponse
-
-      ! Next need to create column in response matrix from phi_ext, apar_ext and bpar_ext
-      ! The negative sign occurs because the matrix acts on the RHS of the streaming equation.
-      ! For the location where the unit impulse is applied, the matrix to invert is:
-      !                       (identity matrix - response matrix)
-      ! For all other locations the matrix to invert is:
-      !                             (- response_matrix)
-      ! So add in contribution from identity matrix for the <idx> location for the field we are solving for:
-      phi_ext(idx) = phi_ext(idx) - 1.0
-      
-      ! But everywhere else, simply add a negative sign:
-      response_matrix(iky)%eigen(ie)%zloc(:nresponse, idx) = -phi_ext(:nresponse)
-      if (include_apar) response_matrix(iky)%eigen(ie)%zloc(offset_apar + 1:nresponse + offset_apar, idx) = -apar_ext(:nresponse)
-      if (include_bpar) response_matrix(iky)%eigen(ie)%zloc(offset_bpar + 1:nresponse + offset_bpar, idx) = -bpar_ext(:nresponse)
-      
-      ! ------------------------------------------------------------------------
-
-   end subroutine get_response_matrix_for_phi
-
-   !============================================================================
-   !                       Get response matrix for apar
-   !============================================================================
-   ! Here, we apply a unit impulse to apar at a given point on the extended zed
-   ! domain. This location is indicated via <idx>
-   ! 
-   ! Variables:
-   ! ----------
-   ! <iky> = which ky value (these are all independent, but determines the number
-   !                         of eigen chains, and the spacings within each eigen chain)
-   ! <ie>  = identifies which eigen chain we are looking at. Only modes which are in 
-   !         the same eigen chain can communicate with eachother
-   ! <idx> = location of unit impulse within the segment 
-   ! <nz_ext>   = length of extended zed domain for the given eigen chain 
-   ! <phi_ext>  = phi on the extended zed domain
-   ! <apar_ext> = apar on the extended zed domain
-   ! <bpar_ext> = bpar on the extended zed domain
-   ! <pdf_ext>  = distribution function on the extended zed domain
-   ! 
-   ! What is being done: 
-   ! -------------------
-   ! 1.A) First initialise (real) unit impulse apar^{n+1} at each grid point in the
-   !      extended zed domain for a given connected chain. This unit impulse is 
-   !      supplied at the index <idx>. If using periodic boundary conditions/or
-   !      treating the zonal mode, then we need to make sure phi is also periodic
-   !      in zed - so apply phase shift to opposite mode. This is only important 
-   !      when the unit impulse is applied at the boundary, otherwise both end
-   !      points are automatically zero. 
-   ! 1.B) Then solve the homogeneous parallel streaming equation for the response of
-   !      the distribution function given a field with a unit impulse.
-   ! 1.C) Then integrate over velocities to get the appropriate field operator that acts
+   ! 1.C.I) Then integrate over velocities to get the appropriate field operator that acts
    !      on the distibution function:
    !           For phi:     2B/sqrt(π) int dvpa int dmu J_0 * g
    !           For apar:    β sum_s Z_s n_s vth 2*B0/sqrt{π} int d^2v vpar J_0 g
    !           For bpar:    - 2β sum_s n_s T_s 2*B0/sqrt{π} int d^2v mu J_1/a_s g
-   !      Then we need to divide by the appropriate prefactor from the fields equations
-   ! 1.D) Take into account identity matricies that appear in the 
-   !      response equation. (see stella manual - to come!)
+   !      The integrals are accumulated directly for each velocity point, so that
+   !      the pdf response is only needed for one velocity point at a time.
    !============================================================================
-   subroutine get_response_matrix_for_apar(iky, ie, idx, nz_ext, nresponse, phi_ext, apar_ext, bpar_ext, pdf_ext)
+   subroutine get_velocity_integrated_pdf_response(iky, ie, icol, nz_ext, nresponse_per_field, nfields, &
+         iz_from_izext, ikx_from_izext, wgts_fields, moments)
 
       use parallelisation_layouts, only: vmu_lo
+      use parallelisation_layouts, only: iv_idx, imu_idx, is_idx
       use parameters_numerical, only: time_upwind_plus
+      use parameters_numerical, only: driftkinetic_implicit
       use parameters_physics, only: include_apar, include_bpar
+      use parameters_physics, only: full_flux_surface
       use gk_implicit_terms, only: get_gke_rhs, sweep_g_zext
-      use arrays, only: response_matrix
       use grids_extended_zgrid, only: periodic, phase_shift
+      use grids_velocity, only: vpa, mu
+      use grids_velocity, only: wgts_mu, wgts_vpa, wgts_mu_bare
+      use arrays_gyro_averages, only: aj0x, aj1x, j0_B_const
 
       implicit none
 
       ! Arguments
-      integer, intent(in) :: iky, ie, idx, nz_ext, nresponse
-      complex, dimension(:), intent(out) :: phi_ext, apar_ext, bpar_ext
-      complex, dimension(:, vmu_lo%llim_proc:), intent(out) :: pdf_ext
+      integer, intent(in) :: iky, ie, icol, nz_ext, nresponse_per_field, nfields
+      integer, dimension(:), intent(in) :: iz_from_izext, ikx_from_izext
+      real, dimension(:, :), intent(in) :: wgts_fields
+      complex, dimension(nresponse_per_field, nfields), intent(out) :: moments
 
       ! Local variables
-      complex, dimension(:), allocatable :: dum
-      integer :: ivmu, it
-      integer :: offset_apar, offset_bpar
-      
-      ! ------------------------------------------------------------------------
-      !                   1.A) Initialise a unit impulse in apar
-      ! ------------------------------------------------------------------------
-      ! Provide a unit impulse to apar^{n+1} (or Delta apar^{n+1}) at the location
-      ! in the extended zed domain corresponding to index 'idx'
-      ! note that it is sufficient to give a unit real impulse (as opposed to
-      ! separately giving real and imaginary impulse) for the following reason:
-      ! split homogeneous GKE, L[f] = R[apar], into L[f1] = R[aparr] and L[f2] = i*R[apari],
-      ! with f = f1 + f2; then apar = df1/daparr * aparr + df2/dapari * apari.
-      ! however, we see that if aparr = apari = 1, L[f1] = R[1] = L[-i*f2],
-      ! and thus f2 = i * f1.  This gives apar = df1/daparr * (aparr + i * apari) = df1/daparr * apar
-      ! ------------------------------------------------------------------------
-      
-      ! Initialise
-      phi_ext = 0.0
-      apar_ext = 0.0
-      bpar_ext = 0.0
-      apar_ext(idx) = 1.0
+      integer :: ifield, idx, izext, iz, ikx, ia, it
+      integer :: ivmu, iv, imu, is
+      integer :: islot_apar, islot_bpar
+      logical :: impulse_phi, impulse_apar, impulse_bpar
+      logical :: gyro_average_phi
+      complex :: g0
+      complex, dimension(:), allocatable :: field_impulse, field_impulse_upwinded
+      complex, dimension(:), allocatable :: dum, pdf
 
-      ! Need to make sure that if the mode is periodic, then the boundaries match up to
-      ! a phase factor. In practice this only matters if the unit impulse is at the 
-      ! boundary (i.e. <idx ==1 ) otherwise phi = 0.0 at both boundary points anyway. 
-      if (periodic(iky) .and. idx == 1) apar_ext(nz_ext) = apar_ext(1) / phase_shift(iky)
+      !-------------------------------------------------------------------------
 
-      ! <dum> is a scratch array that takes the place of the pdf and the fields
-      ! at the previous time level. It also replaces the other fields (apar and bpar).
-      ! This is set to zero for the response matrix approach because there is no sources
-      ! coming from the previous time step in the response matrix equation.
-      allocate (dum(nz_ext)); dum = 0.0
+      ! Which field (1 = phi, 2 = apar if included else bpar, 3 = bpar)
+      ! and where on the extended zed domain gets the unit impulse
+      ifield = (icol - 1) / nresponse_per_field + 1
+      idx = icol - (ifield - 1) * nresponse_per_field
+      impulse_phi = (ifield == 1)
+      impulse_apar = include_apar .and. ifield == 2
+      impulse_bpar = include_bpar .and. .not. (impulse_phi .or. impulse_apar)
 
-      ! ------------------------------------------------------------------------
-      !      1.B) Get distribution function response to unit impulse in apar
-      ! ------------------------------------------------------------------------
+      ! Position of the apar and bpar integrals in <moments>
+      islot_apar = 2
+      islot_bpar = 2
+      if (include_apar) islot_bpar = 3
 
-      ! Set the flux tube index to one - eed to check, but think this is okay as 
-      ! the homogeneous equation solved here for the response matrix construction 
-      ! is the same for all flux tubes in the flux tube train
+      ia = 1
       it = 1
+      gyro_average_phi = .not. full_flux_surface .and. (.not. driftkinetic_implicit)
 
-      ! Solve for the response of the distribution function given this unit impulse in <apar>
+      ! ------------------------------------------------------------------------
+      !            1.A) Initialise the unit impulse for the field
+      ! ------------------------------------------------------------------------
+      ! Apply the unit impulse at <idx>. For phi and bpar this is the time-centered
+      ! field, i.e. time_upwind_plus * field^{n+1}; for apar we need both apar^{n+1}
+      ! (for gbar -> g) and the time-centered time_upwind_plus * apar^{n+1}.
+      ! If periodic, make sure the field is periodic in zed via the phase shift.
+      allocate (field_impulse(nz_ext)); field_impulse = 0.0
+      allocate (dum(nz_ext)); dum = 0.0
+      allocate (pdf(nz_ext))
+      if (impulse_apar) then
+         field_impulse(idx) = 1.0
+      else
+         field_impulse(idx) = time_upwind_plus
+      end if
+      if (periodic(iky) .and. idx == 1) field_impulse(nz_ext) = field_impulse(1) / phase_shift(iky)
+      if (impulse_apar) then
+         allocate (field_impulse_upwinded(nz_ext))
+         field_impulse_upwinded = field_impulse * time_upwind_plus
+      end if
+
+      moments = 0.0
+
+      ! Loop over the velocity points of this MPI rank
       do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-      
-         ! Calculate the RHS of the GK equation (using dum=0 as the pdf at the 
-         ! previous time level, and phi_ext as the input potential) and store it in pdf_ext
-         call get_gke_rhs(ivmu, iky, ie, dum, dum, apar_ext * time_upwind_plus, apar_ext, dum, dum, pdf_ext(:, ivmu))
-         
-         ! Given the RHS of the GK equation (pdf_ext), solve for the pdf at the
-         ! new time level by sweeping in zed on the extended domain; the RHS is
-         ! input as 'pdf_ext' and over-written with the updated solution for the pdf
-         call sweep_g_zext(iky, ie, it, ivmu, pdf_ext(:, ivmu))
-         
+
+         ! ---------------------------------------------------------------------
+         !        1.B) Solve the homogeneous GKE for the pdf response
+         ! ---------------------------------------------------------------------
+         ! Calculate the RHS of the homogeneous GK equation (i.e. the pdf is zero
+         ! and only the unit impulse in one field is included) and store it in <pdf>
+         if (impulse_phi) then
+            call get_gke_rhs(ivmu, iky, ie, dum, field_impulse, dum, dum, dum, dum, pdf)
+         else if (impulse_apar) then
+            call get_gke_rhs(ivmu, iky, ie, dum, dum, field_impulse_upwinded, field_impulse, dum, dum, pdf)
+         else
+            call get_gke_rhs(ivmu, iky, ie, dum, dum, dum, dum, dum, field_impulse, pdf)
+         end if
+
+         ! Given the RHS of the GK equation, solve for the pdf at the new time
+         ! level by sweeping in zed on the extended domain. The rhs is input
+         ! as <pdf> and over-written with the updated solution for the pdf.
+         call sweep_g_zext(iky, ie, it, ivmu, pdf)
+
+         ! ---------------------------------------------------------------------
+         !        1.C.I) Integrate the pdf over the local velocity points
+         ! ---------------------------------------------------------------------
+         ! These are the same operations, in the same order, as those of
+         ! gyro_average() and integrate_species() for each zed point.
+         iv = iv_idx(vmu_lo, ivmu)
+         imu = imu_idx(vmu_lo, ivmu)
+         is = is_idx(vmu_lo, ivmu)
+
+         ! For phi:     2B/sqrt(π) int dvpa int dmu J_0 * g
+         if (gyro_average_phi) then
+            do izext = 1, nresponse_per_field
+               iz = iz_from_izext(izext)
+               ikx = ikx_from_izext(izext)
+               g0 = aj0x(iky, ikx, iz, ivmu) * pdf(izext)
+               moments(izext, 1) = moments(izext, 1) + wgts_mu(ia, iz, imu) * wgts_vpa(iv) * g0 * wgts_fields(is, 1)
+            end do
+         else
+            do izext = 1, nresponse_per_field
+               iz = iz_from_izext(izext)
+               ikx = ikx_from_izext(izext)
+               g0 = pdf(izext) * j0_B_const(iky, ikx, iz, ivmu)
+               moments(izext, 1) = moments(izext, 1) + 2.0 * wgts_mu_bare(imu) * wgts_vpa(iv) * g0 * wgts_fields(is, 1)
+            end do
+         end if
+
+         ! For apar:    β sum_s Z_s n_s vth 2*B0/sqrt{π} \int d^2v vpar J_0 g
+         if (include_apar) then
+            do izext = 1, nresponse_per_field
+               iz = iz_from_izext(izext)
+               ikx = ikx_from_izext(izext)
+               g0 = aj0x(iky, ikx, iz, ivmu) * pdf(izext)
+               g0 = g0 * vpa(iv)
+               moments(izext, islot_apar) = moments(izext, islot_apar) &
+                  + wgts_mu(ia, iz, imu) * wgts_vpa(iv) * g0 * wgts_fields(is, 2)
+            end do
+         end if
+
+         ! For bpar:    - 2β sum_s n_s T_s 2*B0/sqrt{π} \int d^2v mu J_1/a_s g
+         if (include_bpar) then
+            do izext = 1, nresponse_per_field
+               iz = iz_from_izext(izext)
+               ikx = ikx_from_izext(izext)
+               g0 = aj1x(iky, ikx, iz, ivmu) * pdf(izext)
+               g0 = g0 * mu(imu)
+               moments(izext, islot_bpar) = moments(izext, islot_bpar) &
+                  + wgts_mu(ia, iz, imu) * wgts_vpa(iv) * g0 * wgts_fields(is, 3)
+            end do
+         end if
+
       end do
 
-      deallocate (dum)
+      deallocate (field_impulse, dum, pdf)
+      if (allocated(field_impulse_upwinded)) deallocate (field_impulse_upwinded)
+
+   end subroutine get_velocity_integrated_pdf_response
+
+   !============================================================================
+   !              Fill one column of the response matrix to invert
+   !============================================================================
+   ! Column <icol> of <zloc> holds the velocity integrals of the pdf response
+   ! to its unit impulse (summed over all MPI ranks). Divide by the appropriate
+   ! prefactors of the field equations (1.C.II) and overwrite it with the column
+   ! of the matrix to invert (1.D). Called inside an OpenMP parallel region, with
+   ! each thread working on different columns of <zloc>.
+   !============================================================================
+   subroutine fill_response_matrix_column(iky, ie, icol, nz_ext, nresponse_per_field, &
+         offset_apar, offset_bpar)
+
+      use parameters_physics, only: include_apar, include_bpar
+      use arrays, only: response_matrix
+
+      implicit none
+
+      ! Arguments
+      integer, intent(in) :: iky, ie, icol, nz_ext, nresponse_per_field
+      integer, intent(in) :: offset_apar, offset_bpar
+
+      ! Local variables
+      integer :: ifield, idx, nresponse
+      complex, dimension(:), allocatable :: phi_ext, apar_ext, bpar_ext
+
+      !-------------------------------------------------------------------------
+
+      ! Field and location of the unit impulse of this column
+      ifield = (icol - 1) / nresponse_per_field + 1
+      idx = icol - (ifield - 1) * nresponse_per_field
+      nresponse = nresponse_per_field
+
+      ! Velocity integrals of the pdf response for each field
+      allocate (phi_ext(nz_ext), apar_ext(nz_ext), bpar_ext(nz_ext))
+      phi_ext = 0.0; apar_ext = 0.0; bpar_ext = 0.0
+      phi_ext(:nresponse) = response_matrix(iky)%eigen(ie)%zloc(:nresponse, icol)
+      if (include_apar) apar_ext(:nresponse) = response_matrix(iky)%eigen(ie)%zloc(offset_apar + 1:offset_apar + nresponse, icol)
+      if (include_bpar) bpar_ext(:nresponse) = response_matrix(iky)%eigen(ie)%zloc(offset_bpar + 1:offset_bpar + nresponse, icol)
 
       ! ------------------------------------------------------------------------
-      !          1.C) Integrate over velocity to get the matrix to invert
+      !            1.C.II) Divide by the appropriate field prefactors
       ! ------------------------------------------------------------------------
-      ! We now have the pdf on the extended zed domain at this ky and set of 
-      ! connected kx values corresponding to a unit impulse in apar at this 
-      ! location now integrate over velocities to get a square response matrix.
-      ! 
-      ! solve_field_equations_using_pdf_response is the operator that acts on the pdf in 
-      ! Parallel Ampere Law. e.g. if using g for the pdf: 
-      ! 
-      !          β sum_s Z_s n_s vth 2*B0/sqrt{π} \int d^2v vpar J_0 g
-      ! 
-      ! and divide by the appropriate factors to get the field. 
-      ! 
-      ! This ends the parallelisation over velocity space, so every core 
-      ! should have a copy of phi_ext.
-      ! ------------------------------------------------------------------------
-      call solve_field_equations_using_pdf_response(pdf_ext, phi_ext, apar_ext, bpar_ext, iky, ie, nz_ext)
+      call solve_field_equations_using_pdf_response(phi_ext, apar_ext, bpar_ext, iky, ie, nz_ext)
 
       ! ------------------------------------------------------------------------
-      !                    1.D) Compute the matrix to invert                
+      !                      1.D) Compute the matrix to invert
       ! ------------------------------------------------------------------------
-      ! The response matrix is the output from <get_fields_for_response_matrix>.
-      ! We then just need to compute the matrix that is to be inverted in parallel streaming. 
-      ! ------------------------------------------------------------------------
-
-      offset_apar = 0
-      if (include_apar) offset_apar = nresponse
-      if (include_bpar) offset_bpar = offset_apar + nresponse
-
       ! Next need to create column in response matrix from phi_ext, apar_ext and bpar_ext
       ! The negative sign occurs because the matrix acts on the RHS of the streaming equation.
       ! For the location where the unit impulse is applied, the matrix to invert is:
@@ -758,232 +701,58 @@ contains
       ! For all other locations the matrix to invert is:
       !                             (- response_matrix)
       ! So add in contribution from identity matrix for the <idx> location for the field we are solving for:
-      apar_ext(idx) = apar_ext(idx) - 1.0
-      
-      ! But everywhere else simply add a negative sign:
-      response_matrix(iky)%eigen(ie)%zloc(:nresponse, offset_apar + idx) = -phi_ext(:nresponse)
-      response_matrix(iky)%eigen(ie)%zloc(offset_apar + 1:nresponse + offset_apar, offset_apar + idx) = -apar_ext(:nresponse)
-      if (include_bpar) response_matrix(iky)%eigen(ie)%zloc(offset_bpar + 1:nresponse + offset_bpar, offset_apar + idx) = -bpar_ext(:nresponse) 
+      if (ifield == 1) then
+         phi_ext(idx) = phi_ext(idx) - 1.0
+      else if (include_apar .and. ifield == 2) then
+         apar_ext(idx) = apar_ext(idx) - 1.0
+      else
+         bpar_ext(idx) = bpar_ext(idx) - 1.0
+      end if
 
-      
-   end subroutine get_response_matrix_for_apar
+      ! But everywhere else, simply add a negative sign:
+      response_matrix(iky)%eigen(ie)%zloc(:nresponse, icol) = -phi_ext(:nresponse)
+      if (include_apar) response_matrix(iky)%eigen(ie)%zloc(offset_apar + 1:nresponse + offset_apar, icol) = -apar_ext(:nresponse)
+      if (include_bpar) response_matrix(iky)%eigen(ie)%zloc(offset_bpar + 1:nresponse + offset_bpar, icol) = -bpar_ext(:nresponse)
 
-   !============================================================================
-   !                         Get response matrix for bpar
-   !============================================================================
-   ! Here, we apply a unit impulse to bpar at a given point on the extended zed
-   ! domain. This location is indicated via <idx>
-   ! 
-   ! Variables:
-   ! ----------
-   ! <iky> = which ky value (these are all independent, but determines the number
-   !                         of eigen chains, and the spacings within each eigen chain)
-   ! <ie>  = identifies which eigen chain we are looking at. Only modes which are in 
-   !         the same eigen chain can communicate with eachother
-   ! <idx> = location of unit impulse within the segment 
-   ! <nz_ext>   = length of extended zed domain for the given eigen chain 
-   ! <phi_ext>  = phi on the extended zed domain
-   ! <apar_ext> = apar on the extended zed domain
-   ! <bpar_ext> = bpar on the extended zed domain
-   ! <pdf_ext>  = distribution function on the extended zed domain
-   ! 
-   ! What is being done: 
-   ! -------------------
-   ! 1.A) First initialise (real) unit impulse bpar^{n+1} at each grid point in the
-   !      extended zed domain for a given connected chain. This unit impulse is 
-   !      supplied at the index <idx>. If using periodic boundary conditions/or
-   !      treating the zonal mode, then we need to make sure phi is also periodic
-   !      in zed - so apply phase shift to opposite mode. This is only important 
-   !      when the unit impulse is applied at the boundary, otherwise both end
-   !      points are automatically zero. 
-   ! 1.B) Then solve the homogeneous parallel streaming equation for the response of
-   !      the distribution function given a field with a unit impulse.
-   ! 1.C) Then integrate over velocities to get the appropriate field operator that acts
-   !      on the distibution function:
-   !           For phi:     2B/sqrt(π) int dvpa int dmu J_0 * g
-   !           For apar:    β sum_s Z_s n_s vth 2*B0/sqrt{π} int d^2v vpar J_0 g
-   !           For bpar:    - 2β sum_s n_s T_s 2*B0/sqrt{π} int d^2v mu J_1/a_s g 
-   !      Then we need to divide by the appropriate prefactor from the fields equations
-   ! 1.D) Take into account identity matricies that appear in the 
-   !      response equation. (see stella manual - to come!)
-   !============================================================================
-   subroutine get_response_matrix_for_bpar(iky, ie, idx, nz_ext, nresponse, phi_ext, apar_ext, bpar_ext, pdf_ext)
-   
+      deallocate (phi_ext, apar_ext, bpar_ext)
 
-      use parallelisation_layouts, only: vmu_lo
-      use parameters_numerical, only: time_upwind_plus
-      use parameters_physics, only: include_apar, include_bpar
-      use gk_implicit_terms, only: get_gke_rhs, sweep_g_zext
-      use arrays, only: response_matrix
-      use grids_extended_zgrid, only: periodic, phase_shift
-
-      implicit none
-
-      ! Arguments
-      integer, intent(in) :: iky, ie, idx, nz_ext, nresponse
-      complex, dimension(:), intent(out) :: phi_ext, apar_ext, bpar_ext
-      complex, dimension(:, vmu_lo%llim_proc:), intent(out) :: pdf_ext
-
-      ! Local variables
-      complex, dimension(:), allocatable :: dum
-      integer :: ivmu, it
-      integer :: offset_apar, offset_bpar
-      
-      ! ------------------------------------------------------------------------
-      !                  1.A) Initialise a unit impulse in bpar
-      ! ------------------------------------------------------------------------
-      ! Provide a unit impulse to bpar^{n+1} (or Delta bpar^{n+1}) at the location
-      ! in the extended zed domain corresponding to index 'idx'
-      ! note that it is sufficient to give a unit real impulse (as opposed to
-      ! separately giving real and imaginary impulse) for the following reason:
-      ! split homogeneous GKE, L[f] = R[bpar], into L[f1] = R[bparr] and L[f2] = i*R[bpari],
-      ! with f = f1 + f2; then bpar = df1/dbparr * bparr + df2/dbpari * bpari.
-      ! however, we see that if bparr = bpari = 1, L[f1] = R[1] = L[-i*f2],
-      ! and thus f2 = i * f1.  This gives bpar = df1/dbparr * (bparr + i * bpari) = df1/dbparr * bpar
-      ! ------------------------------------------------------------------------
-      
-      ! Initialise
-      phi_ext = 0.0
-      apar_ext = 0.0
-      bpar_ext = 0.0
-      
-      ! how phi^{n+1} enters the GKE depends on whether we are solving for the
-      ! non-Boltzmann pdf, h, or the guiding center pdf, 'g'
-      bpar_ext(idx) = time_upwind_plus
-
-      ! Need to make sure that if the mode is periodic, then the boundaries match up to
-      ! a phase factor. In practice this only matters if the unit impulse is at the 
-      ! boundary (i.e. <idx ==1 ) otherwise phi = 0.0 at both boundary points anyway. 
-      if (periodic(iky) .and. idx == 1) bpar_ext(nz_ext) = bpar_ext(1) / phase_shift(iky)
-
-      ! <dum> is a scratch array that takes the place of the pdf and the fields
-      ! at the previous time level. It also replaces the other fields (apar and bpar).
-      ! This is set to zero for the response matrix approach because there is no sources
-      ! coming from the previous time step in the response matrix equation.
-      allocate (dum(nz_ext)); dum = 0.0
-
-      ! ------------------------------------------------------------------------
-      !      1.B) Get distribution function response to unit impulse in bpar
-      ! ------------------------------------------------------------------------
-
-      ! Set the flux tube index to one - eed to check, but think this is okay as 
-      ! the homogeneous equation solved here for the response matrix construction 
-      ! is the same for all flux tubes in the flux tube train
-      it = 1
-
-      ! Solve for the response of the distribution function given this unit impulse in <bpar>
-      do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-      
-         ! Calculate the RHS of the GK equation (using dum=0 as the pdf at the 
-         ! previous time level, and phi_ext as the input potential) and store it in pdf_ext
-         call get_gke_rhs(ivmu, iky, ie, dum, dum, dum, dum, dum, bpar_ext, pdf_ext(:, ivmu))
-         
-         ! Given the RHS of the GK equation (pdf_ext), solve for the pdf at the
-         ! new time level by sweeping in zed on the extended domain; the RHS is
-         ! input as 'pdf_ext' and over-written with the updated solution for the pdf
-         call sweep_g_zext(iky, ie, it, ivmu, pdf_ext(:, ivmu))
-         
-      end do
-
-      deallocate (dum)
-
-      ! ------------------------------------------------------------------------
-      !         1.C) Integrate over velocity to get the matrix to invert
-      ! ------------------------------------------------------------------------
-      ! We now have the pdf on the extended zed domain at this ky and set of 
-      ! connected kx values corresponding to a unit impulse in apar at this 
-      ! location now integrate over velocities to get a square response matrix.
-      ! 
-      ! solve_field_equations_using_pdf_response is the operator that acts on the pdf in 
-      ! quasineutrality and perpendicular Ampere Law. e.g. if using g for the pdf: 
-      ! 
-      !           sum_s Z_s n_s [ (2B/sqrt(pi)) int dvpa int dmu J_0 * g ]
-      ! and
-      !          - 2β sum_s n_s T_s 2*B0/sqrt{π} \int d^2v mu J_1/a_s g 
-      ! 
-      ! and divide by the appropriate factors to get the field. 
-      ! 
-      ! This ends the parallelisation over velocity space, so every core 
-      ! should have a copy of phi_ext.
-      ! ------------------------------------------------------------------------
-      call solve_field_equations_using_pdf_response(pdf_ext, phi_ext, apar_ext, bpar_ext, iky, ie, nz_ext)
-
-      ! ------------------------------------------------------------------------
-      !                     1.D) Compute the matrix to invert                
-      ! ------------------------------------------------------------------------
-      ! The response matrix is the output from <get_fields_for_response_matrix>.
-      ! We then just need to compute the matrix that is to be inverted in parallel streaming. 
-
-
-      offset_apar = 0
-      if (include_apar) offset_apar = nresponse
-      if (include_bpar) offset_bpar = offset_apar + nresponse
-
-      ! Next need to create column in response matrix from phi_ext, apar_ext and bpar_ext
-      ! The negative sign occurs because the matrix acts on the RHS of the streaming equation.
-      ! For the location where the unit impulse is applied, the matrix to invert is:
-      !                       (identity matrix - response matrix)
-      ! For all other locations the matrix to invert is:
-      !                             (- response_matrix)
-      ! So add in contribution from identity matrix for the <idx> location for the field we are solving for:
-      bpar_ext(idx) = bpar_ext(idx) - 1.0
-      
-      ! But everywhere else simply add a negative sign:
-      response_matrix(iky)%eigen(ie)%zloc(:nresponse, offset_bpar + idx) = -phi_ext(:nresponse)
-      if (include_apar) response_matrix(iky)%eigen(ie)%zloc(offset_apar + 1:nresponse + offset_apar, offset_bpar + idx) = -apar_ext(:nresponse)
-      response_matrix(iky)%eigen(ie)%zloc(offset_bpar + 1:nresponse + offset_bpar, offset_bpar + idx) = -bpar_ext(:nresponse) 
-
-
-   end subroutine get_response_matrix_for_bpar
+   end subroutine fill_response_matrix_column
 
    !============================================================================
    !      Solve the field equations with the distribution function response
    !============================================================================
-   ! We have the response of the distribution function from a unit impulse in the 
-   ! fields. This is incoming as <g>. We now use this and solve the field equations.
-   ! This is done in two steps:
-   ! 1.C.I)  Perform the appropriate velocity integral for the fields: 
+   ! We have the response of the distribution function from a unit impulse in the
+   ! fields, integrated over velocity space (1.C.I, see
+   ! get_velocity_integrated_pdf_response). These velocity integrals come in as
+   ! <phi>, <apar> and <bpar>:
    !         For phi:     2B/sqrt(π) int dvpa int dmu J_0 * g
    !         For apar:    β sum_s Z_s n_s vth 2*B0/sqrt{π} \int d^2v vpar J_0 g
-   !         For bpar:    - 2β sum_s n_s T_s 2*B0/sqrt{π} \int d^2v mu J_1/a_s g 
+   !         For bpar:    - 2β sum_s n_s T_s 2*B0/sqrt{π} \int d^2v mu J_1/a_s g
    ! 1.C.II) Divide by the appropriate pre-factor in the field equations
    !============================================================================
-   subroutine solve_field_equations_using_pdf_response(g, phi, apar, bpar, iky, ie, nz_ext)
+   subroutine solve_field_equations_using_pdf_response(phi, apar, bpar, iky, ie, nz_ext)
 
-      use parallelisation_layouts, only: vmu_lo
       use parameters_physics, only: include_apar, include_bpar
 
       implicit none
 
       ! Arguments
-      complex, dimension(:, vmu_lo%llim_proc:), intent(in) :: g
-      complex, dimension(:), intent(out) :: phi, apar, bpar
+      complex, dimension(:), intent(in out) :: phi, apar, bpar
       integer, intent(in) :: iky, ie, nz_ext
-
-      ! ------------------------------------------------------------------------
-      !                        1.C.I) Velocity integrals
-      ! ------------------------------------------------------------------------
-      ! For phi:     2B/sqrt(π) int dvpa int dmu J_0 * g
-      ! For apar:    β sum_s Z_s n_s vth 2*B0/sqrt{π} \int d^2v vpar J_0 g
-      ! For bpar:    - 2β sum_s n_s T_s 2*B0/sqrt{π} \int d^2v mu J_1/a_s g 
-      ! ------------------------------------------------------------------------
-      call integrate_over_velocity_phi
-      if (include_apar) call integrate_over_velocity_apar
-      if (include_bpar) call integrate_over_velocity_bpar
 
       ! ------------------------------------------------------------------------
       !                  1.C.II) Divide by the appropriate prefactor
       ! ------------------------------------------------------------------------
       ! Call the appropriate subroutines depending on which fields are being simulated.
-      ! 
-      ! In these routine we divide by the appropriate pre-factors that appear in the 
-      ! field equations in front of the fields. The exact factor will depend on 
-      ! which fields are being simulated (as phi and bpar are coupled), and also 
+      !
+      ! In these routine we divide by the appropriate pre-factors that appear in the
+      ! field equations in front of the fields. The exact factor will depend on
+      ! which fields are being simulated (as phi and bpar are coupled), and also
       ! on the species options (e.g. adiabatic, modified Boltzmann etc.)
-      ! 
+      !
       ! These routines cannot just be called from the field_equations modules
-      ! as we need to get the correct factor given the location on the extended 
-      ! zed grid, so much of these routines are about mapping the prefactors onto 
+      ! as we need to get the correct factor given the location on the extended
+      ! zed grid, so much of these routines are about mapping the prefactors onto
       ! the extended zed domain.
       ! ------------------------------------------------------------------------
       if (include_bpar) then
@@ -995,310 +764,6 @@ contains
       ! ------------------------------------------------------------------------
 
    contains
-
-!===============================================================================
-!                              1.C.I) Velocity integrals
-!===============================================================================
-
-      !*************************************************************************
-      !                       Velocity integral for phi
-      !*************************************************************************
-      !                   2B/sqrt(π) int dvpa int dmu J_0 * g
-      !*************************************************************************
-      subroutine integrate_over_velocity_phi
-
-         use mp, only: sum_allreduce
-         use parallelisation_layouts, only: vmu_lo
-         use grids_species, only: nspec, spec
-         use grids_extended_zgrid, only: iz_low, iz_up
-         use grids_extended_zgrid, only: ikxmod
-         use grids_extended_zgrid, only: nsegments
-         use grids_extended_zgrid, only: periodic
-         use calculations_velocity_integrals, only: integrate_species
-         use calculations_gyro_averages, only: gyro_average
-         use parallelisation_layouts, only: iv_idx, imu_idx, is_idx
-         use parameters_numerical, only: driftkinetic_implicit
-         use calculations_velocity_integrals, only: integrate_species_ffs_rm
-         use parameters_physics, only: full_flux_surface
-         use arrays_gyro_averages, only: j0_B_const
-
-         implicit none
-
-         ! Local variables
-         integer :: idx, iseg, ikx, iz, ia
-         integer :: izl_offset, izup
-         real, dimension(nspec) :: wgt
-         complex, dimension(:), allocatable :: g0
-         integer :: ivmu, imu, iv, is
-
-         ! ---------------------------------------------------------------------
-         
-         allocate (g0(vmu_lo%llim_proc:vmu_lo%ulim_alloc))
-         phi = 0.
-         wgt = spec%z * spec%dens_psi0
-
-         ia = 1
-         idx = 0
-         izl_offset = 0
-
-         ! ---------------------------------------------------------------------
-         !                            Integrals
-         ! ---------------------------------------------------------------------
-         ! Do for all segments in the chain
-         do iseg = 1, nsegments(ie, iky)
-
-            ! Make sure the boundary points are being treated correctly depending
-            ! on whether the mode is periodic or not. Here, define <izup> as the 
-            ! upper zed value within a segment. If the mode is periodic, then 
-            ! reduce the upper bound by one, as this is a repeated point so it is 
-            ! obtained using the periodicity condition. This avoids and double-counting.
-            ! Only the last segment ends on the periodic point; the upper end point of the other
-            ! segments is shared with the next segment, which skips it through <izl_offset>
-            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
-               izup = iz_up(iseg) - 1
-            else
-               izup = iz_up(iseg)
-            end if
-
-            ! Get the appropriate indecies. Here, the <ikxmod> routine returns the 
-            ! <ikx> value on the local domain given our position on the extended domain.
-            ikx = ikxmod(iseg, ie, iky)
-
-            ! The <idx> index keeps track of the location on the extended zed grid, whereas the 
-            ! iz is only cycling through the zed location within a given segment. 
-            do iz = iz_low(iseg) + izl_offset, izup
-               idx = idx + 1
-               
-               ! ---------------------------------------------------------------
-               !                            Flux tube
-               ! ---------------------------------------------------------------
-               if (.not. full_flux_surface .and. (.not. driftkinetic_implicit)) then
-               
-                  ! First get J0 * g
-                  call gyro_average(g(idx, :), iky, ikx, iz, g0)
-                  
-                  ! Now integrate over vpa, mu and sum over species.
-                  ! This returns: 2B/sqrt(π) int dvpa int dmu J_0 * g
-                  call integrate_species(g0, iz, wgt, phi(idx), reduce_in=.false.)
-                  
-               ! ---------------------------------------------------------------
-               !                       Full Flux Surface
-               ! ---------------------------------------------------------------
-               else
-               
-                  ! First multiply by B and gyroaverage, but use the piece that
-                  ! is constant in alpha. This is because for FFS the response
-                  ! matrix only treats the part that is constant in alpha,
-                  ! and the remainder is treated using an iterative approach.
-                  do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-                     iv = iv_idx(vmu_lo, ivmu)
-                     imu = imu_idx(vmu_lo, ivmu)
-                     is = is_idx(vmu_lo, ivmu)
-                     g0(ivmu) = g(idx, ivmu) * j0_B_const(iky, ikx, iz, ivmu)
-                  end do
-                  
-                  ! Integrate over species, using the correct weights in order
-                  ! to return the constant-in-alpha component of 
-                  !              2B/sqrt(π) int dvpa int dmu J_0 * g
-                  call integrate_species_ffs_rm(g0, wgt, phi(idx), reduce_in=.false.)
-               end if
-            end do
-            
-            ! Set the offset to 1 - all other connected segments need to start one point
-            ! displaced as they share a point with the previous segment. 
-            if (izl_offset == 0) izl_offset = 1
-            
-         end do
-
-         ! Collect the parts of <phi> spread out across processors.
-         call sum_allreduce(phi)
-
-      end subroutine integrate_over_velocity_phi
-
-      !*************************************************************************
-      !                            Velocity integral for apar
-      !*************************************************************************
-      !            β sum_s Z_s n_s vth 2*B0/sqrt{π} int d^2v vpar J_0 g        
-      !*************************************************************************
-      subroutine integrate_over_velocity_apar
-
-         use parallelisation_layouts, only: vmu_lo, iv_idx
-         use parameters_physics, only: beta
-         use grids_species, only: nspec, spec
-         use grids_extended_zgrid, only: iz_low, iz_up
-         use grids_extended_zgrid, only: ikxmod
-         use grids_extended_zgrid, only: nsegments
-         use grids_extended_zgrid, only: periodic
-         use calculations_velocity_integrals, only: integrate_species
-         use grids_velocity, only: vpa
-         use calculations_gyro_averages, only: gyro_average
-         use mp, only: sum_allreduce
-
-         implicit none
-
-         ! Local variables
-         integer :: idx, iseg, ikx, iz, ia
-         integer :: ivmu, iv
-         integer :: izl_offset, izup
-         real, dimension(nspec) :: wgt
-         complex, dimension(:), allocatable :: g0
-
-         ! ---------------------------------------------------------------------
-
-         allocate (g0(vmu_lo%llim_proc:vmu_lo%ulim_alloc))
-         apar = 0.
-         wgt = spec%z * spec%dens_psi0 * spec%stm_psi0 * beta
-
-         ia = 1
-         idx = 0
-         izl_offset = 0
-
-         ! ---------------------------------------------------------------------
-         !                             Integrals
-         ! ---------------------------------------------------------------------
-         ! Do for all segments in the chain
-         do iseg = 1, nsegments(ie, iky)
-            
-            ! Make sure the boundary points are being treated correctly depending
-            ! on whether the mode is periodic or not. Here, define <izup> as the 
-            ! upper zed value within a segment. If the mode is periodic, then 
-            ! reduce the upper bound by one, as this is a repeated point so it is 
-            ! obtained using the periodicity condition. This avoids and double-counting.
-            ! Only the last segment ends on the periodic point; the upper end point of the other
-            ! segments is shared with the next segment, which skips it through <izl_offset>
-            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
-               izup = iz_up(iseg) - 1
-            else
-               izup = iz_up(iseg)
-            end if
-
-            ! Get the appropriate indecies. Here, the <ikxmod> routine returns the 
-            ! <ikx> value on the local domain given our position on the extended domain.
-            ikx = ikxmod(iseg, ie, iky)
-
-            ! The <idx> index keeps track of the location on the extended zed grid, whereas the 
-            ! iz is only cycling through the zed location within a given segment. 
-            do iz = iz_low(iseg) + izl_offset, izup
-               idx = idx + 1
-               
-               ! First get J0 * g
-               call gyro_average(g(idx, :), iky, ikx, iz, g0)
-               
-               ! Multiply by vpa to give: J0 * g * vpa
-               do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-                  iv = iv_idx(vmu_lo, ivmu)
-                  g0(ivmu) = g0(ivmu) * vpa(iv)
-               end do
-               
-               ! Now integrate over vpa, mu and sum over species.
-               ! This returns: β sum_s Z_s n_s vth 2*B0/sqrt{π} int d^2v vpar J_0 g
-               call integrate_species(g0, iz, wgt, apar(idx), reduce_in=.false.)
-               
-            end do
-            
-            ! Set the offset to 1 - all other connected segments need to start one point
-            ! displaced as they share a point with the previous segment. 
-            if (izl_offset == 0) izl_offset = 1
-            
-         end do
-
-         ! Collect the parts of <apar> spread out across processors. 
-         call sum_allreduce(apar)
-
-      end subroutine integrate_over_velocity_apar
-
-      !*************************************************************************
-      !                         Velocity integral for bpar                      
-      !*************************************************************************
-      !        - 2β sum_s n_s T_s 2*B0/sqrt{π} int d^2v mu J_1/a_s g          
-      !*************************************************************************
-      subroutine integrate_over_velocity_bpar
-
-         use parallelisation_layouts, only: vmu_lo, imu_idx
-         use grids_species, only: nspec, spec
-         use parameters_physics, only: beta
-         use grids_extended_zgrid, only: iz_low, iz_up
-         use grids_extended_zgrid, only: ikxmod
-         use grids_extended_zgrid, only: nsegments
-         use grids_extended_zgrid, only: periodic
-         use calculations_velocity_integrals, only: integrate_species
-         use grids_velocity, only: mu
-         use calculations_gyro_averages, only: gyro_average_j1
-         use mp, only: sum_allreduce
-
-         implicit none
-
-         ! Local variables
-         integer :: idx, iseg, ikx, iz, ia, imu, ivmu
-         integer :: izl_offset, izup
-         real, dimension(nspec) :: wgt
-         complex, dimension(:), allocatable :: g0
-
-         ! ---------------------------------------------------------------------
-         
-         allocate (g0(vmu_lo%llim_proc:vmu_lo%ulim_alloc))
-         bpar = 0.
-         wgt = -2.0 * beta * spec%temp_psi0 * spec%dens_psi0
-
-         ia = 1
-         idx = 0
-         izl_offset = 0
-         
-         ! ---------------------------------------------------------------------
-         !                          Integrals
-         ! ---------------------------------------------------------------------
-         ! Do for all segments in the chain
-         do iseg = 1, nsegments(ie, iky)
-         
-            ! Make sure the boundary points are being treated correctly depending
-            ! on whether the mode is periodic or not. Here, define <izup> as the 
-            ! upper zed value within a segment. If the mode is periodic, then 
-            ! reduce the upper bound by one, as this is a repeated point so it is 
-            ! obtained using the periodicity condition. This avoids and double-counting.
-            ! Only the last segment ends on the periodic point; the upper end point of the other
-            ! segments is shared with the next segment, which skips it through <izl_offset>
-            if (periodic(iky) .and. iseg == nsegments(ie, iky)) then
-               izup = iz_up(iseg) - 1
-            else
-               izup = iz_up(iseg)
-            end if
-
-            ! Get the appropriate indecies. Here, the <ikxmod> routine returns the 
-            ! <ikx> value on the local domain given our position on the extended domain.
-            ikx = ikxmod(iseg, ie, iky)
-
-            ! The <idx> index keeps track of the location on the extended zed grid, whereas the 
-            ! iz is only cycling through the zed location within a given segment. 
-            do iz = iz_low(iseg) + izl_offset, izup
-               idx = idx + 1
-               
-               ! First get J1/a_s * g , where a_s is the argument of the Bessel
-               ! function. Note that 'J1' in the code is actually J1/a_s
-               call gyro_average_j1(g(idx, :), iky, ikx, iz, g0)
-               
-               ! Multiply by mu to get: J1/a_s * g * mu
-               do ivmu = vmu_lo%llim_proc, vmu_lo%ulim_proc
-                  imu = imu_idx(vmu_lo, ivmu)
-                  g0(ivmu) = g0(ivmu) * mu(imu)
-               end do
-               
-               ! Now integrate over vpa, mu and sum over species.
-               ! This returns: - 2β sum_s n_s T_s 2*B0/sqrt{π} int d^2v mu J_1/a_s g 
-               call integrate_species(g0, iz, wgt, bpar(idx), reduce_in=.false.)
-               
-            end do
-            
-            ! Set the offset to 1 - all other connected segments need to start one point
-            ! displaced as they share a point with the previous segment. 
-            if (izl_offset == 0) izl_offset = 1
-            
-         end do
-
-         ! Collect the parts of <bpar> spread out across processors. 
-         call sum_allreduce(bpar)
-
-      end subroutine integrate_over_velocity_bpar
-
 
 !===============================================================================
 !                    1.C.II) Divide by the appropriate prefactor
