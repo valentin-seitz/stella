@@ -61,10 +61,6 @@ module response_matrix
    ! Only initialise once
    logical :: initialised_response_matrix = .false.
 
-   ! Maximum memory used for the velocity integrals of one batch of unit impulses
-   ! (columns of the response matrix), which are summed over the MPI ranks at once
-   integer(kind=8), parameter :: max_memory_batch_in_bytes = 64_8 * 1024_8 * 1024_8
-
 contains
 
 !###############################################################################
@@ -302,18 +298,18 @@ contains
    !
    ! Parallelisation:
    ! ----------------
-   ! The columns are treated in batches of <ncol_batch> columns:
-   !     a) For each column of the batch (in parallel over OpenMP threads, each
-   !        thread with its own work arrays), apply the unit impulse, solve the
-   !        homogeneous gyrokinetic equation for the local velocity points (1.A
-   !        and 1.B) and integrate the response of the pdf over the local velocity
-   !        points (1.C.I). The (rank-local) velocity integrals of the batch are
-   !        stored in <moments_batch>, the pdf itself is never stored.
-   !     b) Sum <moments_batch> over the MPI ranks with ONE sum_allreduce per batch
+   !     a) For each column (in parallel over OpenMP threads, each thread with
+   !        its own work arrays), apply the unit impulse, solve the homogeneous
+   !        gyrokinetic equation for the local velocity points (1.A and 1.B) and
+   !        integrate the response of the pdf over the local velocity points (1.C.I).
+   !        The (rank-local) velocity integrals are stored directly in the column
+   !        of <zloc>, whose rows are ordered in the same way (phi, apar, bpar),
+   !        so no extra buffer is needed and the pdf itself is never stored.
+   !     b) Sum <zloc> over the MPI ranks with ONE sum_allreduce per (iky, ie)
    !        (outside the OpenMP parallel region), instead of one per unit impulse.
-   !     c) For each column of the batch (in parallel), divide by the prefactors
-   !        of the field equations (1.C.II) and fill the column of the matrix
-   !        to invert (1.D).
+   !     c) For each column (in parallel), divide by the prefactors of the field
+   !        equations (1.C.II) and turn it into the column of the matrix to
+   !        invert (1.D), in place.
    ! The velocity integrals are summed in the same order as in the original
    ! one-impulse-at-a-time implementation, so the matrix only changes by the
    ! round-off of the (larger) MPI reduction.
@@ -334,9 +330,7 @@ contains
       use grids_species, only: adiabatic_option_fieldlineavg
       use field_equations, only: nfields
       use file_units, only: unit_response_matrix
-#ifdef USE_OPENMP
-      use omp_lib, only: omp_get_max_threads
-#endif
+      use arrays, only: response_matrix
 
       implicit none
 
@@ -346,10 +340,9 @@ contains
       ! Local variables
       integer :: nz_ext, nresponse, nresponse_per_field
       integer :: offset_apar, offset_bpar
-      integer :: nthreads, ncol_batch, ncol, icol_first, ib
+      integer :: icol
       integer, dimension(:), allocatable :: iz_from_izext, ikx_from_izext
       real, dimension(:, :), allocatable :: wgts_fields
-      complex, dimension(:, :, :), allocatable :: moments_batch
 
       !-------------------------------------------------------------------------
 
@@ -422,60 +415,37 @@ contains
       wgts_fields(:, 3) = -2.0 * beta * spec%temp_psi0 * spec%dens_psi0
 
       ! ------------------------------------------------------------------------
-      !                    Choose the number of columns per batch
-      ! ------------------------------------------------------------------------
-      ! The velocity integrals of a batch of columns are stored in <moments_batch>
-      ! and summed over the MPI ranks at once. Use a multiple of the number of
-      ! OpenMP threads (for load balance) that keeps <moments_batch> below
-      ! <max_memory_batch_in_bytes>, but at least one column per thread.
-      nthreads = 1
-#ifdef USE_OPENMP
-      nthreads = omp_get_max_threads()
-#endif
-      ncol_batch = int(max_memory_batch_in_bytes / (int(nz_ext, kind=8) * nfields * (storage_size((0.0, 0.0)) / 8)))
-      ncol_batch = max(1, ncol_batch / nthreads) * nthreads
-      ncol_batch = max(1, min(ncol_batch, nresponse))
-      allocate (moments_batch(nz_ext, nfields, ncol_batch))
-
-      ! ------------------------------------------------------------------------
       !    Get the matrix we need to invert depending on the fields included
       ! ------------------------------------------------------------------------
-      do icol_first = 1, nresponse, ncol_batch
 
-         ! Number of columns in this batch
-         ncol = min(ncol_batch, nresponse - icol_first + 1)
-
-         ! a) Response of the pdf to the unit impulses, integrated over the
-         !    velocity points of this rank (1.A, 1.B and 1.C.I)
-         !$omp parallel do default(none) schedule(dynamic, 1) &
-         !$omp private(ib) &
-         !$omp shared(ncol, icol_first, iky, ie, nz_ext, nresponse_per_field, iz_from_izext, ikx_from_izext, wgts_fields, moments_batch)
-         do ib = 1, ncol
-            call get_velocity_integrated_pdf_response(iky, ie, icol_first + ib - 1, nz_ext, nresponse_per_field, &
-               iz_from_izext, ikx_from_izext, wgts_fields, moments_batch(:, :, ib))
-         end do
-         !$omp end parallel do
-
-         ! b) Sum over the velocity points on all MPI ranks. This ends the
-         !    parallelisation over velocity space, so every rank has the
-         !    velocity integrals of this batch of columns.
-         call sum_allreduce(moments_batch(:, :, :ncol))
-
-         ! c) Divide by the field equations prefactors and fill the columns
-         !    of the matrix to invert (1.C.II and 1.D)
-         !$omp parallel do default(none) schedule(static) &
-         !$omp private(ib) &
-         !$omp shared(ncol, icol_first, iky, ie, nz_ext, nresponse_per_field, offset_apar, offset_bpar, moments_batch)
-         do ib = 1, ncol
-            call fill_response_matrix_column(iky, ie, icol_first + ib - 1, nz_ext, nresponse_per_field, &
-               offset_apar, offset_bpar, moments_batch(:, :, ib))
-         end do
-         !$omp end parallel do
-
+      ! a) Response of the pdf to the unit impulses, integrated over the
+      !    velocity points of this rank (1.A, 1.B and 1.C.I)
+      !$omp parallel do default(none) schedule(dynamic, 1) &
+      !$omp private(icol) &
+      !$omp shared(nresponse, iky, ie, nz_ext, nresponse_per_field, nfields, iz_from_izext, ikx_from_izext, wgts_fields, response_matrix)
+      do icol = 1, nresponse
+         call get_velocity_integrated_pdf_response(iky, ie, icol, nz_ext, nresponse_per_field, nfields, &
+            iz_from_izext, ikx_from_izext, wgts_fields, response_matrix(iky)%eigen(ie)%zloc(:, icol))
       end do
+      !$omp end parallel do
+
+      ! b) Sum over the velocity points on all MPI ranks. This ends the
+      !    parallelisation over velocity space, so every rank has the
+      !    velocity integrals of all columns.
+      call sum_allreduce(response_matrix(iky)%eigen(ie)%zloc)
+
+      ! c) Divide by the field equations prefactors and turn the columns into
+      !    the columns of the matrix to invert (1.C.II and 1.D)
+      !$omp parallel do default(none) schedule(static) &
+      !$omp private(icol) &
+      !$omp shared(nresponse, iky, ie, nz_ext, nresponse_per_field, offset_apar, offset_bpar)
+      do icol = 1, nresponse
+         call fill_response_matrix_column(iky, ie, icol, nz_ext, nresponse_per_field, offset_apar, offset_bpar)
+      end do
+      !$omp end parallel do
 
       ! Deallocate temporary arrays
-      deallocate (moments_batch, wgts_fields, iz_from_izext, ikx_from_izext)
+      deallocate (wgts_fields, iz_from_izext, ikx_from_izext)
 
       ! Stop the timer
       call region_end('response_matrix')
@@ -501,8 +471,10 @@ contains
    !          (1 = phi, then apar and bpar if included) and the location <idx>
    !          of the unit impulse on the extended zed domain
    ! <nz_ext>   = length of extended zed domain for the given eigen chain
+   ! <nfields>  = number of fields (phi, apar, bpar) included
    ! <moments>  = velocity integrals of the pdf response for each field
-   !              (local to this MPI rank, i.e. not yet summed over ranks)
+   !              (local to this MPI rank, i.e. not yet summed over ranks),
+   !              laid out like a column of the response matrix
    !
    ! What is being done:
    ! -------------------
@@ -522,7 +494,7 @@ contains
    !      The integrals are accumulated directly for each velocity point, so that
    !      the pdf response is only needed for one velocity point at a time.
    !============================================================================
-   subroutine get_velocity_integrated_pdf_response(iky, ie, icol, nz_ext, nresponse_per_field, &
+   subroutine get_velocity_integrated_pdf_response(iky, ie, icol, nz_ext, nresponse_per_field, nfields, &
          iz_from_izext, ikx_from_izext, wgts_fields, moments)
 
       use parallelisation_layouts, only: vmu_lo
@@ -540,10 +512,10 @@ contains
       implicit none
 
       ! Arguments
-      integer, intent(in) :: iky, ie, icol, nz_ext, nresponse_per_field
+      integer, intent(in) :: iky, ie, icol, nz_ext, nresponse_per_field, nfields
       integer, dimension(:), intent(in) :: iz_from_izext, ikx_from_izext
       real, dimension(:, :), intent(in) :: wgts_fields
-      complex, dimension(:, :), intent(out) :: moments
+      complex, dimension(nresponse_per_field, nfields), intent(out) :: moments
 
       ! Local variables
       integer :: ifield, idx, izext, iz, ikx, ia, it
@@ -678,14 +650,14 @@ contains
    !============================================================================
    !              Fill one column of the response matrix to invert
    !============================================================================
-   ! Given the velocity integrals of the pdf response to the unit impulse of
-   ! column <icol> (summed over all MPI ranks), divide by the appropriate
-   ! prefactors of the field equations (1.C.II) and store the column of the
-   ! matrix to invert (1.D). Called inside an OpenMP parallel region, with each
-   ! thread writing different columns of <zloc>.
+   ! Column <icol> of <zloc> holds the velocity integrals of the pdf response
+   ! to its unit impulse (summed over all MPI ranks). Divide by the appropriate
+   ! prefactors of the field equations (1.C.II) and overwrite it with the column
+   ! of the matrix to invert (1.D). Called inside an OpenMP parallel region, with
+   ! each thread working on different columns of <zloc>.
    !============================================================================
    subroutine fill_response_matrix_column(iky, ie, icol, nz_ext, nresponse_per_field, &
-         offset_apar, offset_bpar, moments)
+         offset_apar, offset_bpar)
 
       use parameters_physics, only: include_apar, include_bpar
       use arrays, only: response_matrix
@@ -695,7 +667,6 @@ contains
       ! Arguments
       integer, intent(in) :: iky, ie, icol, nz_ext, nresponse_per_field
       integer, intent(in) :: offset_apar, offset_bpar
-      complex, dimension(:, :), intent(in) :: moments
 
       ! Local variables
       integer :: ifield, idx, nresponse
@@ -710,10 +681,10 @@ contains
 
       ! Velocity integrals of the pdf response for each field
       allocate (phi_ext(nz_ext), apar_ext(nz_ext), bpar_ext(nz_ext))
-      phi_ext = moments(:, 1)
-      apar_ext = 0.0; bpar_ext = 0.0
-      if (include_apar) apar_ext = moments(:, 2)
-      if (include_bpar) bpar_ext = moments(:, size(moments, 2))
+      phi_ext = 0.0; apar_ext = 0.0; bpar_ext = 0.0
+      phi_ext(:nresponse) = response_matrix(iky)%eigen(ie)%zloc(:nresponse, icol)
+      if (include_apar) apar_ext(:nresponse) = response_matrix(iky)%eigen(ie)%zloc(offset_apar + 1:offset_apar + nresponse, icol)
+      if (include_bpar) bpar_ext(:nresponse) = response_matrix(iky)%eigen(ie)%zloc(offset_bpar + 1:offset_bpar + nresponse, icol)
 
       ! ------------------------------------------------------------------------
       !            1.C.II) Divide by the appropriate field prefactors
