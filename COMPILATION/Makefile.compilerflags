@@ -22,11 +22,10 @@ USE_LOCAL_RAN ?=           # Use local random number generator (mt,undefined) (s
 USE_LOCAL_SPFUNC ?=        # Use local special functions (bin)
 USE_NAGLIB ?=              # Use nag libraray (spfunc,undefined)
 USE_SFINCS ?=              # Link to sfincs library at compilation
-USE_LAPACK ?= on           # Use LAPACK, needed for test particle collisions
 USE_OPENMP ?= on           # Use OpenMP to parallelize the Code
+USE_PLASMA ?= on           # Use the PLASMA library for the LU routines, see Makefile.externals.plasma (bin)
 USE_NESMIK ?=              # Build region_timer against the nesmik profiling library (bin), needs $NESMIK_HOME
-HAS_ISO_C_BINDING ?= on    # Does the compiler support the iso_c_binding features of Fortran? (needed for local parallel LU decomposition)
-SPLIT_BY_NUMA ?=
+HAS_ISO_C_BINDING ?= on    # Does the compiler support the iso_c_binding features of Fortran? (used to call system())
 
 # Which FFT library to use (fftw, fftw3, mkl_fftw, undefined)
 # We can't have any spaces behind 'fftw3' so we can't put the comment behind it
@@ -80,6 +79,7 @@ PETSC_INC ?=
 LIBSTELL_LIB ?=
 LAPACK_LIB ?=
 LAPACK_INC ?=
+PLASMA_LIB ?=
 
 ####################################################################
 #                        PLATFORM DEPENDENCE                       #
@@ -146,11 +146,6 @@ $(warning Be sure that nonlinear run makes no sense)
 $(warning      )
 endif
 
-# Add the MPI version to the preprocessor flags
-ifdef SPLIT_BY_NUMA
-CPPFLAGS += -DSPLIT_BY_NUMA
-endif
-
 ifdef HAS_ISO_C_BINDING
 	CPPFLAGS += -DISO_C_BINDING
 endif
@@ -181,15 +176,20 @@ ifdef USE_NETCDF
 	endif
 	CPPFLAGS += -DNETCDF
 endif
-ifdef USE_LAPACK
-	ifeq ($(LAPACK_LIB),)
-		LAPACK_LIB = -llapack
-	endif
-	CPPFLAGS += -DLAPACK
+# LAPACK is always needed, for the LU routines (utils/linear_solve and utils/banded_lu)
+ifeq ($(LAPACK_LIB),)
+	LAPACK_LIB = -llapack
 endif
+CPPFLAGS += -DLAPACK
 ifdef USE_OPENMP
 	F90FLAGS += -fopenmp -DUSE_OPENMP
 	CPPFLAGS += -DUSE_OPENMP
+endif
+ifdef USE_PLASMA
+	ifndef DBLE
+$(error USE_PLASMA requires DBLE, since stella is bound to the double precision PLASMA routines)
+	endif
+	CPPFLAGS += -DPLASMA
 endif
 ifdef USE_HDF5
 	FC = $(H5FC_par)

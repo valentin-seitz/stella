@@ -21,12 +21,12 @@ include(BuildType)
 ############################################################
 
 # Build options
-option(STELLA_ENABLE_LAPACK "Enable LAPACK wrappers" ON)
 option(STELLA_ENABLE_FFT "Enable FFTs" ON)
 option(STELLA_ENABLE_NETCDF "Enable NetCDF" ON)
 option(STELLA_ENABLE_DOUBLE "Promotes precisions of real and complex to double" ON)
 option(STELLA_ENABLE_PETSC "Enable PETSc" OFF)
 option(STELLA_ENABLE_OPENMP "Enable OpenMP" ON)
+option(STELLA_ENABLE_PLASMA "Use the PLASMA linear algebra library for the LU routines, see COMPILATION/cmake/StellaPlasma.cmake" ON)
 option(STELLA_ENABLE_NESMIK "Build region_timer against the nesmik profiling library (https://gitlab.pm.bsc.es/beppp/nesmik), found via $NESMIK_HOME" OFF)
 
 # Options for utils internal library
@@ -240,13 +240,18 @@ target_compile_definitions(libstella PUBLIC MPI)
 # Toggle the options defined at the start of this script
 ############################################################
 
-if (STELLA_ENABLE_LAPACK)
-  if (NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
-    # Cray wrappers sort this out for us
-    find_package(LAPACK REQUIRED)
-    target_link_libraries(libstella PUBLIC "${LAPACK_LIBRARIES}")
-  endif()
-  target_compile_definitions(libstella PUBLIC LAPACK)
+# LAPACK is always needed, for the LU routines (utils/linear_solve and utils/banded_lu)
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "CrayLinuxEnvironment")
+  # Cray wrappers sort this out for us
+  find_package(LAPACK REQUIRED)
+  target_link_libraries(libstella PUBLIC "${LAPACK_LIBRARIES}")
+endif()
+target_compile_definitions(libstella PUBLIC LAPACK)
+
+if (STELLA_ENABLE_PLASMA)
+  include(StellaPlasma)
+  target_link_libraries(libstella PUBLIC ${STELLA_PLASMA_LIBRARIES})
+  target_compile_definitions(libstella PUBLIC PLASMA)
 endif()
 
 if (STELLA_ENABLE_FFT)
@@ -425,6 +430,8 @@ if (STELLA_ENABLE_TESTS)
   stella_add_standard_tests(TEST_NAMES
     simple
     utils_convert
+    utils_linear_solve
+    utils_banded_lu
     )
   add_custom_target(run-automated-fortran-tests-with-cmake
     COMMAND ctest --output-on-failure -R unit
@@ -471,7 +478,6 @@ message("
      stella Configuration Summary
    ---------------------------------
 
-   LAPACK support           : ${STELLA_ENABLE_LAPACK}
    FFTW support             : ${STELLA_ENABLE_FFT}
    NetCDF support           : ${STELLA_ENABLE_NETCDF}
    Default real kind        : ${STELLA_DEFAULT_REAL_KIND}

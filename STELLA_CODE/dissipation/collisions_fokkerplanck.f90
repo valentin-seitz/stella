@@ -349,12 +349,14 @@ contains
       use grids_kxky, only: naky, nakx
       use spfunc, only: erf => erf_ext
       use file_utils, only: open_output_file, close_output_file
+      use banded_lu, only: band_ldab, band_row, band_lu_factorise, band_lu_factorise_threaded
 
       implicit none
 
       integer :: ikxkyz, iky, ikx, iz, is, isb
       integer :: imu, ia, iv, ivv, imm, imu2
-      integer :: nc, nb, lldab, bm_colind, bm_rowind
+      integer :: nc, nb, bm_colind, bm_rowind
+      logical :: factorise_threaded
       real :: vpap, vpam, vfac, mum, mup
       real :: xpv, xmv, nupapv, nupamv, nuDpv, nuDmv, mwpv, mwmv, gam_mu, gam_mum, gam_mup
       real :: mwm, mwp, nuDm, nuDp, nupam, nupap, xm, xp
@@ -368,7 +370,7 @@ contains
       if (.not. allocated(aa_blcs)) allocate (aa_blcs(nvpa, nmu, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc, nspec))
       if (.not. allocated(bb_blcs)) allocate (bb_blcs(nvpa, nmu, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc, nspec))
       if (.not. allocated(cc_blcs)) allocate (cc_blcs(nvpa, nmu, nmu, kxkyz_lo%llim_proc:kxkyz_lo%ulim_alloc, nspec))
-      if (.not. allocated(cdiffmat_band)) allocate (cdiffmat_band(3 * (nmu + 1) + 1, nmu * nvpa, naky, nakx, -nzgrid:nzgrid, nspec))
+      if (.not. allocated(cdiffmat_band)) allocate (cdiffmat_band(band_ldab(nmu + 1, nmu + 1), nmu * nvpa, naky, nakx, -nzgrid:nzgrid, nspec))
       if (.not. allocated(ipiv)) allocate (ipiv(nvpa * nmu, naky, nakx, -nzgrid:nzgrid, nspec))
 
       ! AVB: calculate the discretisation matrix -\Delta t C_test^{ab}
@@ -1308,9 +1310,9 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
 
       end if
 
-      ! switch to band-storage for LAPACK banded solver routines:
+      ! switch to band-storage for the band LU routines of utils/banded_lu (see band_row):
       ! and sum the interspecies and intraspecies operators for each species
-      ! a_ij is stored in aband(ku+1+i-j,j) for $\max(1,j-ku) \leq i \leq \min(m,j+kl)$
+      ! a_ij is stored in aband(kl+ku+1+i-j,j) for $\max(1,j-ku) \leq i \leq \min(m,j+kl)$
       cdiffmat_band = 0.
 
       !$omp parallel do default(none) &
@@ -1335,7 +1337,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                do imu2 = 1, nmu
                   bm_colind = (iv - 1) * nmu + imu2
                   if ((max(1, bm_colind - (nmu + 1)) <= bm_rowind) .and. (bm_rowind <= min(nvpa * nmu, bm_colind + (nmu + 1)))) then
-                     cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) = bb_blcs(iv, imu, imu2, ikxkyz, is)
+                     cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) = bb_blcs(iv, imu, imu2, ikxkyz, is)
                   end if
                end do
             end do
@@ -1346,7 +1348,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                   do imu2 = 1, nmu
                      bm_colind = nmu + (iv - 1) * nmu + imu2 ! nvpa*nmu - nmu + imu2
                      if ((max(1, bm_colind - (nmu + 1)) <= bm_rowind) .and. (bm_rowind <= min(nvpa * nmu, bm_colind + (nmu + 1)))) then
-                        cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) = cc_blcs(iv, imu, imu2, ikxkyz, is)
+                        cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) = cc_blcs(iv, imu, imu2, ikxkyz, is)
                      end if
                   end do
                end do
@@ -1356,7 +1358,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                   do imu2 = 1, nmu
                      bm_colind = (iv - 1) * nmu + imu2
                      if ((max(1, bm_colind - (nmu + 1)) <= bm_rowind) .and. (bm_rowind <= min(nvpa * nmu, bm_colind + (nmu + 1)))) then
-                    cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) = aa_blcs(1 + iv, imu, imu2, ikxkyz, is)
+                    cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) = aa_blcs(1 + iv, imu, imu2, ikxkyz, is)
                      end if
                   end do
                end do
@@ -1372,8 +1374,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                   do imu2 = 1, nmu
                      bm_colind = (iv - 1) * nmu + imu2
                      if ((max(1, bm_colind - (nmu + 1)) <= bm_rowind) .and. (bm_rowind <= min(nvpa * nmu, bm_colind + (nmu + 1)))) then
-                        cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) = &
-                       cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) + bb_blcs(iv, imu, imu2, ikxkyz, isb)
+                        cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) = &
+                       cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) + bb_blcs(iv, imu, imu2, ikxkyz, isb)
                      end if
                   end do
                end do
@@ -1384,8 +1386,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                      do imu2 = 1, nmu
                         bm_colind = (iv - 1) * nmu + nmu + imu2
                         if ((max(1, bm_colind - (nmu + 1)) <= bm_rowind) .and. (bm_rowind <= min(nvpa * nmu, bm_colind + (nmu + 1)))) then
-                           cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) = &
-                       cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) + cc_blcs(iv, imu, imu2, ikxkyz, isb)
+                           cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) = &
+                       cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) + cc_blcs(iv, imu, imu2, ikxkyz, isb)
                         end if
                      end do
                   end do
@@ -1395,8 +1397,8 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                      do imu2 = 1, nmu
                         bm_colind = (iv - 1) * nmu + imu2
                         if ((max(1, bm_colind - (nmu + 1)) <= bm_rowind) .and. (bm_rowind <= min(nvpa * nmu, bm_colind + (nmu + 1)))) then
-                           cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) = &
-                   cdiffmat_band(nmu + 1 + nmu + 1 + 1 + bm_rowind - bm_colind, bm_colind, iky, ikx, iz, is) + aa_blcs(1 + iv, imu, imu2, ikxkyz, isb)
+                           cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) = &
+                   cdiffmat_band(band_row(bm_rowind, bm_colind, nmu + 1, nmu + 1), bm_colind, iky, ikx, iz, is) + aa_blcs(1 + iv, imu, imu2, ikxkyz, isb)
                         end if
                      end do
                   end do
@@ -1426,7 +1428,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                imm = ivv
                if ((max(1, ivv - (nmu + 1)) <= imm) .and. (imm <= min(nvpa * nmu, ivv + (nmu + 1)))) then
                   ! intra-species:
-   cdiffmat_band(nmu + 1 + nmu + 1 + 1 + imm - ivv, ivv, iky, ikx, iz, is) = cdiffmat_band(nmu + 1 + nmu + 1 + 1 + imm - ivv, ivv, iky, ikx, iz, is) &
+   cdiffmat_band(band_row(imm, ivv, nmu + 1, nmu + 1), ivv, iky, ikx, iz, is) = cdiffmat_band(band_row(imm, ivv, nmu + 1, nmu + 1), ivv, iky, ikx, iz, is) &
           + code_dt * cfac * 0.5 * kperp2(iky, ikx, ia, iz) * (spec(is)%smz / bmag(ia, iz))**2 * (nupa(iv, imu, iz, is, is) * bmag(ia, iz) * mu(imu) &
                                                                         + deflknob * nuD(iv, imu, iz, is, is) * (vpa(iv)**2 + bmag(ia, iz) * mu(imu)))
                   ! inter-species:
@@ -1441,7 +1443,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                         eidefl = 1
                      end if
 
-   cdiffmat_band(nmu + 1 + nmu + 1 + 1 + imm - ivv, ivv, iky, ikx, iz, is) = cdiffmat_band(nmu + 1 + nmu + 1 + 1 + imm - ivv, ivv, iky, ikx, iz, is) &
+   cdiffmat_band(band_row(imm, ivv, nmu + 1, nmu + 1), ivv, iky, ikx, iz, is) = cdiffmat_band(band_row(imm, ivv, nmu + 1, nmu + 1), ivv, iky, ikx, iz, is) &
                           + code_dt*cfac*0.5*kperp2(iky,ikx,ia,iz)*(spec(is)%smz/bmag(ia,iz))**2*(eiediff*nupa(iv,imu,iz,is,isb)*bmag(ia,iz)*mu(imu) &
                                                               + eidefl * deflknob * nuD(iv, imu, iz, is, isb) * (vpa(iv)**2 + bmag(ia, iz) * mu(imu)))
                   end do
@@ -1457,7 +1459,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             do imu = 1, nmu * nvpa
                if ((max(1, iv - (nmu + 1)) <= imu) .and. (imu <= min(nvpa * nmu, iv + (nmu + 1)))) then
                   if (iv == imu) then
-              cdiffmat_band(nmu + 1 + nmu + 1 + 1 + imu - iv, iv, :, :, :, is) = cdiffmat_band(nmu + 1 + nmu + 1 + 1 + imu - iv, iv, :, :, :, is) + 1.
+              cdiffmat_band(band_row(imu, iv, nmu + 1, nmu + 1), iv, :, :, :, is) = cdiffmat_band(band_row(imu, iv, nmu + 1, nmu + 1), iv, :, :, :, is) + 1.
                   end if
                end if
             end do
@@ -1482,12 +1484,14 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       !    end if
       !end do
 
-      ! AVB: LU factorise cdiffmat, using LAPACK's zgbtrf routine for banded matrices
+      ! AVB: LU factorise cdiffmat, using the band LU routines of utils/banded_lu (LAPACK's zgbtrf, or PLASMA,
+      ! which parallelises each factorisation itself, so then the loop is serial; inside the parallel loop
+      ! every factorisation uses zgbtrf)
       nc = nvpa * nmu
       nb = nmu + 1
-      lldab = 3 * (nmu + 1) + 1
-      !$omp parallel do default(none) &
-      !$omp   firstprivate(kxkyz_lo, nc, nb, lldab) &
+      factorise_threaded = band_lu_factorise_threaded()
+      !$omp parallel do default(none) if(.not. factorise_threaded) &
+      !$omp   firstprivate(kxkyz_lo, nc, nb) &
       !$omp   private(ikxkyz, iky, ikx, iz, is, info) &
       !$omp   shared(cdiffmat_band, ipiv)
       do ikxkyz = kxkyz_lo%llim_proc, kxkyz_lo%ulim_proc
@@ -1495,7 +1499,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
          ikx = ikx_idx(kxkyz_lo, ikxkyz)
          iz = iz_idx(kxkyz_lo, ikxkyz)
          is = is_idx(kxkyz_lo, ikxkyz)
-         call zgbtrf(nc, nc, nb, nb, cdiffmat_band(:, :, iky, ikx, iz, is), lldab, ipiv(:, iky, ikx, iz, is), info)
+         call band_lu_factorise(nc, nb, nb, cdiffmat_band(:, :, iky, ikx, iz, is), ipiv(:, iky, ikx, iz, is), info)
       end do
       !$omp end parallel do
 
@@ -2220,6 +2224,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       use field_equations_collisions, only: get_fields_by_spec_idx
       use file_utils, only: open_output_file, close_output_file
       use constants, only: pi
+      use banded_lu, only: band_lu_solve
 
       implicit none
 
@@ -2277,7 +2282,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
          is = is_idx(kxkyz_lo, ikxkyz)
 
    ghrs = reshape(transpose(spread(ztmax(:,is),2,nmu)*spread(maxwell_mu(1,iz,:,is),1,nvpa)*spread(jm0(:,iky,ikx,iz,is),1,nvpa)), shape=(/ nmu*nvpa /))
-    call zgbtrs('No transpose', nvpa*nmu, nmu+1, nmu+1, 1, cdiffmat_band(:,:,iky,ikx,iz,is), 3*(nmu+1)+1, ipiv(:,iky,ikx,iz,is), ghrs, nvpa*nmu, info)
+         call band_lu_solve(nvpa * nmu, nmu + 1, nmu + 1, cdiffmat_band(:, :, iky, ikx, iz, is), ipiv(:, iky, ikx, iz, is), ghrs)
          gvmu(:, :, ikxkyz) = transpose(reshape(ghrs, shape=(/nmu, nvpa/)))
       end do
 
@@ -2348,7 +2353,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                         ghrs(nmu * (iv - 1) + imu) = -code_dt * modmw(iv, imu, iz, is) / modmwnorm(iz)
                      end do
                   end do
-    call zgbtrs('No transpose', nvpa*nmu, nmu+1, nmu+1, 1, cdiffmat_band(:,:,iky,ikx,iz,is), 3*(nmu+1)+1, ipiv(:,iky,ikx,iz,is), ghrs, nvpa*nmu, info)
+         call band_lu_solve(nvpa * nmu, nmu + 1, nmu + 1, cdiffmat_band(:, :, iky, ikx, iz, is), ipiv(:, iky, ikx, iz, is), ghrs)
                   do ix = 1, nvpa
                      gvmu(ix, :, ikxkyz) = ghrs(nmu * (ix - 1) + 1:nmu * (ix - 1) + nmu)
                   end do
@@ -2407,7 +2412,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                      ghrs(nmu * (iv - 1) + imu) = ztmax(iv, is) * maxwell_mu(1, iz, imu, is) * jm0(imu, iky, ikx, iz, is)
                   end do
                end do
-    call zgbtrs('No transpose', nvpa*nmu, nmu+1, nmu+1, 1, cdiffmat_band(:,:,iky,ikx,iz,is), 3*(nmu+1)+1, ipiv(:,iky,ikx,iz,is), ghrs, nvpa*nmu, info)
+         call band_lu_solve(nvpa * nmu, nmu + 1, nmu + 1, cdiffmat_band(:, :, iky, ikx, iz, is), ipiv(:, iky, ikx, iz, is), ghrs)
                do ix = 1, nvpa
                   gvmu(ix, :, ikxkyz) = ghrs(nmu * (ix - 1) + 1:nmu * (ix - 1) + nmu)
                end do
@@ -2473,7 +2478,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
                            ghrs(nmu * (iv - 1) + imu) = -code_dt * modmw(iv, imu, iz, is) / modmwnorm(iz)
                         end do
                      end do
-    call zgbtrs('No transpose', nvpa*nmu, nmu+1, nmu+1, 1, cdiffmat_band(:,:,iky,ikx,iz,is), 3*(nmu+1)+1, ipiv(:,iky,ikx,iz,is), ghrs, nvpa*nmu, info)
+         call band_lu_solve(nvpa * nmu, nmu + 1, nmu + 1, cdiffmat_band(:, :, iky, ikx, iz, is), ipiv(:, iky, ikx, iz, is), ghrs)
                      do ix = 1, nvpa
                         gvmu(ix, :, ikxkyz) = ghrs(nmu * (ix - 1) + 1:nmu * (ix - 1) + nmu)
                      end do
@@ -2649,6 +2654,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       use parallelisation_layouts, only: iky_idx, ikx_idx, iz_idx, is_idx, it_idx
       use constants, only: pi
       use file_utils, only: open_output_file, close_output_file
+      use banded_lu, only: band_lu_solve
 
       implicit none
 
@@ -2691,8 +2697,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
 
          ! solve for response
          ! need to solve [1 - Deltat C_{test}] dh_a/dpsi^ab = delta_{ab} for dh_a/dpsi^ab. Here, C_{test} includes self collisions and a-b collisions,
-         call zgbtrs('No transpose', nvpa * nmu, nmu + 1, nmu + 1, 1, &
-                     cdiffmat_band(:, :, iky, ikx, iz, isa), 3 * (nmu + 1) + 1, ipiv(:, iky, ikx, iz, isa), ghrs, nvpa * nmu, info)
+         call band_lu_solve(nvpa * nmu, nmu + 1, nmu + 1, cdiffmat_band(:, :, iky, ikx, iz, isa), ipiv(:, iky, ikx, iz, isa), ghrs)
 
          do iv = 1, nvpa
             response(iv, :, ikxkyz) = ghrs(nmu * (iv - 1) + 1:nmu * (iv - 1) + nmu)
@@ -4248,6 +4253,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
       use field_equations_fluxtube, only: advance_fields_fluxtube_using_field_equations
       use constants, only: pi
       use grids_time, only: code_dt
+      use banded_lu, only: band_lu_solve
 
       implicit none
 
@@ -4323,7 +4329,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
             ghrs(nmu * (iv - 1) + 1:nmu * iv) = g(iv, :, ikxkyz)
          end do
 
-    call zgbtrs('No transpose', nvpa*nmu, nmu+1, nmu+1, 1, cdiffmat_band(:,:,iky,ikx,iz,is), 3*(nmu+1)+1, ipiv(:,iky,ikx,iz,is), ghrs, nvpa*nmu, info)
+         call band_lu_solve(nvpa * nmu, nmu + 1, nmu + 1, cdiffmat_band(:, :, iky, ikx, iz, is), ipiv(:, iky, ikx, iz, is), ghrs)
 
          do iv = 1, nvpa
             g(iv, :, ikxkyz) = ghrs(nmu * (iv - 1) + 1:nmu * iv)
@@ -4469,7 +4475,7 @@ bb_blcs(iv,imu,imu-1,ikxkyz,isb)= bb_blcs(iv,imu,imu-1,ikxkyz,isb) - code_dt*((-
          do iv = 1, nvpa
             ghrs(nmu * (iv - 1) + 1:nmu * iv) = g(iv, :, ikxkyz)
          end do
-    call zgbtrs('No transpose', nvpa*nmu, nmu+1, nmu+1, 1, cdiffmat_band(:,:,iky,ikx,iz,is), 3*(nmu+1)+1, ipiv(:,iky,ikx,iz,is), ghrs, nvpa*nmu, info)
+         call band_lu_solve(nvpa * nmu, nmu + 1, nmu + 1, cdiffmat_band(:, :, iky, ikx, iz, is), ipiv(:, iky, ikx, iz, is), ghrs)
          do iv = 1, nvpa
             g(iv, :, ikxkyz) = ghrs(nmu * (iv - 1) + 1:nmu * iv)
          end do
