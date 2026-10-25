@@ -9,6 +9,15 @@
 !     with <omega> = real(<Omega>) and <gamma> = imag(<Omega>)
 ! We take the running average of <Omega> over the last <navg> time points.
 ! 
+! With <flip_flop> = True, the explicit and implicit terms are advanced in the opposite order
+! on consecutive time steps. Only a pair of time steps is a consistent (second-order) step:
+! the converged state is periodic with period two, and the single-step ratio <phi^{n+1}>/<phi^n>
+! alternates between two values whose product gives the growth over the pair. Therefore
+! <Omega> is then calculated over the last two time steps,
+!     <Omega> = i*log(<phi^{n+1}>/<phi^{n-1}>)/(t^{n+1} - t^{n-1}),
+! so that every time step gives the same <Omega> once the mode has converged (needed for the
+! <omega> output and for <autostop>). The first time step after (re)starting uses one time step.
+! 
 !---------------------------------- Input file ---------------------------------
 ! 
 ! The diagnostics are writen to text files after every <nwrite> time steps. Moreover,
@@ -71,17 +80,22 @@ module diagnostics_omega
    
    ! Write omega diagnostics
    logical :: write_omega
+   
+   ! With <flip_flop> = True, <Omega> is calculated over two time steps, which requires the
+   ! field line averaged <phi> (+ <apar>) of the previous call to calculate_omega, and its time
+   complex, dimension(:, :), allocatable :: phi_two_steps_ago_vs_kykx
+   real :: time_two_steps_ago
+   logical :: have_phi_two_steps_ago = .false.
 
 contains
  
    !=========================================================================
    !================== CALCULATE OMEGA AT EVERY TIME STEP ===================
    !========================================================================= 
-   subroutine calculate_omega(istep, timer)
+   subroutine calculate_omega(istep)
       
       ! Parallelisation
-      use job_manage, only: time_message
-      use mp, only: proc0
+      use timers, only: region_start, region_end
       
       ! Physics flags
       use parameters_physics, only: include_apar
@@ -92,8 +106,9 @@ contains
       
       ! Grids
       use grids_kxky, only: nakx, naky
-      use grids_time, only: code_dt
+      use grids_time, only: code_dt, code_time
       use constants, only: zi
+      use parameters_numerical, only: flip_flop
       
       ! Calculations
       use calculations_volume_averages, only: fieldline_average
@@ -105,7 +120,6 @@ contains
 
       ! Arguments
       integer, intent(in) :: istep  ! The current time step
-      real, dimension(:), intent(in out) :: timer
 
       ! Local variables
       complex, dimension(:, :), allocatable :: phi_vs_kykx
@@ -121,7 +135,7 @@ contains
       if (.not. write_omega) return
 
       ! Start the timer
-      if (proc0) call time_message(.false., timer(:), 'calculate omega')
+      call region_start('diagnostics_calculate_omega')
  
       ! Allocate temporary arrays and define a <zero>
       allocate (phi_vs_kykx(naky, nakx)); phi_vs_kykx = 0.0
@@ -150,29 +164,45 @@ contains
 
       ! The potential can be written as <phi> = exp(-i*<0mega>*t) = exp(-i*(<omega>+i<gamma>)*t)
       ! Thus <Omega> = log(dphi)/(-i*dt) = i*log(dphi)/dt with <omega> = real(<Omega>) and <gamma> = imag(<Omega>)
-      where (abs(phi_vs_kykx) < zero .or. abs(phiold_vs_kykx) < zero)
-         omega_vs_tkykx(it_runningaverage, :, :) = 0.0
-      elsewhere
-         omega_vs_tkykx(it_runningaverage, :, :) = log(phi_vs_kykx / phiold_vs_kykx) * zi / code_dt
-      end where
+      ! With <flip_flop> = True use the last two time steps (see the header), otherwise the last time step
+      if (flip_flop .and. have_phi_two_steps_ago) then
+         where (abs(phi_vs_kykx) < zero .or. abs(phi_two_steps_ago_vs_kykx) < zero)
+            omega_vs_tkykx(it_runningaverage, :, :) = 0.0
+         elsewhere
+            omega_vs_tkykx(it_runningaverage, :, :) = log(phi_vs_kykx / phi_two_steps_ago_vs_kykx) * zi &
+               / (code_time - time_two_steps_ago)
+         end where
+      else
+         where (abs(phi_vs_kykx) < zero .or. abs(phiold_vs_kykx) < zero)
+            omega_vs_tkykx(it_runningaverage, :, :) = 0.0
+         elsewhere
+            omega_vs_tkykx(it_runningaverage, :, :) = log(phi_vs_kykx / phiold_vs_kykx) * zi / code_dt
+         end where
+      end if
+      
+      ! Remember <phi^n> (the field at the start of this time step) and its time for the next time step
+      if (flip_flop) then
+         phi_two_steps_ago_vs_kykx = phiold_vs_kykx
+         time_two_steps_ago = code_time - code_dt
+         have_phi_two_steps_ago = .true.
+      end if
 
       ! Deallocate temporary arrays
       deallocate (phi_vs_kykx, phiold_vs_kykx)
       deallocate (aparavg, aparoldavg)
 
       ! End the timer
-      if (proc0) call time_message(.false., timer(:), 'calculate omega')
+      call region_end('diagnostics_calculate_omega')
 
    end subroutine calculate_omega 
 
    !=========================================================================
    !=============== WRITE OMEGA AT EVERY <NWRITE> TIME STEPS ================
    !========================================================================= 
-   subroutine write_omega_to_netcdf_file(istep, nout, timer, write_to_netcdf_file)
+   subroutine write_omega_to_netcdf_file(istep, nout, write_to_netcdf_file)
       
       ! Parallelisation
-      use job_manage, only: time_message
-      use mp, only: proc0
+      use timers, only: region_start, region_end
       
       ! Write to netCDF file
       use write_diagnostics_to_netcdf, only: write_omega_nc
@@ -186,7 +216,6 @@ contains
       integer, intent(in) :: istep  ! The current time step
       integer, intent(in) :: nout   ! The pointer in the netcdf file
       logical, intent(in) :: write_to_netcdf_file
-      real, dimension(:), intent(in out) :: timer
 
       ! Local variables
       integer :: it_runningaverage
@@ -197,7 +226,7 @@ contains
       if (.not. write_omega) return
       
       ! Start timer
-      if (proc0) call time_message(.false., timer(:), 'write omega')
+      call region_start('diagnostics_write_omega')
 
       ! Get the index of the current time point in <omega_vs_tkykx>
       it_runningaverage = mod(istep, navg) + 1
@@ -215,7 +244,7 @@ contains
       deallocate (omega_vs_kykx)
 
      ! End timer
-      if (proc0) call time_message(.false., timer(:), 'write omega')
+      call region_end('diagnostics_write_omega')
 
    end subroutine write_omega_to_netcdf_file
 
@@ -306,6 +335,8 @@ contains
       ! Allocate omega versus (<navg>, ky, kx) to calculate the running average
       allocate (omega_vs_tkykx(navg, naky, nakx)); omega_vs_tkykx = 0.0
       allocate (omega_vs_kykx(naky, nakx)); omega_vs_kykx = 0.0
+      allocate (phi_two_steps_ago_vs_kykx(naky, nakx)); phi_two_steps_ago_vs_kykx = 0.0
+      have_phi_two_steps_ago = .false.
 
       ! Open the '.omega' ascii file
       call open_omega_ascii_file(restart)
@@ -326,6 +357,7 @@ contains
       if (.not. write_omega) return
       if (allocated(omega_vs_tkykx)) deallocate (omega_vs_tkykx)
       if (allocated(omega_vs_kykx)) deallocate (omega_vs_kykx)
+      if (allocated(phi_two_steps_ago_vs_kykx)) deallocate (phi_two_steps_ago_vs_kykx)
       call close_output_file(omega_unit)
 
    end subroutine finish_diagnostics_omega
@@ -418,7 +450,7 @@ contains
       if (naky > 1) write (omega_unit, *)
 
       ! Flush the data from the buffer to the actual ascii file
-      call flush(omega_unit)
+      flush (omega_unit)
 
    end subroutine write_omega_to_ascii_file
 

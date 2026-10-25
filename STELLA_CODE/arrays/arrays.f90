@@ -9,7 +9,6 @@ module arrays
    
    ! Import variables for the response matrix
    use common_types, only: response_matrix_type
-   use mpi, only: MPI_WIN_NULL
 
    implicit none
    
@@ -54,9 +53,6 @@ module arrays
    
    ! For the reponse matrix
    public :: response_matrix
-   public :: response_window
-   public :: qn_window
-   public :: qn_zf_window
    
    !----------------------------------------------------------------------------
    ! For the Field Equations
@@ -87,11 +83,11 @@ module arrays
    !----------------------------------------------------------------------------
 
    ! Keep track of which routines have been initialised
-   logical :: initialised_wdrift
-   logical :: initialised_wstar
-   logical :: initialised_parallel_streaming
-   logical :: initialised_radial_variation
-   logical :: initialised_implicit_drifts
+   logical :: initialised_wdrift = .false.
+   logical :: initialised_wstar = .false.
+   logical :: initialised_parallel_streaming = .false.
+   logical :: initialised_radial_variation = .false.
+   logical :: initialised_implicit_drifts = .false.
    
    !----------------------------------------------------------------------------
    ! For the Gyrokinetic Equation
@@ -111,9 +107,6 @@ module arrays
    
    ! For the reponse matrix
    type(response_matrix_type), dimension(:), allocatable :: response_matrix
-   integer :: qn_window = MPI_WIN_NULL
-   integer :: qn_zf_window = MPI_WIN_NULL
-   integer :: response_window = MPI_WIN_NULL
    
    ! Variables needed for the sources and radial variation
    complex, dimension(:, :, :), allocatable :: theta ! (nakx, nakx, -nzgrid:nzgrid)
