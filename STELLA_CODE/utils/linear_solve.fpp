@@ -15,10 +15,25 @@
 ! The LAPACK routines of the precision of stella are called: d/z with double
 ! precision (the default), s/c otherwise. PLASMA needs double precision.
 !
+! Matrices smaller than <plasma_min_size> are factorised by LAPACK also with
+! PLASMA: they are only a few tiles (PLASMA's default tile size is 256), so the
+! threads of PLASMA have almost nothing to do in parallel.
+!
 ! A singular matrix is still factorised: its zero pivots, i.e., zeros on the
 ! diagonal of U, are replaced by a small number, so that the solves do not give
 ! NaNs or Infs. This is the factorisation of a nearby matrix, since LAPACK
-! leaves the column of L below a zero pivot zero.
+! leaves the column of L below a zero pivot zero. PLASMA stops at the first
+! zero pivot instead, and since the matrix is factorised in place (without a
+! copy, which would double the memory of the largest response matrices), it
+! can't hand a singular matrix over to LAPACK afterwards: a zero pivot found by
+! PLASMA aborts.
+!
+! Note that this differs from stella without PLASMA (and from earlier versions,
+! which kept a copy of the matrix): a singular matrix of size
+! >= <plasma_min_size> aborts instead of continuing with a replaced zero pivot.
+! That would amplify the corresponding mode by about 1/zero_pivot, so such a
+! run would not give meaningful results anyway. Singular matrices are expected
+! only for degenerate modes (e.g. kx = ky = 0), which are small.
 !###############################################################################
 module linear_solve
 
@@ -27,6 +42,7 @@ module linear_solve
    public :: lu_decomposition
    public :: lu_back_substitution
    public :: lu_inverse
+   public :: plasma_min_size
 
    private
 
@@ -51,6 +67,9 @@ module linear_solve
    ! The value of the zero pivots of a singular matrix
    real, parameter :: zero_pivot = 1.0e-20
 
+   ! Matrices of size n < plasma_min_size are factorised by LAPACK, see above
+   integer :: plasma_min_size = 1024
+
 contains
 
    !****************************************************************************
@@ -65,6 +84,7 @@ contains
 #ifdef PLASMA
       use, intrinsic :: iso_c_binding, only: c_int
       use plasma_interface, only: plasma_usable, plasma_dgetrf
+      use mp, only: mp_abort
 #endif
 
       implicit none
@@ -75,7 +95,6 @@ contains
 
       integer :: n, info
 #ifdef PLASMA
-      real, dimension(:, :), allocatable :: a
       integer(c_int), dimension(size(lu, 1)) :: ipiv
 #endif
 
@@ -84,17 +103,13 @@ contains
       n = size(lu, 1)
 
 #ifdef PLASMA
-      if (plasma_usable()) then
-         ! plasma_dgetrf does not return the factors of a singular matrix, which
-         ! are then computed by LAPACK
-         a = lu
+      if (plasma_usable() .and. n >= plasma_min_size) then
+         ! plasma_dgetrf stops at a zero pivot, see the top of this module
          info = plasma_dgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
-         if (info == 0) then
-            idx(1:n) = ipiv
-            d = permutation_sign(idx, n)
-            return
-         end if
-         lu = a
+         if (info /= 0) call mp_abort('lu_decomposition: singular matrix (zero pivot in PLASMA), see utils/linear_solve')
+         idx(1:n) = ipiv
+         d = permutation_sign(idx, n)
+         return
       end if
 #endif
 
@@ -113,6 +128,7 @@ contains
 #ifdef PLASMA
       use, intrinsic :: iso_c_binding, only: c_int
       use plasma_interface, only: plasma_usable, plasma_zgetrf
+      use mp, only: mp_abort
 #endif
 
       implicit none
@@ -123,7 +139,6 @@ contains
 
       integer :: n, info
 #ifdef PLASMA
-      complex, dimension(:, :), allocatable :: a
       integer(c_int), dimension(size(lu, 1)) :: ipiv
 #endif
 
@@ -132,17 +147,13 @@ contains
       n = size(lu, 1)
 
 #ifdef PLASMA
-      if (plasma_usable()) then
-         ! plasma_zgetrf does not return the factors of a singular matrix, which
-         ! are then computed by LAPACK
-         a = lu
+      if (plasma_usable() .and. n >= plasma_min_size) then
+         ! plasma_zgetrf stops at a zero pivot, see the top of this module
          info = plasma_zgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
-         if (info == 0) then
-            idx(1:n) = ipiv
-            d = permutation_sign(idx, n)
-            return
-         end if
-         lu = a
+         if (info /= 0) call mp_abort('lu_decomposition: singular matrix (zero pivot in PLASMA), see utils/linear_solve')
+         idx(1:n) = ipiv
+         d = permutation_sign(idx, n)
+         return
       end if
 #endif
 

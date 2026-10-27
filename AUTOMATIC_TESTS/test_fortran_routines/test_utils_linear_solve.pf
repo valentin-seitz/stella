@@ -3,7 +3,8 @@
 ! code of stella around them:
 !  - test_lu_*_backends and *_in_omp_loop: the factors of PLASMA (outside OpenMP parallel
 !    regions) are solved by LAPACK (inside them), so both must store them in the same way;
-!  - *_singular*: the zero pivots of a singular matrix are replaced by a small number;
+!  - *_singular*: the zero pivots of a singular matrix are replaced by a small number (by
+!    LAPACK, since PLASMA is only used for matrices of at least plasma_min_size);
 !  - *_matrix_nonsquare and real_complex: the shapes of the right-hand sides (ldb, nrhs) and
 !    the complex right-hand side of a real matrix;
 !  - *_determinant: the sign of the permutation.
@@ -18,15 +19,18 @@ module test_utils_linear_solve
 
 contains
 
-  ! PLASMA has to be initialised to be used, without PLASMA these do nothing
+  ! PLASMA has to be initialised to be used, without PLASMA these do nothing. The test
+  ! matrices are small, so PLASMA is used for all sizes, except in the singular tests
   @before
   subroutine set_up
     call stella_linear_algebra_init
+    plasma_min_size = 1
   end subroutine set_up
 
   @after
   subroutine tear_down
     call stella_linear_algebra_finish
+    plasma_min_size = 1024
   end subroutine tear_down
 
   ! Factorise A and solve A x = b, either outside or inside an OpenMP parallel region
@@ -213,6 +217,7 @@ contains
     integer, dimension(2) :: idx
     real :: d
 
+    plasma_min_size = huge(1)
     lu = reshape([cmplx(1.0), cmplx(2.0), cmplx(2.0), cmplx(4.0)], [2, 2])
     call lu_decomposition(lu, idx, d)
     @assertTrue(all(abs(lu) < huge(1.0)))
@@ -220,8 +225,8 @@ contains
     @assertTrue(abs(lu(2, 2)) > 0.0)
   end subroutine test_lu_complex_singular
 
-  ! The factors of a singular matrix come from LAPACK also with PLASMA (which stops at a zero
-  ! pivot), and the solve with them, by PLASMA, must not give NaNs either
+  ! The factors of a singular matrix come from LAPACK (PLASMA stops at a zero pivot), and the
+  ! solve with them, by PLASMA, must not give NaNs either
   @test
   subroutine test_lu_complex_singular_solve
     complex, dimension(2, 2) :: lu
@@ -229,6 +234,7 @@ contains
     integer, dimension(2) :: idx
     real :: d
 
+    plasma_min_size = huge(1)
     lu = reshape([cmplx(1.0), cmplx(2.0), cmplx(2.0), cmplx(4.0)], [2, 2])
     x = [cmplx(1.0), cmplx(2.0)]
     call lu_decomposition(lu, idx, d)
@@ -328,6 +334,7 @@ contains
     integer, dimension(2) :: idx
     real :: d
 
+    plasma_min_size = huge(1)
     lu = reshape([1.0, 2.0, 2.0, 4.0], [2, 2])
     call lu_decomposition(lu, idx, d)
     @assertTrue(all(abs(lu) < huge(1.0)))
