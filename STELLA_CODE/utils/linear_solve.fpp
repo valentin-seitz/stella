@@ -29,6 +29,14 @@
 ! (in floating point) comes from a row or column of zeros, so matrices with one
 ! are factorised by LAPACK whatever their size, which checking costs one pass
 ! over the matrix. Any other zero pivot found by PLASMA aborts.
+!
+! Note that this differs from stella without PLASMA (and from earlier versions,
+! which kept a copy of the matrix): a matrix of size >= <plasma_min_size> whose
+! rows or columns are exactly linearly dependent, without any of them being
+! zero, aborts instead of continuing with a replaced zero pivot. That would
+! amplify the corresponding mode by about 1/zero_pivot, so such a run would not
+! give meaningful results anyway. Singular matrices are expected only for
+! degenerate modes (e.g. kx = ky = 0), which are small.
 !###############################################################################
 module linear_solve
 
@@ -112,7 +120,7 @@ contains
       if (use_plasma) then
          ! plasma_dgetrf stops at a zero pivot, see the top of this module
          info = plasma_dgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
-         if (info /= 0) call mp_abort('lu_decomposition: zero pivot in PLASMA, see linear_solve')
+         if (info /= 0) call mp_abort('lu_decomposition: singular matrix (zero pivot in PLASMA), see utils/linear_solve')
          idx(1:n) = ipiv
          d = permutation_sign(idx, n)
          return
@@ -162,7 +170,7 @@ contains
       if (use_plasma) then
          ! plasma_zgetrf stops at a zero pivot, see the top of this module
          info = plasma_zgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
-         if (info /= 0) call mp_abort('lu_decomposition: zero pivot in PLASMA, see linear_solve')
+         if (info /= 0) call mp_abort('lu_decomposition: singular matrix (zero pivot in PLASMA), see utils/linear_solve')
          idx(1:n) = ipiv
          d = permutation_sign(idx, n)
          return

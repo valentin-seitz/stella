@@ -71,8 +71,11 @@ There are a few build options:
   `CMAKE_PREFIX_PATH` or pkg-config), otherwise it is compiled from the
   `EXTERNALS/plasma` submodule, which needs the CBLAS and LAPACKE libraries.
   With Make, use `USE_PLASMA=` to build without PLASMA (and optionally `PLASMA_DIR`).
-  When compiled in, PLASMA is always used, except inside OpenMP parallel
-  regions, where LAPACK is called instead.
+  When compiled in, PLASMA is used for dense matrices of size 1024 or more,
+  except inside OpenMP parallel regions; smaller matrices are factorised by
+  LAPACK. Unlike LAPACK, PLASMA stops at an exact zero pivot, so a singular
+  dense matrix of size 1024 or more aborts the run, unless it has a row or
+  column of zeros (then LAPACK factorises it, see `STELLA_CODE/utils/linear_solve.fpp`).
 
 You can turn these on or off with `-D<option name>=ON/OFF`. You can
 get a complete list of options by running the following in a build
