@@ -74,8 +74,8 @@ There are a few build options:
   When compiled in, PLASMA is used for dense matrices of size 1024 or more,
   except inside OpenMP parallel regions; smaller matrices are factorised by
   LAPACK. Unlike LAPACK, PLASMA stops at an exact zero pivot, so a singular
-  dense matrix of size 1024 or more aborts the run, unless it has a row or
-  column of zeros (then LAPACK factorises it, see `STELLA_CODE/utils/linear_solve.fpp`).
+  dense matrix of size 1024 or more aborts the run (see
+  `STELLA_CODE/utils/linear_solve.fpp`).
 
 You can turn these on or off with `-D<option name>=ON/OFF`. You can
 get a complete list of options by running the following in a build

@@ -25,18 +25,15 @@
 ! leaves the column of L below a zero pivot zero. PLASMA stops at the first
 ! zero pivot instead, and since the matrix is factorised in place (without a
 ! copy, which would double the memory of the largest response matrices), it
-! can't hand a singular matrix over to LAPACK afterwards. An exact zero pivot
-! (in floating point) comes from a row or column of zeros, so matrices with one
-! are factorised by LAPACK whatever their size, which checking costs one pass
-! over the matrix. Any other zero pivot found by PLASMA aborts.
+! can't hand a singular matrix over to LAPACK afterwards: a zero pivot found by
+! PLASMA aborts.
 !
 ! Note that this differs from stella without PLASMA (and from earlier versions,
-! which kept a copy of the matrix): a matrix of size >= <plasma_min_size> whose
-! rows or columns are exactly linearly dependent, without any of them being
-! zero, aborts instead of continuing with a replaced zero pivot. That would
-! amplify the corresponding mode by about 1/zero_pivot, so such a run would not
-! give meaningful results anyway. Singular matrices are expected only for
-! degenerate modes (e.g. kx = ky = 0), which are small.
+! which kept a copy of the matrix): a singular matrix of size
+! >= <plasma_min_size> aborts instead of continuing with a replaced zero pivot.
+! That would amplify the corresponding mode by about 1/zero_pivot, so such a
+! run would not give meaningful results anyway. Singular matrices are expected
+! only for degenerate modes (e.g. kx = ky = 0), which are small.
 !###############################################################################
 module linear_solve
 
@@ -65,11 +62,6 @@ module linear_solve
    interface lu_inverse
       module procedure lu_inverse_real
       module procedure lu_inverse_complex
-   end interface
-
-   interface has_zero_row_or_column
-      module procedure has_zero_row_or_column_real
-      module procedure has_zero_row_or_column_complex
    end interface
 
    ! The value of the zero pivots of a singular matrix
@@ -104,7 +96,6 @@ contains
       integer :: n, info
 #ifdef PLASMA
       integer(c_int), dimension(size(lu, 1)) :: ipiv
-      logical :: use_plasma
 #endif
 
       !-------------------------------------------------------------------------
@@ -113,11 +104,6 @@ contains
 
 #ifdef PLASMA
       if (plasma_usable() .and. n >= plasma_min_size) then
-         use_plasma = .not. has_zero_row_or_column(lu, n)
-      else
-         use_plasma = .false.
-      end if
-      if (use_plasma) then
          ! plasma_dgetrf stops at a zero pivot, see the top of this module
          info = plasma_dgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
          if (info /= 0) call mp_abort('lu_decomposition: singular matrix (zero pivot in PLASMA), see utils/linear_solve')
@@ -154,7 +140,6 @@ contains
       integer :: n, info
 #ifdef PLASMA
       integer(c_int), dimension(size(lu, 1)) :: ipiv
-      logical :: use_plasma
 #endif
 
       !-------------------------------------------------------------------------
@@ -163,11 +148,6 @@ contains
 
 #ifdef PLASMA
       if (plasma_usable() .and. n >= plasma_min_size) then
-         use_plasma = .not. has_zero_row_or_column(lu, n)
-      else
-         use_plasma = .false.
-      end if
-      if (use_plasma) then
          ! plasma_zgetrf stops at a zero pivot, see the top of this module
          info = plasma_zgetrf(int(n, c_int), int(n, c_int), lu, int(n, c_int), ipiv)
          if (info /= 0) call mp_abort('lu_decomposition: singular matrix (zero pivot in PLASMA), see utils/linear_solve')
@@ -222,64 +202,6 @@ contains
       end do
 
    end subroutine replace_zero_pivots_complex
-
-   !****************************************************************************
-   ! Whether the matrix has a row or a column of zeros, i.e., whether its LU
-   ! decomposition has an exact zero pivot, see the top of this module
-   !****************************************************************************
-   logical function has_zero_row_or_column_real(lu, n)
-
-      implicit none
-
-      real, dimension(:, :), intent(in) :: lu
-      integer, intent(in) :: n
-
-      logical, dimension(n) :: nonzero_row
-      logical :: nonzero_column
-      integer :: i, j
-
-      has_zero_row_or_column_real = .true.
-      nonzero_row = .false.
-      do j = 1, n
-         nonzero_column = .false.
-         do i = 1, n
-            if (lu(i, j) /= 0.0) then
-               nonzero_column = .true.
-               nonzero_row(i) = .true.
-            end if
-         end do
-         if (.not. nonzero_column) return
-      end do
-      has_zero_row_or_column_real = .not. all(nonzero_row)
-
-   end function has_zero_row_or_column_real
-
-   logical function has_zero_row_or_column_complex(lu, n)
-
-      implicit none
-
-      complex, dimension(:, :), intent(in) :: lu
-      integer, intent(in) :: n
-
-      logical, dimension(n) :: nonzero_row
-      logical :: nonzero_column
-      integer :: i, j
-
-      has_zero_row_or_column_complex = .true.
-      nonzero_row = .false.
-      do j = 1, n
-         nonzero_column = .false.
-         do i = 1, n
-            if (lu(i, j) /= 0.0) then
-               nonzero_column = .true.
-               nonzero_row(i) = .true.
-            end if
-         end do
-         if (.not. nonzero_column) return
-      end do
-      has_zero_row_or_column_complex = .not. all(nonzero_row)
-
-   end function has_zero_row_or_column_complex
 
    ! The sign of the permutation of the LU decomposition, i.e., -1 for every row swap
    pure real function permutation_sign(idx, n)
