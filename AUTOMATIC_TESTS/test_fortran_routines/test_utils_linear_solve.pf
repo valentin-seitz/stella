@@ -225,6 +225,22 @@ contains
     @assertTrue(abs(lu(2, 2)) > 0.0)
   end subroutine test_lu_complex_singular
 
+  ! A matrix with a column of zeros is factorised by LAPACK even when it is large enough for
+  ! PLASMA (plasma_min_size = 1 here), so its zero pivot is replaced as for small matrices
+  @test
+  subroutine test_lu_complex_zero_column
+    complex, dimension(3, 3) :: lu
+    integer, dimension(3) :: idx
+    real :: d
+
+    lu = reshape([cmplx(1.0), cmplx(2.0), cmplx(3.0), cmplx(0.0), cmplx(0.0), cmplx(0.0), &
+                  cmplx(4.0), cmplx(-1.0), cmplx(2.0)], [3, 3])
+    call lu_decomposition(lu, idx, d)
+    @assertTrue(all(abs(lu) < huge(1.0)))
+    @assertTrue(abs(lu(2, 2)) > 0.0)
+    @assertTrue(abs(d) == 1.0)
+  end subroutine test_lu_complex_zero_column
+
   ! The factors of a singular matrix come from LAPACK (PLASMA stops at a zero pivot), and the
   ! solve with them, by PLASMA, must not give NaNs either
   @test
